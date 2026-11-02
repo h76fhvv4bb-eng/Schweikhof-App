@@ -1,6 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from './supabase';
-import type { Anbau, Feld, Feldarbeit, FlaecheJeKultur, Hofobjekt, Kultur, Lagerbestand, NaehrstoffeJeFeld } from './typen';
+import type {
+  Anbau, Feld, Feldarbeit, FeldHinweis, FlaecheJeKultur, Hofobjekt, Kultur, Lagerbestand, Maschine, MaschinenEintrag,
+  NaehrstoffeJeFeld, Partner, WartungFaellig, Wartungsplan,
+} from './typen';
 
 export function useFelder() {
   return useQuery({
@@ -10,6 +13,7 @@ export function useFelder() {
         .from('felder')
         .select('*')
         .is('geloescht_am', null)
+        .neq('status', 'zusammengeführt')
         .order('feldnummer', { ascending: true });
       if (error) throw error;
       return data as Feld[];
@@ -72,7 +76,7 @@ export function useLager() {
 }
 
 const FELDARBEIT_SELECT =
-  'id, datum, arbeitsart, status, dauer_h, maschine, geraet, ausgefuehrt_von, ausbringung, bemerkungen, erstellt_von, version,' +
+  'id, datum, arbeitsart, status, dauer_h, maschine, geraet, ausgefuehrt_von, ausbringung, bemerkungen, erstellt_von, version, maschine_id, geraet_id, partner_id,' +
   ' feldarbeit_felder(feld_id, flaeche_m2, anbau(kulturen(name))),' +
   ' feldarbeit_mittel(artikel_id, menge_je_ha, gesamtmenge, lagerartikel(bezeichnung, einheit))';
 
@@ -129,7 +133,7 @@ export function useBenutzer() {
 }
 
 /** Nach jeder Buchung: alles neu laden, was vom Lager oder den Arbeiten abhängt. */
-export const ABHAENGIGE_DATEN = [['lager'], ['feldarbeiten'], ['feldarbeit'], ['naehrstoffe'], ['lagerjournal']];
+export const ABHAENGIGE_DATEN = [['lager'], ['feldarbeiten'], ['feldarbeit'], ['naehrstoffe'], ['lagerjournal'], ['maschinen'], ['maschineneintraege'], ['wartung']];
 
 export function useBetrieb() {
   return useQuery({
@@ -150,6 +154,79 @@ export function useHofobjekte() {
       const { data, error } = await supabase.from('hofobjekte').select('*').order('typ');
       if (error) throw error;
       return data as Hofobjekt[];
+    },
+  });
+}
+
+export function usePartner() {
+  return useQuery({
+    queryKey: ['partner'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('partner').select('*').order('art').order('name');
+      if (error) throw error;
+      return data as Partner[];
+    },
+  });
+}
+
+export function useMaschinen() {
+  return useQuery({
+    queryKey: ['maschinen'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('maschinen').select('*').order('kategorie').order('name');
+      if (error) throw error;
+      return data as Maschine[];
+    },
+  });
+}
+
+export function useWartungFaellig() {
+  return useQuery({
+    queryKey: ['wartung'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('wartung_faelligkeit').select('*');
+      if (error) throw error;
+      return data as WartungFaellig[];
+    },
+  });
+}
+
+export function useWartungsplaene(maschineId: string | undefined) {
+  return useQuery({
+    queryKey: ['wartungsplaene', maschineId],
+    enabled: !!maschineId,
+    queryFn: async () => {
+      const { data, error } = await supabase.from('wartungsplaene').select('*').eq('maschine_id', maschineId!).eq('aktiv', true);
+      if (error) throw error;
+      return data as Wartungsplan[];
+    },
+  });
+}
+
+export function useMaschinenEintraege(maschineId?: string) {
+  return useQuery({
+    queryKey: ['maschineneintraege', maschineId ?? 'alle'],
+    queryFn: async () => {
+      let q = supabase
+        .from('maschinen_eintraege')
+        .select('*, eintrag_teile(artikel_id, menge, lagerartikel(bezeichnung, einheit))')
+        .order('datum', { ascending: false })
+        .limit(300);
+      if (maschineId) q = q.eq('maschine_id', maschineId);
+      const { data, error } = await q;
+      if (error) throw error;
+      return data as unknown as MaschinenEintrag[];
+    },
+  });
+}
+
+export function useHinweise() {
+  return useQuery({
+    queryKey: ['hinweise'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('feld_hinweise').select('*').eq('aktiv', true).order('art');
+      if (error) throw error;
+      return data as FeldHinweis[];
     },
   });
 }

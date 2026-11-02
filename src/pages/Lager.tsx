@@ -6,11 +6,13 @@ import { chf, menge } from '../lib/format';
 import { csvHerunterladen, csvZahl } from '../lib/export';
 import { LAGERKATEGORIEN } from '../lib/typen';
 import { Icon } from '../components/Icon';
+import { DuengerKatalog } from '../components/DuengerKatalog';
 
 export function Lager() {
   const { darfVerwalten } = useAuth();
   const lager = useLager();
   const [kategorie, setKategorie] = useState('');
+  const [katalog, setKatalog] = useState(false);
   const liste = (lager.data ?? []).filter((a) => !kategorie || a.kategorie === kategorie);
   const knapp = liste.filter((a) => a.unter_mindestbestand);
   const wert = liste.reduce((s, a) => s + Number(a.lagerwert), 0);
@@ -36,10 +38,15 @@ export function Lager() {
           </span>
           <h1 className="m-0 text-3xl font-extrabold text-hof">Lager</h1>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <button className="knopf-leise" onClick={exportieren}>
             Excel (CSV)
           </button>
+          {darfVerwalten && (
+            <button className="knopf-leise" onClick={() => setKatalog(!katalog)}>
+              Dünger-Katalog
+            </button>
+          )}
           {darfVerwalten && (
             <Link to="/lager/neu" className="knopf no-underline">
               <Icon name="plus" /> Artikel
@@ -47,6 +54,8 @@ export function Lager() {
           )}
         </div>
       </header>
+
+      {katalog && <DuengerKatalog onFertig={() => setKatalog(false)} />}
 
       <div className="flex flex-wrap gap-2">
         {['', ...LAGERKATEGORIEN].map((k) => (

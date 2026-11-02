@@ -55,3 +55,19 @@ Grundkarten: swisstopo SWISSIMAGE (Luftbild) und Landeskarte, optional Parzellen
 Feldgrenzen werden als GeoJSON (WGS84) in `felder.geometrie` gespeichert, die Fläche geodätisch berechnet (@turf/area).
 Die Karte wird erst geladen, wenn die Hof-Ansicht geöffnet wird (eigener Code-Teil), damit die App schnell startet.
 Gebäude stehen in `hofobjekte` mit Typ, Position und optionalem Link auf eine Seite der App.
+
+## 2026-11-02 · Felder teilen und zusammenführen
+Teilen erzeugt ein neues Feld mit Verweis auf das Ursprungsfeld (`vorgaenger`); das Ursprungsfeld behält die Historie
+und wird kleiner. Kulturen ab dem laufenden Jahr werden auf den neuen Teil übertragen. Beim Zusammenführen gehen die
+anderen Felder im Zielfeld auf (Status «zusammengeführt», `zusammengefuehrt_in`), ihre Historie bleibt abrufbar.
+Auf der Karte wird mit Turf (intersect/difference/union) gerechnet, die Datenbankfunktionen sichern Flächen und Rechte.
+
+## 2026-11-02 · Maschinen, Wartung, Partner
+Wartungspläne mit Intervall in Tagen und/oder Betriebsstunden; Fälligkeit berechnet die Sicht `wartung_faelligkeit`
+aus dem letzten zugeordneten Eintrag. Einträge werden über `maschineneintrag_speichern` geschrieben, das verwendete
+Ersatzteile wie bei der Düngung genau einmal vom Lager bucht und den Stundenzähler nachführt.
+Feldarbeiten verweisen jetzt auf Maschine, Gerät und Partner; die alten Textfelder bleiben für frühere Einträge erhalten.
+
+## 2026-11-02 · Dünger-Katalog als Vorlage
+Der Katalog enthält Standardgehalte gängiger Mineraldünger als Richtwerte. Er legt normale Lagerartikel an,
+die danach frei angepasst werden. Massgebend bleibt die Deklaration des Produkts.

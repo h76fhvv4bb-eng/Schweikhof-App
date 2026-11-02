@@ -70,6 +70,22 @@ const pfade = {
       <path d="M6 12h10" />
     </>
   ),
+  traktor: (
+    <>
+      <circle cx="7" cy="17" r="3" />
+      <circle cx="18" cy="17.5" r="2.5" />
+      <path d="M4 14V9h5l2 5" />
+      <path d="M11 14h7l1-4h-6V6h-3" />
+    </>
+  ),
+  partner: (
+    <>
+      <circle cx="9" cy="8" r="3" />
+      <path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6" />
+      <circle cx="17" cy="9" r="2.5" />
+      <path d="M16 14.2c2.8.4 5 2.8 5 5.8" />
+    </>
+  ),
   suche: (
     <>
       <circle cx="11" cy="11" r="7" />

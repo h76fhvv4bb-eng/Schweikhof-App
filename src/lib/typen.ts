@@ -32,8 +32,10 @@ export interface Feld {
   nutzungsart: (typeof NUTZUNGSARTEN)[number];
   bodenart: string | null;
   hangneigung_prozent: number | null;
-  status: (typeof FELDSTATUS)[number];
+  status: (typeof FELDSTATUS)[number] | 'zusammengeführt';
   bemerkungen: string | null;
+  vorgaenger: string[];
+  zusammengefuehrt_in: string | null;
   geometrie: Polygon | MultiPolygon | null;
   flaeche_gezeichnet_m2: number | null;
   version: number;
@@ -124,6 +126,9 @@ export interface Feldarbeit {
   ausbringung: string | null;
   bemerkungen: string | null;
   erstellt_von: string | null;
+  maschine_id: string | null;
+  geraet_id: string | null;
+  partner_id: string | null;
   version: number;
   feldarbeit_felder: { feld_id: string; flaeche_m2: number; anbau: { kulturen: { name: string } | null } | null }[];
   feldarbeit_mittel: { artikel_id: string; menge_je_ha: number; gesamtmenge: number; lagerartikel: { bezeichnung: string; einheit: string } | null }[];
@@ -155,5 +160,123 @@ export interface Hofobjekt {
   laenge: number;
   link: string | null;
   bemerkungen: string | null;
+  version: number;
+}
+
+export const PARTNERARTEN = [
+  'Lohnunternehmen', 'Mechaniker/Werkstatt', 'Händler/Lieferant', 'Berater', 'Abnehmer/Käufer', 'Behörde/Kontrolle', 'Andere',
+] as const;
+
+export interface Partner {
+  id: string;
+  betrieb_id: string;
+  name: string;
+  art: (typeof PARTNERARTEN)[number];
+  kontaktperson: string | null;
+  telefon: string | null;
+  mobile: string | null;
+  email: string | null;
+  adresse: string | null;
+  leistungen: string | null;
+  bemerkungen: string | null;
+  aktiv: boolean;
+  version: number;
+}
+
+export const MASCHINENKATEGORIEN = [
+  'Traktor', 'Hoflader/Teleskoplader', 'Mähwerk', 'Kreiselheuer/Zetter', 'Schwader', 'Ladewagen', 'Presse',
+  'Kreiselegge', 'Pflug', 'Grubber', 'Sämaschine', 'Walze', 'Düngerstreuer', 'Feldspritze',
+  'Güllefass', 'Anhänger', 'Mulcher', 'Andere',
+] as const;
+/** Kategorien mit eigenem Motor (Kontrollschild, MFK, Öle, Stunden) */
+export const MIT_MOTOR = ['Traktor', 'Hoflader/Teleskoplader'];
+
+export interface Maschine {
+  id: string;
+  betrieb_id: string;
+  kategorie: (typeof MASCHINENKATEGORIEN)[number];
+  name: string;
+  hersteller: string | null;
+  modell: string | null;
+  baujahr: number | null;
+  seriennummer: string | null;
+  kennzeichen: string | null;
+  stammnummer: string | null;
+  leistung_ps: number | null;
+  leergewicht_kg: number | null;
+  gesamtgewicht_kg: number | null;
+  hoechstgeschw_kmh: number | null;
+  arbeitsbreite_m: number | null;
+  reifen_vorne: string | null;
+  reifen_hinten: string | null;
+  motoroel: string | null;
+  hydraulikoel: string | null;
+  getriebeoel: string | null;
+  tankinhalt_l: number | null;
+  mfk_faellig: string | null;
+  versicherung: string | null;
+  kaufdatum: string | null;
+  kaufpreis: number | null;
+  betriebsstunden: number | null;
+  standort_id: string | null;
+  status: 'in Betrieb' | 'ausser Betrieb' | 'verkauft';
+  bemerkungen: string | null;
+  version: number;
+}
+
+export interface Wartungsplan {
+  id: string;
+  maschine_id: string;
+  bezeichnung: string;
+  intervall_tage: number | null;
+  intervall_stunden: number | null;
+  aktiv: boolean;
+  version: number;
+}
+
+export interface WartungFaellig {
+  plan_id: string;
+  maschine_id: string;
+  bezeichnung: string;
+  intervall_tage: number | null;
+  intervall_stunden: number | null;
+  zuletzt_am: string | null;
+  zuletzt_stunden: number | null;
+  stunden_aktuell: number | null;
+  faellig_am: string | null;
+  faellig_stunden: number | null;
+  bald_faellig: boolean;
+  ueberfaellig: boolean;
+}
+
+export const EINTRAGSARTEN = ['Wartung', 'Reparatur', 'Beobachtung', 'Kontrolle'] as const;
+
+export interface MaschinenEintrag {
+  id: string;
+  maschine_id: string;
+  art: (typeof EINTRAGSARTEN)[number];
+  datum: string;
+  betriebsstunden: number | null;
+  titel: string;
+  beschreibung: string | null;
+  kosten: number | null;
+  arbeitszeit_h: number | null;
+  partner_id: string | null;
+  wartungsplan_id: string | null;
+  offen: boolean;
+  erstellt_von: string | null;
+  version: number;
+  eintrag_teile: { artikel_id: string; menge: number; lagerartikel: { bezeichnung: string; einheit: string } | null }[];
+}
+
+export interface FeldHinweis {
+  id: string;
+  betrieb_id: string;
+  feld_id: string;
+  art: 'Gefahr' | 'Hinweis' | 'Info';
+  text: string;
+  breite: number | null;
+  laenge: number | null;
+  aktiv: boolean;
   version: number;
 }

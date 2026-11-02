@@ -14,6 +14,9 @@ import { Lager } from './pages/Lager';
 import { LagerArtikel } from './pages/LagerArtikel';
 import { Naehrstoffe } from './pages/Naehrstoffe';
 import { Mehr } from './pages/Mehr';
+import { Maschinen } from './pages/Maschinen';
+import { MaschineDetail } from './pages/MaschineDetail';
+import { PartnerFormular, PartnerListe } from './pages/Partner';
 
 export function App() {
   const { session, profil, laedt } = useAuth();
@@ -45,6 +48,12 @@ export function App() {
         <Route path="lager/neu" element={<LagerArtikel />} />
         <Route path="lager/:id" element={<LagerArtikel />} />
         <Route path="mehr" element={<Mehr />} />
+        <Route path="maschinen" element={<Maschinen />} />
+        <Route path="maschinen/neu" element={<MaschineDetail />} />
+        <Route path="maschinen/:id" element={<MaschineDetail />} />
+        <Route path="partner" element={<PartnerListe />} />
+        <Route path="partner/neu" element={<PartnerFormular />} />
+        <Route path="partner/:id" element={<PartnerFormular />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

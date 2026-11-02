@@ -1,4 +1,8 @@
 import { area } from '@turf/area';
+import { difference } from '@turf/difference';
+import { feature, featureCollection } from '@turf/helpers';
+import { intersect } from '@turf/intersect';
+import { union } from '@turf/union';
 import type { MultiPolygon, Polygon } from 'geojson';
 import type { HofobjektTyp } from './typen';
 
@@ -62,7 +66,7 @@ export const GEBAEUDE: Record<HofobjektTyp, { farbe: string; link: string | null
   },
   Maschinenhalle: {
     farbe: '#FBEFD6',
-    link: null,
+    link: '/maschinen',
     svg: `<path d="M5 36 V22 C5 13 39 13 39 22 V36 Z" fill="#D99A1E" stroke="#3A2A1A" stroke-width="2"/><rect x="12" y="24" width="20" height="12" fill="#5C3D00" stroke="#3A2A1A" stroke-width="2"/><circle cx="17" cy="33" r="2.5" fill="#F0954A"/><circle cx="27" cy="33" r="3.5" fill="#F0954A"/>`,
   },
   Silo: {
@@ -94,4 +98,26 @@ export function gebaeudeHtml(typ: HofobjektTyp, name: string, gewaehlt = false):
 
 export function feldLabelHtml(name: string, kultur: string | null, flaeche: string): string {
   return `<span class="hof-feld-name">${html(name)}</span><span class="hof-feld-info">${html(kultur ?? 'keine Kultur')} · ${html(flaeche)}</span>`;
+}
+
+/** Schneidet die gezeichnete Teilfläche aus dem Feld: liefert Teil (innerhalb) und Rest. */
+export function feldTeilen(feld: Polygon | MultiPolygon, teil: Polygon | MultiPolygon) {
+  const innen = intersect(featureCollection([feature(feld), feature(teil)]));
+  const rest = difference(featureCollection([feature(feld), feature(teil)]));
+  if (!innen || !rest) return null;
+  return { teil: innen.geometry, rest: rest.geometry, teilM2: flaecheM2(innen.geometry), restM2: flaecheM2(rest.geometry) };
+}
+
+/** Vereinigt mehrere Feldgrenzen zu einer Geometrie. */
+export function felderVereinigen(geometrien: (Polygon | MultiPolygon)[]) {
+  if (geometrien.length < 2) return null;
+  const u = union(featureCollection(geometrien.map((g) => feature(g))));
+  return u ? { geometrie: u.geometry, m2: flaecheM2(u.geometry) } : null;
+}
+
+export const HINWEIS_FARBE: Record<string, string> = { Gefahr: '#C0392B', Hinweis: '#D99A1E', Info: '#2D5F86' };
+
+export function hinweisHtml(art: string): string {
+  const farbe = HINWEIS_FARBE[art] ?? '#D99A1E';
+  return `<div class="hof-hinweis" style="background:${farbe}"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M12 7v6"/><path d="M12 17h.01"/></svg></div>`;
 }

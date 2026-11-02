@@ -53,3 +53,13 @@ jobs:
           [ "$(grep -cE '^ t +\|' ausgabe2.txt)" -ge 12 ] || (echo "Zu wenige erfolgreiche Tests"; exit 1)
           grep -q "row-level security" ausgabe2.txt || (echo "Lagerbuchung durch Mitarbeiter nicht blockiert"; exit 1)
           grep -q "Keine Berechtigung, Arbeiten zu erfassen" ausgabe2.txt || (echo "Lesen-Rolle nicht blockiert"; exit 1)
+          psql -c "drop schema public cascade; create schema public; drop schema auth cascade;"
+          psql -v ON_ERROR_STOP=1 -q -f supabase/tests/00_auth_stub.sql
+          for f in supabase/migrations/*.sql; do psql -v ON_ERROR_STOP=1 -q -f "$f"; done
+          psql -q -f supabase/tests/03_maschinen_felder_test.sql 2>&1 | tee ausgabe3.txt
+          if grep -E "^ f +\|" ausgabe3.txt; then echo "Ein Test ist fehlgeschlagen"; exit 1; fi
+          [ "$(grep -cE '^ t +\|' ausgabe3.txt)" -ge 14 ] || (echo "Zu wenige erfolgreiche Tests"; exit 1)
+          grep -q "Der Teil muss kleiner sein" ausgabe3.txt || (echo "Teilen-Prüfung fehlt"; exit 1)
+          grep -q 'policy for table "maschinen"' ausgabe3.txt || (echo "Maschinen-Rechte fehlen"; exit 1)
+      - name: Einrichtungsdatei aktuell?
+        run: scripts/einrichtung_erstellen.sh | diff - supabase/einrichtung_komplett.sql || (echo "supabase/einrichtung_komplett.sql ist veraltet – scripts/einrichtung_erstellen.sh ausführen"; exit 1)

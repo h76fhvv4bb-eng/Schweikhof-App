@@ -8,10 +8,13 @@ import '@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css';
 import type { MultiPolygon, Polygon } from 'geojson';
 import { supabase, fehlertext } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
-import { useAnbau, useFelder, useHofobjekte } from '../lib/daten';
+import { useAnbau, useFelder, useHinweise, useHofobjekte, useMaschinen } from '../lib/daten';
 import { ha } from '../lib/format';
-import { GEBAEUDE, KARTEN, QUELLE, SCHWEIZ, feldLabelHtml, flaecheM2, gebaeudeHtml, ortSuchen } from '../lib/karte';
-import { HOFOBJEKT_TYPEN, type HofobjektTyp } from '../lib/typen';
+import {
+  GEBAEUDE, KARTEN, QUELLE, SCHWEIZ, feldLabelHtml, feldTeilen, felderVereinigen, flaecheM2, gebaeudeHtml, hinweisHtml, ortSuchen,
+} from '../lib/karte';
+import { HinweisListe } from '../components/FeldWerkzeuge';
+import { HOFOBJEKT_TYPEN, NUTZUNGSARTEN, type FeldHinweis, type HofobjektTyp } from '../lib/typen';
 import { Icon } from '../components/Icon';
 
 type Modus =
@@ -19,7 +22,10 @@ type Modus =
   | { art: 'zeichnen'; feldId?: string }
   | { art: 'gebaeude'; typ: HofobjektTyp }
   | { art: 'grenze'; feldId: string }
-  | { art: 'verschieben'; id: string };
+  | { art: 'verschieben'; id: string }
+  | { art: 'teilen'; feldId: string }
+  | { art: 'zusammen'; feldId: string; wahl: string[] }
+  | { art: 'hinweis'; feldId: string };
 
 type Geometrie = Polygon | MultiPolygon;
 
@@ -33,10 +39,13 @@ export default function Hofkarte() {
   const felder = useFelder();
   const anbau = useAnbau(jahr, jahr);
   const objekte = useHofobjekte();
+  const hinweise = useHinweise();
 
   const divRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
-  const ebenen = useRef<{ luftbild: L.TileLayer; karte: L.TileLayer; parzellen: L.TileLayer; felder: L.LayerGroup; gebaeude: L.LayerGroup } | null>(null);
+  const ebenen = useRef<{
+    luftbild: L.TileLayer; karte: L.TileLayer; parzellen: L.TileLayer; felder: L.LayerGroup; gebaeude: L.LayerGroup; hinweise: L.LayerGroup;
+  } | null>(null);
   const feldLayer = useRef(new Map<string, L.Polygon>());
   const markerRef = useRef(new Map<string, L.Marker>());
   const eingepasst = useRef(false);
@@ -54,6 +63,9 @@ export default function Hofkarte() {
   const [parzellen, setParzellen] = useState(false);
   const [fehler, setFehler] = useState<string | null>(null);
   const [gebaeudeWahl, setGebaeudeWahl] = useState(false);
+  const [teilSkizze, setTeilSkizze] = useState<{ feldId: string; geometrie: Geometrie } | null>(null);
+  const [neuerHinweis, setNeuerHinweis] = useState<{ feldId: string; breite: number; laenge: number } | null>(null);
+  const maschinen = useMaschinen();
 
   const kulturJeFeld = useMemo(() => new Map((anbau.data ?? []).map((a) => [a.feld_id, a.kulturen])), [anbau.data]);
 
@@ -67,7 +79,8 @@ export default function Hofkarte() {
     const parz = L.tileLayer(KARTEN.parzellen, { maxNativeZoom: 20, maxZoom: 21, minZoom: 15, opacity: 0.85, attribution: QUELLE });
     const felderGruppe = L.layerGroup().addTo(map);
     const gebaeudeGruppe = L.layerGroup().addTo(map);
-    ebenen.current = { luftbild, karte, parzellen: parz, felder: felderGruppe, gebaeude: gebaeudeGruppe };
+    const hinweisGruppe = L.layerGroup().addTo(map);
+    ebenen.current = { luftbild, karte, parzellen: parz, felder: felderGruppe, gebaeude: gebaeudeGruppe, hinweise: hinweisGruppe };
 
     map.pm.setLang('de');
     map.pm.setGlobalOptions({ snappable: true, snapDistance: 18, allowSelfIntersection: false });
@@ -77,7 +90,8 @@ export default function Hofkarte() {
       const geometrie = layer.toGeoJSON().geometry as Geometrie;
       map.removeLayer(layer);
       const m = modusRef.current;
-      setZeichnung({ geometrie, flaeche: flaecheM2(geometrie), feldId: m.art === 'zeichnen' ? m.feldId : undefined });
+      if (m.art === 'teilen') setTeilSkizze({ feldId: m.feldId, geometrie });
+      else setZeichnung({ geometrie, flaeche: flaecheM2(geometrie), feldId: m.art === 'zeichnen' ? m.feldId : undefined });
       modusRef.current = { art: 'ansehen' };
       setModusState({ art: 'ansehen' });
     });
@@ -85,6 +99,10 @@ export default function Hofkarte() {
       const m = modusRef.current;
       if (m.art === 'gebaeude') {
         setNeuerOrt({ breite: e.latlng.lat, laenge: e.latlng.lng, typ: m.typ });
+        modusRef.current = { art: 'ansehen' };
+        setModusState({ art: 'ansehen' });
+      } else if (m.art === 'hinweis') {
+        setNeuerHinweis({ feldId: m.feldId, breite: e.latlng.lat, laenge: e.latlng.lng });
         modusRef.current = { art: 'ansehen' };
         setModusState({ art: 'ansehen' });
       } else if (m.art === 'ansehen') {
@@ -123,7 +141,8 @@ export default function Hofkarte() {
     for (const f of felder.data ?? []) {
       if (!f.geometrie) continue;
       const k = kulturJeFeld.get(f.id);
-      const istGewaehlt = gewaehlt?.art === 'feld' && gewaehlt.id === f.id;
+      const imZusammen = modus.art === 'zusammen' && (modus.feldId === f.id || modus.wahl.includes(f.id));
+      const istGewaehlt = (gewaehlt?.art === 'feld' && gewaehlt.id === f.id) || imZusammen;
       const gruppe = L.geoJSON(f.geometrie, {
         style: {
           color: istGewaehlt ? '#1F4D2E' : '#FFFFFF',
@@ -140,12 +159,36 @@ export default function Hofkarte() {
       });
       polygon.on('click', (ev) => {
         L.DomEvent.stopPropagation(ev as unknown as Event);
-        if (modusRef.current.art === 'ansehen') setGewaehlt({ art: 'feld', id: f.id });
+        const m = modusRef.current;
+        if (m.art === 'ansehen') setGewaehlt({ art: 'feld', id: f.id });
+        else if (m.art === 'zusammen' && f.id !== m.feldId)
+          setModus({ ...m, wahl: m.wahl.includes(f.id) ? m.wahl.filter((x) => x !== f.id) : [...m.wahl, f.id] });
+        else if (m.art === 'hinweis' && f.id === m.feldId) {
+          setNeuerHinweis({ feldId: f.id, breite: (ev as L.LeafletMouseEvent).latlng.lat, laenge: (ev as L.LeafletMouseEvent).latlng.lng });
+          setModus({ art: 'ansehen' });
+        }
       });
       polygon.addTo(e.felder);
       feldLayer.current.set(f.id, polygon);
     }
-  }, [felder.data, kulturJeFeld, gewaehlt]);
+  }, [felder.data, kulturJeFeld, gewaehlt, modus]);
+
+  // ---------- Hinweise mit Position ----------
+  useEffect(() => {
+    const e = ebenen.current;
+    if (!e) return;
+    e.hinweise.clearLayers();
+    for (const h of hinweise.data ?? []) {
+      if (h.breite == null || h.laenge == null) continue;
+      L.marker([h.breite, h.laenge], {
+        icon: L.divIcon({ html: hinweisHtml(h.art), className: '', iconSize: [30, 30], iconAnchor: [15, 15] }),
+        title: `${h.art}: ${h.text}`,
+        keyboard: true,
+      })
+        .bindTooltip(`${h.art}: ${h.text.replace(/</g, '&lt;')}`, { direction: 'top', offset: [0, -14] })
+        .addTo(e.hinweise);
+    }
+  }, [hinweise.data]);
 
   // ---------- Gebäude zeichnen ----------
   useEffect(() => {
@@ -203,7 +246,7 @@ export default function Hofkarte() {
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
-    if (modus.art === 'zeichnen') map.pm.enableDraw('Polygon', { snappable: true });
+    if (modus.art === 'zeichnen' || modus.art === 'teilen') map.pm.enableDraw('Polygon', { snappable: true });
     else map.pm.disableDraw();
     if (modus.art === 'grenze') feldLayer.current.get(modus.feldId)?.pm.enable({ allowSelfIntersection: false, snappable: true });
     return () => {
@@ -214,13 +257,31 @@ export default function Hofkarte() {
   // Aus der Feldseite: ?zeichnen=<feldId> startet das Zeichnen für dieses Feld
   useEffect(() => {
     const id = params.get('zeichnen');
-    if (id && darfVerwalten && mapRef.current) {
-      setModus({ art: 'zeichnen', feldId: id });
+    const teil = params.get('teilen');
+    if ((id || teil) && darfVerwalten && mapRef.current) {
+      setModus(teil ? { art: 'teilen', feldId: teil } : { art: 'zeichnen', feldId: id! });
       params.delete('zeichnen');
+      params.delete('teilen');
       setParams(params, { replace: true });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params, darfVerwalten]);
+
+  async function zusammenfuehren(zielId: string, andere: string[]) {
+    const ziel = felder.data?.find((f) => f.id === zielId);
+    const weitere = (felder.data ?? []).filter((f) => andere.includes(f.id));
+    if (!ziel) return;
+    const alleGrenzen = ziel.geometrie && weitere.every((f) => f.geometrie);
+    const u = alleGrenzen ? felderVereinigen([ziel.geometrie!, ...weitere.map((f) => f.geometrie!)]) : null;
+    const summe = [ziel, ...weitere].reduce((s, f) => s + Number(f.flaeche_m2), 0);
+    if (!confirm(`${weitere.map((f) => f.name).join(', ')} in «${ziel.name}» zusammenführen? Neue Fläche ${ha(u?.m2 ?? summe)}.`)) return;
+    const { error } = await supabase.rpc('felder_zusammenfuehren', {
+      p_ziel: zielId, p_andere: andere, p_geometrie: u?.geometrie ?? null, p_flaeche_m2: u?.m2 ?? summe,
+    });
+    if (error) setFehler(fehlertext(error));
+    setModus({ art: 'ansehen' });
+    ['felder', 'anbau', 'hinweise'].forEach((k) => qc.invalidateQueries({ queryKey: [k] }));
+  }
 
   async function grenzeSpeichern(feldId: string) {
     const layer = feldLayer.current.get(feldId);
@@ -310,11 +371,21 @@ export default function Hofkarte() {
             {modus.art === 'gebaeude' && `Tippe auf die Stelle, wo «${modus.typ}» stehen soll.`}
             {modus.art === 'grenze' && 'Eckpunkte ziehen. Neue Punkte entstehen, wenn du die Mitte einer Kante ziehst.'}
             {modus.art === 'verschieben' && 'Gebäude an die richtige Stelle ziehen.'}
+            {modus.art === 'teilen' &&
+              `Zeichne die Fläche, die von «${felder.data?.find((f) => f.id === modus.feldId)?.name}» abgetrennt wird. Du darfst über den Feldrand hinaus zeichnen, es zählt nur der Teil im Feld.`}
+            {modus.art === 'zusammen' &&
+              `Tippe die Felder an, die in «${felder.data?.find((f) => f.id === modus.feldId)?.name}» aufgehen sollen (${modus.wahl.length} gewählt).`}
+            {modus.art === 'hinweis' && 'Tippe auf die Stelle im Feld, an der sich der Hinweis befindet.'}
           </span>
           <div className="flex gap-2">
             {modus.art === 'grenze' && (
               <button className="knopf flex-1" onClick={() => grenzeSpeichern(modus.feldId)}>
                 Grenze speichern
+              </button>
+            )}
+            {modus.art === 'zusammen' && modus.wahl.length > 0 && (
+              <button className="knopf flex-1" onClick={() => zusammenfuehren(modus.feldId, modus.wahl)}>
+                Zusammenführen
               </button>
             )}
             <button
@@ -341,6 +412,9 @@ export default function Hofkarte() {
               <span className="text-warn"> · gezeichnet {ha(Number(feld.flaeche_gezeichnet_m2))}</span>
             )}
           </span>
+          <div className="mt-1 flex max-h-28 flex-col gap-1 overflow-y-auto">
+            <HinweisListe hinweise={(hinweise.data ?? []).filter((h) => h.feld_id === feld.id)} />
+          </div>
           <div className="mt-2 flex flex-wrap gap-2">
             {profil?.rolle !== 'lesen' && (
               <Link to={`/erfassen?feld=${feld.id}`} className="knopf no-underline">
@@ -355,6 +429,21 @@ export default function Hofkarte() {
                 Grenze ändern
               </button>
             )}
+            {darfVerwalten && feld.geometrie && (
+              <button className="knopf-leise" onClick={() => setModus({ art: 'teilen', feldId: feld.id })}>
+                Teilen
+              </button>
+            )}
+            {darfVerwalten && (
+              <button className="knopf-leise" onClick={() => setModus({ art: 'zusammen', feldId: feld.id, wahl: [] })}>
+                Zusammenführen
+              </button>
+            )}
+            {profil?.rolle !== 'lesen' && (
+              <button className="knopf-leise" onClick={() => setModus({ art: 'hinweis', feldId: feld.id })}>
+                Hinweis setzen
+              </button>
+            )}
           </div>
         </Karte>
       )}
@@ -363,6 +452,7 @@ export default function Hofkarte() {
       {objekt && modus.art === 'ansehen' && (
         <GebaeudeKarte
           objekt={objekt}
+          maschinen={(maschinen.data ?? []).filter((m) => m.standort_id === objekt.id && m.status !== 'verkauft')}
           onSchliessen={() => setGewaehlt(null)}
           onVerschieben={() => {
             setGewaehlt(null);
@@ -380,6 +470,21 @@ export default function Hofkarte() {
           onFehler={setFehler}
           betriebId={profil!.betrieb_id}
         />
+      )}
+
+      {/* Teilung bestätigen */}
+      {teilSkizze && (
+        <TeilungBestaetigen
+          skizze={teilSkizze}
+          feld={felder.data?.find((f) => f.id === teilSkizze.feldId)}
+          onFertig={() => setTeilSkizze(null)}
+          onFehler={setFehler}
+        />
+      )}
+
+      {/* Hinweis mit Position */}
+      {neuerHinweis && (
+        <NeuerHinweis ort={neuerHinweis} betriebId={profil!.betrieb_id} onFertig={() => setNeuerHinweis(null)} onFehler={setFehler} />
       )}
 
       {/* Neues Gebäude benennen */}
@@ -603,11 +708,13 @@ function NeuesGebaeude({
 
 function GebaeudeKarte({
   objekt,
+  maschinen,
   onSchliessen,
   onVerschieben,
   onFehler,
 }: {
   objekt: { id: string; typ: HofobjektTyp; name: string; link: string | null; version: number };
+  maschinen: { id: string; name: string; kategorie: string }[];
   onSchliessen: () => void;
   onVerschieben: () => void;
   onFehler: (t: string) => void;
@@ -639,7 +746,22 @@ function GebaeudeKarte({
         <h2 className="m-0 text-xl font-extrabold">{objekt.name}</h2>
       )}
       <div className="mt-2 flex flex-wrap gap-2">
-        {ziel && ziel !== '/' && (
+        {maschinen.length > 0 && (
+          <div className="flex w-full flex-col gap-1">
+            <span className="text-xs font-bold text-leise">Standplatz für</span>
+            {maschinen.map((m) => (
+              <Link key={m.id} to={`/maschinen/${m.id}`} className="text-sm font-bold">
+                {m.name} <span className="font-normal text-leise">({m.kategorie})</span>
+              </Link>
+            ))}
+          </div>
+        )}
+        {ziel === '/maschinen' && (
+          <Link to={`/maschinen?standort=${objekt.id}`} className="knopf no-underline">
+            Maschinen hier
+          </Link>
+        )}
+        {ziel && ziel !== '/' && ziel !== '/maschinen' && (
           <Link to={ziel} className="knopf no-underline">
             {ziel === '/lager' ? 'Zum Lager' : 'Öffnen'}
           </Link>
@@ -655,6 +777,109 @@ function GebaeudeKarte({
           </>
         )}
       </div>
+    </Karte>
+  );
+}
+
+function TeilungBestaetigen({
+  skizze,
+  feld,
+  onFertig,
+  onFehler,
+}: {
+  skizze: { feldId: string; geometrie: Geometrie };
+  feld: { id: string; name: string; nutzungsart: string; geometrie: Geometrie | null } | undefined;
+  onFertig: () => void;
+  onFehler: (t: string) => void;
+}) {
+  const qc = useQueryClient();
+  const navigate = useNavigate();
+  const [name, setName] = useState(feld ? `${feld.name} Teil` : '');
+  const [nutzung, setNutzung] = useState(feld?.nutzungsart === 'Ackerland' ? 'Weide' : (feld?.nutzungsart ?? 'Ackerland'));
+  const ergebnis = feld?.geometrie ? feldTeilen(feld.geometrie, skizze.geometrie) : null;
+
+  async function speichern() {
+    if (!feld || !ergebnis) return;
+    const { data, error } = await supabase.rpc('feld_teilen', {
+      p_feld: feld.id, p_name: name.trim(), p_nutzungsart: nutzung, p_teil_m2: ergebnis.teilM2, p_rest_m2: ergebnis.restM2,
+      p_teil_geometrie: ergebnis.teil, p_rest_geometrie: ergebnis.rest,
+    });
+    if (error) return onFehler(fehlertext(error));
+    ['felder', 'anbau'].forEach((k) => qc.invalidateQueries({ queryKey: [k] }));
+    onFertig();
+    navigate(`/felder/${data as string}`);
+  }
+
+  return (
+    <Karte onSchliessen={onFertig}>
+      {!ergebnis ? (
+        <p className="m-0 font-bold">Die gezeichnete Fläche liegt nicht im Feld oder deckt es ganz ab. Bitte nochmals versuchen.</p>
+      ) : (
+        <>
+          <h2 className="m-0 text-xl font-extrabold">{feld!.name} teilen</h2>
+          <span className="text-sm">
+            Neuer Teil <strong>{ha(ergebnis.teilM2)}</strong> · bleibt <strong>{ha(ergebnis.restM2)}</strong>
+          </span>
+          <div className="mt-2 grid grid-cols-2 gap-2">
+            <label className="feld-label">
+              Name des Teils
+              <input className="eingabe" value={name} onChange={(e) => setName(e.target.value)} />
+            </label>
+            <label className="feld-label">
+              Nutzung
+              <select className="eingabe" value={nutzung} onChange={(e) => setNutzung(e.target.value)}>
+                {NUTZUNGSARTEN.map((n) => (
+                  <option key={n}>{n}</option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <button className="knopf mt-2" onClick={speichern}>
+            Feld teilen
+          </button>
+        </>
+      )}
+    </Karte>
+  );
+}
+
+function NeuerHinweis({
+  ort,
+  betriebId,
+  onFertig,
+  onFehler,
+}: {
+  ort: { feldId: string; breite: number; laenge: number };
+  betriebId: string;
+  onFertig: () => void;
+  onFehler: (t: string) => void;
+}) {
+  const qc = useQueryClient();
+  const [art, setArt] = useState<FeldHinweis['art']>('Gefahr');
+  const [text, setText] = useState('');
+  async function speichern() {
+    if (!text.trim()) return onFehler('Bitte den Hinweis beschreiben.');
+    const { error } = await supabase.from('feld_hinweise').insert({
+      betrieb_id: betriebId, feld_id: ort.feldId, art, text: text.trim(), breite: ort.breite, laenge: ort.laenge,
+    });
+    if (error) return onFehler(fehlertext(error));
+    qc.invalidateQueries({ queryKey: ['hinweise'] });
+    onFertig();
+  }
+  return (
+    <Karte onSchliessen={onFertig}>
+      <h2 className="m-0 text-xl font-extrabold">Hinweis an dieser Stelle</h2>
+      <div className="mt-2 grid grid-cols-[110px_1fr] gap-2">
+        <select className="eingabe px-2" value={art} onChange={(e) => setArt(e.target.value as FeldHinweis['art'])} aria-label="Art">
+          <option>Gefahr</option>
+          <option>Hinweis</option>
+          <option>Info</option>
+        </select>
+        <input className="eingabe" value={text} onChange={(e) => setText(e.target.value)} placeholder="z. B. Metallschacht" autoFocus aria-label="Hinweis" />
+      </div>
+      <button className="knopf mt-2" onClick={speichern}>
+        Speichern
+      </button>
     </Karte>
   );
 }

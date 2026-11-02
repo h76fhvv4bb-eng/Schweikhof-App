@@ -1,6 +1,6 @@
 # To-do-Liste
 
-Stand: 02.11.2026 (Version 0.3). Wird nach jedem Entwicklungsschritt aktualisiert.
+Stand: 02.11.2026 (Version 0.4). Wird nach jedem Entwicklungsschritt aktualisiert.
 
 ## Phase 1 – Planung
 - [x] Anforderungsanalyse, Architektur, Datenmodell, Kosten, Risiken
@@ -10,7 +10,8 @@ Stand: 02.11.2026 (Version 0.3). Wird nach jedem Entwicklungsschritt aktualisier
 - [x] Supabase-Projekt (Region Zürich) anlegen, Migration 1 einspielen
 - [x] App online auf Cloudflare (schweikhof-app.hjbfdy94n5.workers.dev)
 - [x] Migration 2 einspielen
-- [ ] Migration 3 einspielen (Hof-Ansicht)
+- [x] Migration 1–3 einspielen (komplett)
+- [ ] Migration 4 einspielen (Maschinen, Partner, Hinweise, Teilen)
 - [ ] Domain bei Jimdo klären (eigene DNS-Einträge möglich?)
 
 ## Phase 2 – Grundsystem
@@ -41,7 +42,12 @@ Stand: 02.11.2026 (Version 0.3). Wird nach jedem Entwicklungsschritt aktualisier
 - [ ] Echtes .xlsx und gestaltete PDF-Berichte
 
 ## Phase 5 bis 8
-- [ ] Maschinen und Wartung
+- [x] Maschinen, Wartungspläne, Wartung/Reparatur/Beobachtung, Ersatzteile, Standplatz
+- [x] Partner (Lohnunternehmen, Mechaniker …)
+- [x] Felder teilen/zusammenführen, Feldhinweise
+- [x] Dünger-Katalog
+- [ ] Fotos und Dokumente (Anleitungen, Rechnungen) zu Maschinen und Feldern
+- [ ] Betriebsstunden automatisch aus Feldarbeiten
 - [ ] Ernte und Verkauf
 - [ ] Aufgaben und Kalender
 - [ ] Pflanzenschutz, Backups ausserhalb Supabase, Sicherheitsprüfung, Subdomain

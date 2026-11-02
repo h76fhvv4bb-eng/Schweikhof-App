@@ -8,6 +8,7 @@ import { useFelder } from '../lib/daten';
 import { ha, haZuM2 } from '../lib/format';
 import { FELDSTATUS, NUTZUNGSARTEN, type Anbau, type Feld } from '../lib/typen';
 import { Icon } from '../components/Icon';
+import { FeldHinweise, FeldTeilenZusammenfuehren } from '../components/FeldWerkzeuge';
 
 const schema = z.object({
   feldnummer: z.string().trim().min(1, 'Feldnummer fehlt').max(20),
@@ -64,17 +65,18 @@ export function FeldFormular() {
     }
   }, [feld, neu, felder.data]);
 
+  // Historie inkl. der Felder, aus denen dieses Feld entstanden ist (Teilen/Zusammenführen)
   const historie = useQuery({
-    queryKey: ['anbau-feld', id],
-    enabled: !!id,
+    queryKey: ['anbau-feld', id, feld?.vorgaenger?.join(',')],
+    enabled: !!id && !!feld,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('anbau')
-        .select('id, feld_id, kultur_id, jahr, art, status, version, kulturen(name, farbe)')
-        .eq('feld_id', id!)
+        .select('id, feld_id, kultur_id, jahr, art, status, version, kulturen(name, farbe), felder(name)')
+        .in('feld_id', [id!, ...(feld?.vorgaenger ?? [])])
         .order('jahr', { ascending: false });
       if (error) throw error;
-      return data as unknown as Anbau[];
+      return data as unknown as (Anbau & { felder: { name: string } | null })[];
     },
   });
 
@@ -213,6 +215,8 @@ export function FeldFormular() {
         </section>
       )}
 
+      {!neu && feld && <FeldHinweise feldId={feld.id} />}
+
       {!neu && (
         <section className="karte flex flex-col gap-2">
           <h2 className="m-0 text-lg font-extrabold">Feldhistorie</h2>
@@ -223,7 +227,10 @@ export function FeldFormular() {
               <span className="rounded-lg px-2 py-1 text-sm font-bold" style={{ background: a.kulturen?.farbe }}>
                 {a.kulturen?.name}
               </span>
-              <span className="text-xs text-leise">{a.status === 'ist' ? 'Ist' : 'Plan'}</span>
+              <span className="text-xs text-leise">
+                {a.status === 'ist' ? 'Ist' : 'Plan'}
+                {a.feld_id !== id && a.felder && ` · auf ${a.felder.name}`}
+              </span>
             </div>
           ))}
           <Link to="/fruchtfolge" className="text-sm font-bold text-hof">
@@ -231,6 +238,8 @@ export function FeldFormular() {
           </Link>
         </section>
       )}
+
+      {!neu && feld && darfVerwalten && <FeldTeilenZusammenfuehren feld={feld} />}
     </div>
   );
 }

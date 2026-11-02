@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useAuth } from '../lib/auth';
-import { useFeldarbeiten, useFelder, useFlaecheJeKultur, useLager } from '../lib/daten';
+import { useFeldarbeiten, useFelder, useFlaecheJeKultur, useLager, useMaschinen, useMaschinenEintraege, useWartungFaellig } from '../lib/daten';
+import { tageBis } from './Maschinen';
 import { datum, ha, menge, wochentagDatum } from '../lib/format';
 import { Icon } from '../components/Icon';
 
@@ -15,6 +16,19 @@ export function Heute() {
   const geplant = (arbeiten.data ?? []).filter((a) => a.status === 'geplant').reverse().slice(0, 3);
   const letzte = (arbeiten.data ?? []).filter((a) => a.status === 'erledigt').slice(0, 4);
   const feldName = new Map((felder.data ?? []).map((f) => [f.id, f.name]));
+  const maschinen = useMaschinen();
+  const wartung = useWartungFaellig();
+  const maschEintraege = useMaschinenEintraege();
+  const maschName = (id: string) => maschinen.data?.find((m) => m.id === id)?.name ?? '';
+  const maschinenHinweise = [
+    ...(wartung.data ?? []).filter((w) => w.bald_faellig || w.ueberfaellig).map((w) => ({
+      id: w.plan_id, maschine: w.maschine_id, text: `${w.bezeichnung} ${w.ueberfaellig ? 'überfällig' : 'bald fällig'}`, rot: w.ueberfaellig,
+    })),
+    ...(maschinen.data ?? [])
+      .filter((m) => m.status === 'in Betrieb' && (tageBis(m.mfk_faellig) ?? 999) <= 60)
+      .map((m) => ({ id: `mfk-${m.id}`, maschine: m.id, text: `MFK ${(tageBis(m.mfk_faellig) ?? 0) < 0 ? 'abgelaufen' : 'bald'}`, rot: (tageBis(m.mfk_faellig) ?? 0) < 0 })),
+    ...(maschEintraege.data ?? []).filter((e) => e.offen).map((e) => ({ id: e.id, maschine: e.maschine_id, text: e.titel, rot: false })),
+  ];
 
   const aktive = (felder.data ?? []).filter((f) => f.status === 'bewirtschaftet');
   const gesamtM2 = aktive.reduce((s, f) => s + Number(f.flaeche_m2), 0);
@@ -83,6 +97,20 @@ export function Heute() {
               <span>
                 {menge(Number(a.bestand), a.einheit)} / min. {menge(Number(a.mindestbestand), a.einheit)}
               </span>
+            </span>
+          ))}
+        </Link>
+      )}
+
+      {maschinenHinweise.length > 0 && (
+        <Link to="/maschinen" className="karte flex flex-col gap-2 text-text no-underline">
+          <span className="flex items-center gap-2 text-xs font-extrabold text-warn">
+            <Icon name="traktor" groesse={16} /> MASCHINEN
+          </span>
+          {maschinenHinweise.slice(0, 5).map((h) => (
+            <span key={h.id} className="flex justify-between gap-2 text-sm">
+              <span className="font-bold">{maschName(h.maschine)}</span>
+              <span className={h.rot ? 'font-bold text-fehler' : ''}>{h.text}</span>
             </span>
           ))}
         </Link>

@@ -3,7 +3,9 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase, fehlertext } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
-import { ABHAENGIGE_DATEN, useBenutzer, useFeldarbeit, useFelder, useLager } from '../lib/daten';
+import { ABHAENGIGE_DATEN, useBenutzer, useFeldarbeit, useFelder, useHinweise, useLager, useMaschinen, usePartner } from '../lib/daten';
+import { HinweisListe } from '../components/FeldWerkzeuge';
+import { MIT_MOTOR } from '../lib/typen';
 import { ha, heuteIso, menge, zahlAus } from '../lib/format';
 import { ARBEITSARTEN, type Arbeitsart, type Lagerbestand } from '../lib/typen';
 import { Icon } from '../components/Icon';
@@ -39,6 +41,12 @@ export function Erfassen() {
   const [dauer, setDauer] = useState('');
   const [maschine, setMaschine] = useState('');
   const [geraet, setGeraet] = useState('');
+  const [maschineId, setMaschineId] = useState('');
+  const [geraetId, setGeraetId] = useState('');
+  const [partnerId, setPartnerId] = useState('');
+  const maschinen = useMaschinen();
+  const partner = usePartner();
+  const hinweise = useHinweise();
   const [person, setPerson] = useState('');
   const [ausbringung, setAusbringung] = useState('');
   const [bemerkungen, setBemerkungen] = useState('');
@@ -62,10 +70,13 @@ export function Erfassen() {
     setDauer(a.dauer_h == null ? '' : String(a.dauer_h));
     setMaschine(a.maschine ?? '');
     setGeraet(a.geraet ?? '');
+    setMaschineId(a.maschine_id ?? '');
+    setGeraetId(a.geraet_id ?? '');
+    setPartnerId(a.partner_id ?? '');
     setPerson(a.ausgefuehrt_von ?? '');
     setAusbringung(a.ausbringung ?? '');
     setBemerkungen(a.bemerkungen ?? '');
-    setMehr(!!(a.dauer_h || a.maschine || a.geraet || a.bemerkungen || a.ausbringung));
+    setMehr(!!(a.dauer_h || a.maschine || a.geraet || a.bemerkungen || a.ausbringung || a.maschine_id || a.geraet_id || a.partner_id));
   }, [vorhanden.data, felder.data]);
 
   useEffect(() => {
@@ -80,6 +91,9 @@ export function Erfassen() {
   }, [id, params]);
 
   const aktiveFelder = (felder.data ?? []).filter((f) => f.status === 'bewirtschaftet');
+  const inBetrieb = (maschinen.data ?? []).filter((m) => m.status === 'in Betrieb');
+  const zugmaschinen = inBetrieb.filter((m) => MIT_MOTOR.includes(m.kategorie));
+  const geraete = inBetrieb.filter((m) => !MIT_MOTOR.includes(m.kategorie));
   const flaecheM2 = useMemo(
     () =>
       Object.entries(gewaehlt).reduce((s, [fid, teil]) => {
@@ -140,6 +154,9 @@ export function Erfassen() {
         dauer_h: d,
         maschine,
         geraet,
+        maschine_id: maschineId || null,
+        geraet_id: geraetId || null,
+        partner_id: partnerId || null,
         ausgefuehrt_von: person || null,
         ausbringung,
         bemerkungen,
@@ -231,6 +248,11 @@ export function Erfassen() {
               </Link>
             )}
           </div>
+          {Object.keys(gewaehlt).length > 0 && (
+            <div className="flex flex-col gap-1">
+              <HinweisListe hinweise={(hinweise.data ?? []).filter((h) => h.feld_id in gewaehlt && h.art !== 'Info')} />
+            </div>
+          )}
           {Object.keys(gewaehlt).length > 0 && mehr && (
             <div className="karte flex flex-col gap-2">
               <span className="text-xs font-bold text-leise">Nur Teilfläche bearbeitet? (leer = ganzes Feld)</span>
@@ -373,11 +395,44 @@ export function Erfassen() {
                 </label>
                 <label className="feld-label">
                   Maschine
-                  <input className="eingabe" value={maschine} onChange={(e) => setMaschine(e.target.value)} placeholder="z. B. Traktor" />
+                  {zugmaschinen.length > 0 ? (
+                    <select className="eingabe" value={maschineId} onChange={(e) => setMaschineId(e.target.value)}>
+                      <option value="">–</option>
+                      {zugmaschinen.map((m) => (
+                        <option key={m.id} value={m.id}>
+                          {m.name}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input className="eingabe" value={maschine} onChange={(e) => setMaschine(e.target.value)} placeholder="z. B. Traktor" />
+                  )}
                 </label>
                 <label className="feld-label">
                   Gerät
-                  <input className="eingabe" value={geraet} onChange={(e) => setGeraet(e.target.value)} placeholder="z. B. Düngerstreuer" />
+                  {geraete.length > 0 ? (
+                    <select className="eingabe" value={geraetId} onChange={(e) => setGeraetId(e.target.value)}>
+                      <option value="">–</option>
+                      {geraete.map((m) => (
+                        <option key={m.id} value={m.id}>
+                          {m.name}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input className="eingabe" value={geraet} onChange={(e) => setGeraet(e.target.value)} placeholder="z. B. Düngerstreuer" />
+                  )}
+                </label>
+                <label className="feld-label col-span-2">
+                  Ausgeführt durch Lohnunternehmen / Partner
+                  <select className="eingabe" value={partnerId} onChange={(e) => setPartnerId(e.target.value)}>
+                    <option value="">– eigener Betrieb –</option>
+                    {(partner.data ?? []).filter((p) => p.aktiv).map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name} ({p.art})
+                      </option>
+                    ))}
+                  </select>
                 </label>
               </div>
               {arbeitsart === 'Düngen' && (

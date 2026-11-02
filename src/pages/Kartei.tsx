@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useBenutzer, useBetrieb, useFeldarbeiten, useFelder } from '../lib/daten';
+import { useBenutzer, useBetrieb, useFeldarbeiten, useFelder, useMaschinen, usePartner } from '../lib/daten';
 import { datum, ha, menge } from '../lib/format';
 import { csvHerunterladen, csvZahl } from '../lib/export';
 import { ARBEITSARTEN } from '../lib/typen';
@@ -16,6 +16,10 @@ export function Kartei() {
   const arbeiten = useFeldarbeiten(jahr);
   const felder = useFelder();
   const benutzer = useBenutzer();
+  const maschinen = useMaschinen();
+  const partner = usePartner();
+  const maschinenName = (id: string | null, text: string | null) => (id ? (maschinen.data?.find((m) => m.id === id)?.name ?? text) : text);
+  const partnerName = (id: string | null) => (id ? partner.data?.find((p) => p.id === id)?.name : undefined);
 
   const feldName = useMemo(() => new Map((felder.data ?? []).map((f) => [f.id, f.name])), [felder.data]);
   const personName = useMemo(() => new Map((benutzer.data ?? []).map((b) => [b.id, b.name])), [benutzer.data]);
@@ -51,8 +55,9 @@ export function Kartei() {
             m ? csvZahl(anteil) : '',
             m?.lagerartikel?.einheit ?? '',
             a.ausbringung ?? '',
-            a.maschine ?? '',
-            a.geraet ?? '',
+            maschinenName(a.maschine_id, a.maschine) ?? '',
+            maschinenName(a.geraet_id, a.geraet) ?? '',
+            partnerName(a.partner_id) ?? '',
             a.ausgefuehrt_von ? (personName.get(a.ausgefuehrt_von) ?? '') : '',
             csvZahl(a.dauer_h),
             a.bemerkungen ?? '',
@@ -63,7 +68,7 @@ export function Kartei() {
     csvHerunterladen(
       `ackerschlagkartei_${jahr}.csv`,
       `${betrieb.data?.name ?? 'Betrieb'} · Ackerschlagkartei ${jahr}`,
-      ['Datum', 'Feld', 'Kultur', 'Arbeit', 'Status', 'Fläche ha', 'Mittel', 'Menge/ha', 'Menge Feld', 'Einheit', 'Ausbringung', 'Maschine', 'Gerät', 'Person', 'Dauer h', 'Bemerkungen'],
+      ['Datum', 'Feld', 'Kultur', 'Arbeit', 'Status', 'Fläche ha', 'Mittel', 'Menge/ha', 'Menge Feld', 'Einheit', 'Ausbringung', 'Maschine', 'Gerät', 'Lohnunternehmen/Partner', 'Person', 'Dauer h', 'Bemerkungen'],
       zeilen,
     );
   }
@@ -166,9 +171,9 @@ export function Kartei() {
               {m.lagerartikel?.bezeichnung}: {menge(m.menge_je_ha, `${m.lagerartikel?.einheit}/ha`)} · total {menge(m.gesamtmenge, m.lagerartikel?.einheit)}
             </span>
           ))}
-          {(a.maschine || a.geraet || a.ausgefuehrt_von || a.dauer_h) && (
+          {(a.maschine || a.geraet || a.maschine_id || a.geraet_id || a.partner_id || a.ausgefuehrt_von || a.dauer_h) && (
             <span className="text-xs text-leise">
-              {[a.ausgefuehrt_von && personName.get(a.ausgefuehrt_von), a.maschine, a.geraet, a.dauer_h && `${menge(a.dauer_h)} h`]
+              {[a.ausgefuehrt_von && personName.get(a.ausgefuehrt_von), partnerName(a.partner_id), maschinenName(a.maschine_id, a.maschine), maschinenName(a.geraet_id, a.geraet), a.dauer_h && `${menge(a.dauer_h)} h`]
                 .filter(Boolean)
                 .join(' · ')}
             </span>
