@@ -193,6 +193,26 @@ export function FeldFormular() {
         )}
       </form>
 
+      {!neu && feld && (
+        <section className="karte flex flex-col gap-2">
+          <h2 className="m-0 text-lg font-extrabold">Feldgrenze</h2>
+          <p className="m-0 text-sm text-leise">
+            {feld.geometrie
+              ? `Auf der Karte eingezeichnet: ${ha(Number(feld.flaeche_gezeichnet_m2))}${
+                  feld.flaeche_gezeichnet_m2 && Math.abs(Number(feld.flaeche_gezeichnet_m2) - Number(feld.flaeche_m2)) > 100
+                    ? ` (erfasst sind ${ha(Number(feld.flaeche_m2))})`
+                    : ''
+                }`
+              : 'Noch nicht auf der Karte eingezeichnet.'}
+          </p>
+          {darfVerwalten && (
+            <Link to={`/felder?zeichnen=${feld.id}`} className="knopf-leise self-start no-underline">
+              {feld.geometrie ? 'Neu zeichnen' : 'Auf der Karte zeichnen'}
+            </Link>
+          )}
+        </section>
+      )}
+
       {!neu && (
         <section className="karte flex flex-col gap-2">
           <h2 className="m-0 text-lg font-extrabold">Feldhistorie</h2>

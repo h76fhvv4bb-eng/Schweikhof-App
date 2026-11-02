@@ -1,6 +1,6 @@
 # To-do-Liste
 
-Stand: 02.11.2026 (Version 0.2). Wird nach jedem Entwicklungsschritt aktualisiert.
+Stand: 02.11.2026 (Version 0.3). Wird nach jedem Entwicklungsschritt aktualisiert.
 
 ## Phase 1 – Planung
 - [x] Anforderungsanalyse, Architektur, Datenmodell, Kosten, Risiken
@@ -9,7 +9,8 @@ Stand: 02.11.2026 (Version 0.2). Wird nach jedem Entwicklungsschritt aktualisier
 - [x] GitHub-Repository
 - [x] Supabase-Projekt (Region Zürich) anlegen, Migration 1 einspielen
 - [x] App online auf Cloudflare (schweikhof-app.hjbfdy94n5.workers.dev)
-- [ ] Migration 2 einspielen
+- [x] Migration 2 einspielen
+- [ ] Migration 3 einspielen (Hof-Ansicht)
 - [ ] Domain bei Jimdo klären (eigene DNS-Einträge möglich?)
 
 ## Phase 2 – Grundsystem
@@ -28,7 +29,7 @@ Stand: 02.11.2026 (Version 0.2). Wird nach jedem Entwicklungsschritt aktualisier
 - [ ] Import aus Excel (Fruchtkalender, Fruchtfolge) – Dateien vom Betrieb nötig
 - [ ] Parzellen zu Feldern zuordnen
 - [ ] Fotos zu Feldern
-- [ ] Karte mit swisstopo, Feldgrenzen auf Luftbild zeichnen
+- [x] Hof-Ansicht mit swisstopo-Luftbild, Feldgrenzen zeichnen/ändern, Gebäude mit Links, Schalter Hof-Ansicht/Liste
 - [ ] Export PDF und echtes .xlsx
 
 ## Phase 4 – Arbeiten, Lager, Düngung

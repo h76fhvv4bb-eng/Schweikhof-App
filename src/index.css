@@ -32,3 +32,36 @@ body {
   .feld-label { @apply flex flex-col gap-1 text-xs font-bold text-leise; }
   .eingabe { @apply min-h-12 rounded-xl border-2 border-linie bg-white px-3 text-base font-bold text-text outline-none focus:border-hof; }
 }
+
+/* ---------- Hof-Ansicht (Karte) ---------- */
+.leaflet-container { font-family: var(--font-sans); }
+.hof-feld-label {
+  background: rgba(255, 255, 255, 0.94);
+  border: 0;
+  border-radius: 14px;
+  padding: 3px 10px;
+  box-shadow: 0 2px 0 rgba(30, 42, 32, 0.25);
+  color: var(--color-text);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.15;
+  pointer-events: none;
+}
+.hof-feld-label::before { display: none; }
+.hof-feld-name { font-weight: 800; font-size: 13px; }
+.hof-feld-info { font-weight: 600; font-size: 11px; color: var(--color-leise); }
+.hof-gebaeude { display: flex; flex-direction: column; align-items: center; gap: 2px; cursor: pointer; }
+.hof-gebaeude-bild {
+  width: 56px; height: 56px; border-radius: 18px;
+  display: flex; align-items: center; justify-content: center;
+  border: 3px solid #FFFFFF;
+  box-shadow: 0 4px 0 rgba(30, 42, 32, 0.35);
+  transition: transform 0.15s;
+}
+.hof-gebaeude:hover .hof-gebaeude-bild { transform: translateY(-2px); }
+.hof-gebaeude.gewaehlt .hof-gebaeude-bild { border-color: var(--color-hof); transform: scale(1.08); }
+.hof-gebaeude-name {
+  background: var(--color-hof); color: #FFFFFF; font-weight: 800; font-size: 12px;
+  padding: 2px 8px; border-radius: 10px; white-space: nowrap; max-width: 120px; overflow: hidden; text-overflow: ellipsis;
+}

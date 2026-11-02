@@ -48,3 +48,10 @@ Die Nährstoffübersicht zeigt ausgebrachte und geplante Mengen, ausdrücklich k
 
 ## 2026-11-02 · Maschinen vorerst als Text
 Bis das Maschinenmodul steht, werden Maschine und Gerät bei Feldarbeiten als Text erfasst. Das Maschinenmodul ersetzt das später durch Verknüpfungen.
+
+## 2026-11-02 · Hof-Ansicht mit Leaflet und swisstopo
+Karte mit Leaflet (klein, stabil, gute Touch-Bedienung) und Leaflet-Geoman (Zeichnen/Bearbeiten, Einrasten an Punkten).
+Grundkarten: swisstopo SWISSIMAGE (Luftbild) und Landeskarte, optional Parzellengrenzen der amtlichen Vermessung.
+Feldgrenzen werden als GeoJSON (WGS84) in `felder.geometrie` gespeichert, die Fläche geodätisch berechnet (@turf/area).
+Die Karte wird erst geladen, wenn die Hof-Ansicht geöffnet wird (eigener Code-Teil), damit die App schnell startet.
+Gebäude stehen in `hofobjekte` mit Typ, Position und optionalem Link auf eine Seite der App.

@@ -1,3 +1,5 @@
+import type { MultiPolygon, Polygon } from 'geojson';
+
 export type Rolle = 'administrator' | 'betriebsleiter' | 'mitarbeiter' | 'lesen';
 
 export interface Profil {
@@ -32,6 +34,8 @@ export interface Feld {
   hangneigung_prozent: number | null;
   status: (typeof FELDSTATUS)[number];
   bemerkungen: string | null;
+  geometrie: Polygon | MultiPolygon | null;
+  flaeche_gezeichnet_m2: number | null;
   version: number;
 }
 
@@ -137,4 +141,19 @@ export interface NaehrstoffeJeFeld {
   p2o5_kg: number;
   k2o_kg: number;
   anzahl_gaben: number;
+}
+
+export const HOFOBJEKT_TYPEN = ['Hof', 'Wohnhaus', 'Scheune', 'Lager', 'Düngerlager', 'Maschinenhalle', 'Silo', 'Werkstatt', 'Andere'] as const;
+export type HofobjektTyp = (typeof HOFOBJEKT_TYPEN)[number];
+
+export interface Hofobjekt {
+  id: string;
+  betrieb_id: string;
+  typ: HofobjektTyp;
+  name: string;
+  breite: number;
+  laenge: number;
+  link: string | null;
+  bemerkungen: string | null;
+  version: number;
 }

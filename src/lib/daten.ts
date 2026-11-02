@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from './supabase';
-import type { Anbau, Feld, Feldarbeit, FlaecheJeKultur, Kultur, Lagerbestand, NaehrstoffeJeFeld } from './typen';
+import type { Anbau, Feld, Feldarbeit, FlaecheJeKultur, Hofobjekt, Kultur, Lagerbestand, NaehrstoffeJeFeld } from './typen';
 
 export function useFelder() {
   return useQuery({
@@ -139,6 +139,17 @@ export function useBetrieb() {
       const { data, error } = await supabase.from('betriebe').select('id, name, kanton').maybeSingle();
       if (error) throw error;
       return data as { id: string; name: string; kanton: string } | null;
+    },
+  });
+}
+
+export function useHofobjekte() {
+  return useQuery({
+    queryKey: ['hofobjekte'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('hofobjekte').select('*').order('typ');
+      if (error) throw error;
+      return data as Hofobjekt[];
     },
   });
 }

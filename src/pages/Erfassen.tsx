@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase, fehlertext } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
@@ -71,6 +71,13 @@ export function Erfassen() {
   useEffect(() => {
     if (!id && profil) setPerson(profil.id);
   }, [id, profil]);
+
+  // Aus der Hof-Ansicht: ?feld=<id> wählt das Feld vor
+  const [params] = useSearchParams();
+  useEffect(() => {
+    const feld = params.get('feld');
+    if (!id && feld) setGewaehlt({ [feld]: '' });
+  }, [id, params]);
 
   const aktiveFelder = (felder.data ?? []).filter((f) => f.status === 'bewirtschaftet');
   const flaecheM2 = useMemo(

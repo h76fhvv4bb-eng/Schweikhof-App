@@ -1,9 +1,20 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { lazy, Suspense, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useAnbau, useFelder } from '../lib/daten';
 import { useAuth } from '../lib/auth';
 import { ha } from '../lib/format';
 import { Icon } from '../components/Icon';
+
+const Hofkarte = lazy(() => import('./Hofkarte'));
+
+type Ansicht = 'hof' | 'liste';
+function gespeicherteAnsicht(): Ansicht {
+  try {
+    return localStorage.getItem('felderAnsicht') === 'liste' ? 'liste' : 'hof';
+  } catch {
+    return 'hof';
+  }
+}
 
 export function Felder() {
   const { darfVerwalten } = useAuth();
@@ -11,6 +22,16 @@ export function Felder() {
   const felder = useFelder();
   const anbau = useAnbau(jahr, jahr);
   const [suche, setSuche] = useState('');
+  const [params] = useSearchParams();
+  const [ansicht, setAnsichtState] = useState<Ansicht>(() => (params.has('zeichnen') ? 'hof' : gespeicherteAnsicht()));
+  const setAnsicht = (a: Ansicht) => {
+    setAnsichtState(a);
+    try {
+      localStorage.setItem('felderAnsicht', a);
+    } catch {
+      /* Speicher nicht verfügbar: Wahl gilt nur bis zum Neuladen */
+    }
+  };
 
   const kulturJeFeld = new Map((anbau.data ?? []).map((a) => [a.feld_id, a.kulturen]));
   const liste = (felder.data ?? []).filter((f) =>
@@ -34,6 +55,31 @@ export function Felder() {
         )}
       </header>
 
+      <div role="tablist" aria-label="Ansicht" className="grid grid-cols-2 gap-1 rounded-2xl bg-[#E7E1D0] p-1">
+        {(
+          [
+            ['hof', 'Hof-Ansicht'],
+            ['liste', 'Liste'],
+          ] as const
+        ).map(([a, text]) => (
+          <button
+            key={a}
+            role="tab"
+            aria-selected={ansicht === a}
+            onClick={() => setAnsicht(a)}
+            className={`min-h-10 rounded-xl text-sm font-extrabold ${ansicht === a ? 'bg-white text-hof' : 'text-[#4D5B50]'}`}
+          >
+            {text}
+          </button>
+        ))}
+      </div>
+
+      {ansicht === 'hof' ? (
+        <Suspense fallback={<p className="text-leise">Lade Karte …</p>}>
+          <Hofkarte />
+        </Suspense>
+      ) : (
+        <>
       <label className="karte flex items-center gap-2 py-0">
         <Icon name="suche" className="text-leise" />
         <span className="sr-only">Feld suchen</span>
@@ -70,6 +116,8 @@ export function Felder() {
           </Link>
         );
       })}
+        </>
+      )}
     </div>
   );
 }
