@@ -168,3 +168,10 @@ Adresse und IBAN in den Betriebsangaben stehen. QR-IBAN wird nicht unterstützt.
 Fotos liegen im privaten Supabase-Storage-Bucket «fotos», Ordner je Betrieb; Zugriff nur für den eigenen Betrieb
 (signierte Links, 1 Stunde gültig). Bilder werden vor dem Hochladen im Browser auf max. 1600 px verkleinert.
 Die Tabelle `fotos` verknüpft sie mit Maschine, Eintrag (Wartung/Reparatur/Beobachtung) oder Feld.
+
+## 2026-11-02 · Abschlussangaben beim direkten Erfassen
+Auch ohne vorherige Planung fragt die Erfassung einer erledigten Arbeit nach Dauer, Person, Traktor/Gerät, Zählerständen
+und Beobachtung. Gespeichert wird zuerst die Arbeit (`feldarbeit_speichern`), dann `feldarbeit_abschluss` (Zähler nur nach
+oben, Beobachtung als offener Punkt bei der Maschine; beim erneuten Speichern wird dieser Punkt nachgeführt statt verdoppelt).
+Betriebsmittel können pro ha oder als Gesamtmenge auf die gewählte Fläche eingegeben werden; gespeichert wird immer die
+Menge pro ha, die Gesamtmenge rechnet die Datenbank daraus.

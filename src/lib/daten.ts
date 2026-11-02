@@ -76,7 +76,7 @@ export function useLager() {
 }
 
 const FELDARBEIT_SELECT =
-  'id, datum, arbeitsart, status, dauer_h, maschine, geraet, ausgefuehrt_von, ausbringung, bemerkungen, erstellt_von, version, maschine_id, geraet_id, partner_id, maschine_stunden, maschine_km, geraet_stunden, beobachtung, mitarbeiter_id, vorgaenger_id,' +
+  'id, datum, arbeitsart, status, dauer_h, maschine, geraet, ausgefuehrt_von, ausbringung, bemerkungen, erstellt_von, version, maschine_id, geraet_id, partner_id, maschine_stunden, maschine_km, geraet_stunden, beobachtung, beobachtung_eintrag_id, mitarbeiter_id, vorgaenger_id,' +
   ' feldarbeit_felder(feld_id, flaeche_m2, anbau(kulturen(name))),' +
   ' feldarbeit_mittel(artikel_id, menge_je_ha, gesamtmenge, vom_lager, lagerartikel(bezeichnung, einheit))';
 

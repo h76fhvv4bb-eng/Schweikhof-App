@@ -10,6 +10,7 @@ import { MIT_MOTOR } from '../lib/typen';
 import { ha, heuteIso, menge, zahlAus } from '../lib/format';
 import { ARBEITSARTEN, type Arbeitsart, type Lagerbestand } from '../lib/typen';
 import { Icon } from '../components/Icon';
+import { ZaehlerFelder, pruefeZaehler } from '../components/Zaehler';
 import { NEU, NeuerArtikelDialog } from '../components/Schnellanlage';
 
 const HAUPTARTEN: Arbeitsart[] = ['Pflügen', 'Grubbern', 'Säen', 'Düngen', 'Pflanzenschutz', 'Mähen', 'Pressen', 'Ernten'];
@@ -26,7 +27,15 @@ interface MittelZeile {
   artikel_id: string;
   menge_je_ha: string;
   vom_lager: boolean;
+  total?: string; // Gesamtmenge, wenn so eingegeben (z. B. 50 kg auf die gewählte Fläche)
 }
+
+/** Menge pro ha als Text, aus Gesamtmenge und Fläche */
+const proHaAusTotal = (total: string, m2: number) => {
+  const t = zahlAus(total);
+  if (t == null || m2 <= 0) return '';
+  return String(Math.round((t / (m2 / 10000)) * 10000) / 10000);
+};
 
 export function Erfassen() {
   const { id } = useParams();
@@ -59,6 +68,7 @@ export function Erfassen() {
   const hinweise = useHinweise();
   const [person, setPerson] = useState(''); // Mitarbeiter-ID
   const [vorgaengerId, setVorgaengerId] = useState('');
+  const [abschluss, setAbschluss] = useState({ m_stunden: '', m_km: '', g_stunden: '', beobachtung: '', melden: '' });
   const [ausbringung, setAusbringung] = useState('');
   const [bemerkungen, setBemerkungen] = useState('');
   const [fehler, setFehler] = useState<string | null>(null);
@@ -87,6 +97,13 @@ export function Erfassen() {
     setPartnerId(a.partner_id ?? '');
     setPerson(a.mitarbeiter_id ?? mitarbeiter.data?.find((m) => m.benutzer_id === a.ausgefuehrt_von)?.id ?? '');
     setVorgaengerId(a.vorgaenger_id ?? '');
+    setAbschluss({
+      m_stunden: a.maschine_stunden != null ? String(a.maschine_stunden) : '',
+      m_km: a.maschine_km != null ? String(a.maschine_km) : '',
+      g_stunden: a.geraet_stunden != null ? String(a.geraet_stunden) : '',
+      beobachtung: a.beobachtung ?? '',
+      melden: '',
+    });
     setAusbringung(a.ausbringung ?? '');
     setBemerkungen(a.bemerkungen ?? '');
     setMehr(!!(a.dauer_h || a.maschine || a.geraet || a.bemerkungen || a.ausbringung || a.maschine_id || a.geraet_id || a.partner_id));
@@ -151,6 +168,13 @@ export function Erfassen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [zeigeMittel]);
 
+  // Wurde die Gesamtmenge eingegeben, bei geänderter Fläche die Menge pro ha neu rechnen
+  useEffect(() => {
+    if (mittel.some((m) => m.total))
+      setMittel((ms) => ms.map((m) => (m.total ? { ...m, menge_je_ha: proHaAusTotal(m.total, flaecheM2) } : m)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [flaecheM2]);
+
   function feldUmschalten(fid: string) {
     setGewaehlt((g) => {
       const n = { ...g };
@@ -181,9 +205,18 @@ export function Erfassen() {
     const d = zahlAus(dauer);
     if (dauer && (d == null || d < 0)) return setFehler('Arbeitsdauer ungültig.');
     if (!geplant && datum > heuteIso()) return setFehler('Eine erledigte Arbeit kann nicht in der Zukunft liegen. Als «geplant» speichern?');
+    const zMaschine = maschinen.data?.find((m) => m.id === maschineId);
+    const zGeraet = maschinen.data?.find((m) => m.id === geraetId);
+    if (!geplant) {
+      const pz =
+        (zMaschine && (pruefeZaehler(abschluss.m_stunden, id ? null : zMaschine.betriebsstunden, zMaschine.name) ??
+          pruefeZaehler(abschluss.m_km, id ? null : zMaschine.kilometerstand, zMaschine.name))) ||
+        (zGeraet && pruefeZaehler(abschluss.g_stunden, id ? null : zGeraet.betriebsstunden, zGeraet.name));
+      if (pz && !confirm(`${pz}\n\nTrotzdem speichern?`)) return;
+    }
 
     setSpeichert(true);
-    const { error } = await supabase.rpc('feldarbeit_speichern', {
+    const { data: arbeitId, error } = await supabase.rpc('feldarbeit_speichern', {
       p: {
         id: id ?? null,
         version: vorhanden.data?.version,
@@ -205,8 +238,29 @@ export function Erfassen() {
         mittel: mittelListe,
       },
     });
+    if (error) {
+      setSpeichert(false);
+      return setFehler(fehlertext(error));
+    }
+    const hatAbschluss = abschluss.m_stunden || abschluss.m_km || abschluss.g_stunden || abschluss.beobachtung.trim() || vorhanden.data?.beobachtung || vorhanden.data?.maschine_stunden != null;
+    if (!geplant && hatAbschluss) {
+      const r = await supabase.rpc('feldarbeit_abschluss', {
+        p_id: arbeitId as string,
+        p: {
+          maschine_stunden: maschineId ? zahlAus(abschluss.m_stunden) : null,
+          maschine_km: maschineId ? zahlAus(abschluss.m_km) : null,
+          geraet_stunden: geraetId ? zahlAus(abschluss.g_stunden) : null,
+          beobachtung: abschluss.beobachtung.trim() || null,
+          beobachtung_an_maschine: abschluss.melden || null,
+        },
+      });
+      if (r.error) {
+        setSpeichert(false);
+        ABHAENGIGE_DATEN.forEach((k) => qc.invalidateQueries({ queryKey: k }));
+        return setFehler(`Arbeit gespeichert, aber Zähler/Beobachtung nicht: ${fehlertext(r.error)}`);
+      }
+    }
     setSpeichert(false);
-    if (error) return setFehler(fehlertext(error));
     ABHAENGIGE_DATEN.forEach((k) => qc.invalidateQueries({ queryKey: k }));
     navigate(geplant ? '/aufgaben' : '/kartei');
   }
@@ -391,21 +445,35 @@ export function Erfassen() {
                         Menge pro ha
                         <span className="flex items-center gap-2">
                           <input
-                            className="eingabe w-full"
+                            className={`eingabe w-full ${m.total ? 'bg-white/60 text-leise' : ''}`}
                             inputMode="decimal"
-                            value={m.menge_je_ha}
-                            onChange={(e) => setMittel(mittel.map((x, j) => (j === i ? { ...x, menge_je_ha: e.target.value } : x)))}
+                            value={m.total ? (proHa ? String(Math.round(proHa * 100) / 100) : '') : m.menge_je_ha}
+                            onChange={(e) => setMittel(mittel.map((x, j) => (j === i ? { ...x, menge_je_ha: e.target.value, total: undefined } : x)))}
                           />
-                          <span>{art?.einheit ?? ''}/ha</span>
+                          <span className="shrink-0">{art?.einheit ?? ''}/ha</span>
                         </span>
                       </label>
-                      <div className="feld-label">
-                        Gesamt (berechnet)
-                        <span className="flex min-h-12 items-center rounded-xl bg-white px-3 text-base font-extrabold text-text">
-                          {menge(gesamt, art?.einheit)}
+                      <label className="feld-label">
+                        oder Gesamt auf {ha(flaecheM2)}
+                        <span className="flex items-center gap-2">
+                          <input
+                            className={`eingabe w-full ${m.total ? '' : 'bg-white/60 text-leise'}`}
+                            inputMode="decimal"
+                            value={m.total ?? (gesamt ? String(Math.round(gesamt * 100) / 100) : '')}
+                            onChange={(e) =>
+                              setMittel(mittel.map((x, j) => (j === i ? { ...x, total: e.target.value, menge_je_ha: proHaAusTotal(e.target.value, flaecheM2) } : x)))
+                            }
+                            disabled={flaecheM2 <= 0}
+                          />
+                          <span className="shrink-0">{art?.einheit ?? ''}</span>
                         </span>
-                      </div>
+                      </label>
                     </div>
+                    {m.total && proHa > 0 && (
+                      <span className="text-xs font-semibold text-hof">
+                        = {menge(proHa)} {art?.einheit}/ha auf {ha(flaecheM2)}
+                      </span>
+                    )}
                     {n != null && proHa > 0 && (
                       <span className="text-sm text-[#3E4C41]">
                         N: <strong>{menge(n)} kg/ha</strong> · {menge((n * flaecheM2) / 10000)} kg total
@@ -455,12 +523,14 @@ export function Erfassen() {
           )}
           {!mehr && (
             <button type="button" className="self-start text-sm font-extrabold text-hof" onClick={() => setMehr(true)}>
-              + Dauer, Maschine, Person, Teilfläche, Bemerkung
+              + {geplant ? 'Dauer, Maschine, Person, ' : ''}Lohnunternehmen, Teilfläche, Bemerkung
             </button>
           )}
           {mehr && (
             <div className="flex flex-col gap-3">
               <div className="grid grid-cols-2 gap-3">
+                {geplant && (
+                <>
                 <label className="feld-label">
                   {geplant ? 'Geschätzte Dauer (Std.)' : 'Dauer (Std.)'}
                   <input className="eingabe" inputMode="decimal" value={dauer} onChange={(e) => setDauer(e.target.value)} />
@@ -499,6 +569,8 @@ export function Erfassen() {
                     <input className="eingabe" value={geraet} onChange={(e) => setGeraet(e.target.value)} placeholder="z. B. Düngerstreuer" />
                   )}
                 </label>
+                </>
+                )}
                 <label className="feld-label col-span-2">
                   Ausgeführt durch Lohnunternehmen / Partner
                   <select className="eingabe" value={partnerId} onChange={(e) => setPartnerId(e.target.value)}>
@@ -524,6 +596,92 @@ export function Erfassen() {
             </div>
           )}
         </section>
+
+        {!geplant && (
+          <section className="karte flex flex-col gap-3">
+            <h2 className="m-0 text-[15px] font-extrabold text-[#3E4C41]">{zeigeMittel ? '4' : '3'} · Wie lange, womit, Beobachtungen?</h2>
+            <div className="grid grid-cols-2 gap-3">
+              <label className="feld-label">
+                Wie lange? (Std.)
+                <input className="eingabe" inputMode="decimal" value={dauer} onChange={(e) => setDauer(e.target.value)} placeholder="z. B. 2.5" />
+              </label>
+              <label className="feld-label">
+                Wer?
+                <PersonAuswahl wert={person} onWahl={setPerson} leer="–" />
+              </label>
+              <label className="feld-label">
+                Traktor / Maschine
+                {zugmaschinen.length > 0 ? (
+                  <select className="eingabe" value={maschineId} onChange={(e) => setMaschineId(e.target.value)}>
+                    <option value="">–</option>
+                    {zugmaschinen.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.name}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input className="eingabe" value={maschine} onChange={(e) => setMaschine(e.target.value)} placeholder="z. B. Traktor" />
+                )}
+              </label>
+              <label className="feld-label">
+                Gerät
+                {geraete.length > 0 ? (
+                  <select className="eingabe" value={geraetId} onChange={(e) => setGeraetId(e.target.value)}>
+                    <option value="">–</option>
+                    {geraete.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.name}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input className="eingabe" value={geraet} onChange={(e) => setGeraet(e.target.value)} placeholder="z. B. Düngerstreuer" />
+                )}
+              </label>
+            </div>
+            {(() => {
+              const zm = maschinen.data?.find((m) => m.id === maschineId);
+              const zg = maschinen.data?.find((m) => m.id === geraetId);
+              return (
+                <>
+                  {zm && (
+                    <ZaehlerFelder
+                      maschine={zm}
+                      stunden={abschluss.m_stunden}
+                      km={abschluss.m_km}
+                      onStunden={(v) => setAbschluss({ ...abschluss, m_stunden: v })}
+                      onKm={(v) => setAbschluss({ ...abschluss, m_km: v })}
+                    />
+                  )}
+                  {zg && <ZaehlerFelder maschine={zg} stunden={abschluss.g_stunden} km="" onStunden={(v) => setAbschluss({ ...abschluss, g_stunden: v })} />}
+                  <label className="feld-label">
+                    Beobachtungen (optional)
+                    <textarea
+                      className="eingabe min-h-16 py-2"
+                      value={abschluss.beobachtung}
+                      onChange={(e) => setAbschluss({ ...abschluss, beobachtung: e.target.value })}
+                      placeholder="z. B. Nasse Stelle im Feld, Streuer streut links ungleich"
+                    />
+                  </label>
+                  {abschluss.beobachtung.trim() && (zm || zg) && (
+                    <label className="feld-label">
+                      Bei einer Maschine als offenen Punkt melden?
+                      <select className="eingabe" value={abschluss.melden} onChange={(e) => setAbschluss({ ...abschluss, melden: e.target.value })}>
+                        <option value="">{vorhanden.data?.beobachtung_eintrag_id ? 'Bereits gemeldet / nein' : 'Nein, nur bei der Arbeit notieren'}</option>
+                        {[zm, zg].filter(Boolean).map((m) => (
+                          <option key={m!.id} value={m!.id}>
+                            Ja, bei {m!.name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  )}
+                </>
+              );
+            })()}
+          </section>
+        )}
       </fieldset>
 
       {neuerArtikelFuer != null && (

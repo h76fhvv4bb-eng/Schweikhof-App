@@ -151,6 +151,7 @@ export interface Feldarbeit {
   maschine_km?: number | null;
   geraet_stunden?: number | null;
   beobachtung?: string | null;
+  beobachtung_eintrag_id?: string | null;
   mitarbeiter_id?: string | null;
   vorgaenger_id?: string | null;
   version: number;
