@@ -34,3 +34,17 @@ Die Werte sind Startwerte und keine Rechtsgrundlage; sie können pro Kultur ange
 
 ## 2026-11-02 · Export zuerst als CSV
 CSV mit Semikolon und UTF-8-Kennung öffnet sich in Excel direkt korrekt. Echtes .xlsx und PDF folgen mit dem Auswertungsmodul.
+
+## 2026-11-02 · Lager als Buchungsjournal, Feldarbeit als eine Transaktion
+Der Bestand wird nie überschrieben, er ist die Summe aller Lagerbewegungen (Sicht `lagerbestand`).
+Feldarbeiten werden nur über die Datenbankfunktion `feldarbeit_speichern` geschrieben: Arbeit, Felder, Mittel und Lagerbuchung
+entstehen gemeinsam oder gar nicht. Je Arbeit und Artikel gibt es höchstens eine Buchung (eindeutiger Index);
+ändert sich die Menge, wird diese Buchung angepasst, und die Änderung steht im Änderungsprotokoll.
+Geplante Arbeiten buchen nicht. Gelöschte Arbeiten werden nur markiert, ihre Buchung entfällt.
+
+## 2026-11-02 · Nährstoffgehalte je Einheit
+Gehalte werden als kg Nährstoff je Einheit des Artikels gespeichert. Bei kg/l gibt man % ein, bei t und m³ kg je Einheit.
+Die Nährstoffübersicht zeigt ausgebrachte und geplante Mengen, ausdrücklich keinen Bodenvorrat und keine Suisse-Bilanz.
+
+## 2026-11-02 · Maschinen vorerst als Text
+Bis das Maschinenmodul steht, werden Maschine und Gerät bei Feldarbeiten als Text erfasst. Das Maschinenmodul ersetzt das später durch Verknüpfungen.

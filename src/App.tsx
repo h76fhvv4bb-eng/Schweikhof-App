@@ -8,6 +8,12 @@ import { Heute } from './pages/Heute';
 import { Felder } from './pages/Felder';
 import { FeldFormular } from './pages/FeldFormular';
 import { Fruchtfolge } from './pages/Fruchtfolge';
+import { Erfassen } from './pages/Erfassen';
+import { Kartei } from './pages/Kartei';
+import { Lager } from './pages/Lager';
+import { LagerArtikel } from './pages/LagerArtikel';
+import { Naehrstoffe } from './pages/Naehrstoffe';
+import { Mehr } from './pages/Mehr';
 
 export function App() {
   const { session, profil, laedt } = useAuth();
@@ -31,6 +37,14 @@ export function App() {
         <Route path="felder/neu" element={<FeldFormular />} />
         <Route path="felder/:id" element={<FeldFormular />} />
         <Route path="fruchtfolge" element={<Fruchtfolge />} />
+        <Route path="erfassen" element={<Erfassen />} />
+        <Route path="arbeiten/:id" element={<Erfassen />} />
+        <Route path="kartei" element={<Kartei />} />
+        <Route path="naehrstoffe" element={<Naehrstoffe />} />
+        <Route path="lager" element={<Lager />} />
+        <Route path="lager/neu" element={<LagerArtikel />} />
+        <Route path="lager/:id" element={<LagerArtikel />} />
+        <Route path="mehr" element={<Mehr />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

@@ -3,7 +3,7 @@
 Digitale Betriebsführung für einen Schweizer Acker- und Futterbaubetrieb (ca. 16 ha, Kanton Zürich, ÖLN).
 Läuft im Browser auf Mac, iPhone und iPad und lässt sich als App auf den Startbildschirm legen (PWA).
 
-## Was schon funktioniert (Stand 02.11.2026)
+## Was schon funktioniert (Stand 02.11.2026, Version 0.2)
 
 | Bereich | Stand |
 | --- | --- |
@@ -12,8 +12,12 @@ Läuft im Browser auf Mac, iPhone und iPad und lässt sich als App auf den Start
 | Änderungsprotokoll und Versionsschutz | fertig |
 | Felder anlegen, bearbeiten, suchen, Feldhistorie | fertig |
 | Fruchtfolge-Raster mit Kulturfarben, Flächensummen, Hinweisen, CSV-Export | fertig |
-| Dashboard (Fläche, Felder, Kulturen) | Grundversion |
-| Feldarbeiten, Düngung, Lager, Maschinen, Ernte, Verkauf, Aufgaben | folgt, siehe [TODO.md](TODO.md) |
+| Feldarbeiten erfassen (auch mehrere Felder, geplant/erledigt), Ackerschlagkartei mit Filtern, CSV-Export, Druck/PDF | fertig |
+| Lager: Artikel, Eingang, Verbrauch, Korrektur, Inventur, Mindestbestand, Lagerwert, Journal | fertig |
+| Düngung bucht automatisch vom Lager ab (ohne Doppelbuchung, Änderung/Löschung bucht zurück) | fertig |
+| Nährstoffübersicht je Feld (N, P₂O₅, K₂O ausgebracht/geplant) | fertig |
+| Dashboard (Fläche, Kulturen, Lagerwarnungen, geplante und letzte Arbeiten) | fertig |
+| Maschinen, Ernte, Verkauf, Aufgaben | folgt, siehe [TODO.md](TODO.md) |
 
 ## Technik
 

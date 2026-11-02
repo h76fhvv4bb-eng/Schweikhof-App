@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useAuth } from '../lib/auth';
-import { useFelder, useFlaecheJeKultur } from '../lib/daten';
-import { ha, wochentagDatum } from '../lib/format';
+import { useFeldarbeiten, useFelder, useFlaecheJeKultur, useLager } from '../lib/daten';
+import { datum, ha, menge, wochentagDatum } from '../lib/format';
 import { Icon } from '../components/Icon';
 
 export function Heute() {
@@ -9,6 +9,12 @@ export function Heute() {
   const jahr = new Date().getFullYear();
   const felder = useFelder();
   const kulturen = useFlaecheJeKultur(jahr);
+  const lager = useLager();
+  const arbeiten = useFeldarbeiten(jahr);
+  const knapp = (lager.data ?? []).filter((a) => a.unter_mindestbestand);
+  const geplant = (arbeiten.data ?? []).filter((a) => a.status === 'geplant').reverse().slice(0, 3);
+  const letzte = (arbeiten.data ?? []).filter((a) => a.status === 'erledigt').slice(0, 4);
+  const feldName = new Map((felder.data ?? []).map((f) => [f.id, f.name]));
 
   const aktive = (felder.data ?? []).filter((f) => f.status === 'bewirtschaftet');
   const gesamtM2 = aktive.reduce((s, f) => s + Number(f.flaeche_m2), 0);
@@ -66,11 +72,55 @@ export function Heute() {
         </Link>
       )}
 
+      {knapp.length > 0 && (
+        <Link to="/lager" className="karte flex flex-col gap-2 text-text no-underline">
+          <span className="flex items-center gap-2 text-xs font-extrabold text-warn">
+            <Icon name="warnung" groesse={16} /> LAGER UNTER MINDESTBESTAND
+          </span>
+          {knapp.slice(0, 4).map((a) => (
+            <span key={a.id} className="flex justify-between text-sm">
+              <span className="font-bold">{a.bezeichnung}</span>
+              <span>
+                {menge(Number(a.bestand), a.einheit)} / min. {menge(Number(a.mindestbestand), a.einheit)}
+              </span>
+            </span>
+          ))}
+        </Link>
+      )}
+
+      {geplant.length > 0 && (
+        <section className="karte flex flex-col gap-2">
+          <h2 className="m-0 text-lg font-extrabold">Geplante Arbeiten</h2>
+          {geplant.map((a) => (
+            <Link key={a.id} to={`/arbeiten/${a.id}`} className="flex justify-between gap-2 text-sm text-text no-underline">
+              <span className="font-bold">
+                {a.arbeitsart} · {a.feldarbeit_felder.map((f) => feldName.get(f.feld_id)).join(', ')}
+              </span>
+              <span className={a.datum < new Date().toISOString().slice(0, 10) ? 'font-bold text-fehler' : 'text-leise'}>{datum(a.datum)}</span>
+            </Link>
+          ))}
+        </section>
+      )}
+
       <section className="karte flex flex-col gap-2">
-        <h2 className="m-0 text-lg font-extrabold">Bald verfügbar</h2>
-        <p className="m-0 text-sm text-leise">
-          Aufgaben, Feldarbeiten, Düngung und Lagerwarnungen erscheinen hier, sobald diese Module gebaut sind.
-        </p>
+        <div className="flex items-center justify-between">
+          <h2 className="m-0 text-lg font-extrabold">Letzte Arbeiten</h2>
+          <Link to="/kartei" className="text-sm font-bold">
+            Ackerschlagkartei
+          </Link>
+        </div>
+        {letzte.length === 0 && <p className="m-0 text-sm text-leise">Noch keine Arbeiten erfasst. Mit dem grünen + geht es los.</p>}
+        {letzte.map((a) => (
+          <Link key={a.id} to={`/arbeiten/${a.id}`} className="flex flex-col text-text no-underline">
+            <span className="font-bold">
+              {a.arbeitsart} · {a.feldarbeit_felder.map((f) => feldName.get(f.feld_id)).join(', ')}
+            </span>
+            <span className="text-xs text-leise">
+              {datum(a.datum)}
+              {a.feldarbeit_mittel.map((m) => ` · ${m.lagerartikel?.bezeichnung} ${menge(m.menge_je_ha)} ${m.lagerartikel?.einheit}/ha`).join('')}
+            </span>
+          </Link>
+        ))}
       </section>
     </div>
   );

@@ -47,6 +47,29 @@ const pfade = {
       <path d="M15 4v16" />
     </>
   ),
+  lager: (
+    <>
+      <path d="M3 9l9-5 9 5v11H3z" />
+      <path d="M7 20v-7h10v7" />
+      <path d="M7 16h10" />
+    </>
+  ),
+  kartei: (
+    <>
+      <rect x="4" y="3" width="16" height="18" rx="2" />
+      <path d="M8 8h8" />
+      <path d="M8 12h8" />
+      <path d="M8 16h5" />
+    </>
+  ),
+  tropfen: <path d="M12 3c3 4 6 7.5 6 11a6 6 0 0 1-12 0c0-3.5 3-7 6-11z" />,
+  abmelden: (
+    <>
+      <path d="M15 4h4v16h-4" />
+      <path d="M10 8l-4 4 4 4" />
+      <path d="M6 12h10" />
+    </>
+  ),
   suche: (
     <>
       <circle cx="11" cy="11" r="7" />

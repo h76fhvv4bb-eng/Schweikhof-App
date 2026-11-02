@@ -38,3 +38,24 @@ const wochentage = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', '
 export function wochentagDatum(d = new Date()): string {
   return `${wochentage[d.getDay()]}, ${datum(d)}`;
 }
+
+/** Menge mit Einheit, bis 2 Nachkommastellen: "1'234.5 kg" */
+export function menge(wert: number | null | undefined, einheit = ''): string {
+  if (wert == null) return '–';
+  const t = new Intl.NumberFormat('de-CH', { maximumFractionDigits: 2 }).format(wert);
+  return einheit ? `${t} ${einheit}` : t;
+}
+
+/** Zahl aus Eingabe ("1'200,5" → 1200.5), null wenn leer/ungültig */
+export function zahlAus(eingabe: string): number | null {
+  const s = eingabe.trim().replace(/['’\s]/g, '').replace(',', '.');
+  if (s === '') return null;
+  const n = Number(s);
+  return Number.isFinite(n) ? n : null;
+}
+
+export function heuteIso(): string {
+  const d = new Date();
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}

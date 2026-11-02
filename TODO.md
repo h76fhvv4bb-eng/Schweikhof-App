@@ -1,13 +1,15 @@
 # To-do-Liste
 
-Stand: 02.11.2026. Wird nach jedem Entwicklungsschritt aktualisiert.
+Stand: 02.11.2026 (Version 0.2). Wird nach jedem Entwicklungsschritt aktualisiert.
 
 ## Phase 1 – Planung
 - [x] Anforderungsanalyse, Architektur, Datenmodell, Kosten, Risiken
 - [x] Offene Fragen geklärt (Acker-/Futterbau ohne Tiere, Kanton Zürich ÖLN, 2–3 Benutzer, online reicht)
 - [x] Ansichten entworfen (Dashboard, Felder, Erfassen, Fruchtfolge)
 - [x] GitHub-Repository
-- [ ] Supabase-Projekt (Region Zürich) anlegen, Migration einspielen
+- [x] Supabase-Projekt (Region Zürich) anlegen, Migration 1 einspielen
+- [x] App online auf Cloudflare (schweikhof-app.hjbfdy94n5.workers.dev)
+- [ ] Migration 2 einspielen
 - [ ] Domain bei Jimdo klären (eigene DNS-Einträge möglich?)
 
 ## Phase 2 – Grundsystem
@@ -30,10 +32,12 @@ Stand: 02.11.2026. Wird nach jedem Entwicklungsschritt aktualisiert.
 - [ ] Export PDF und echtes .xlsx
 
 ## Phase 4 – Arbeiten, Lager, Düngung
-- [ ] Lagerartikel, Lagerjournal, Mindestbestand
-- [ ] Feldarbeiten für mehrere Felder, schnelle Erfassung am Handy
-- [ ] Düngung mit automatischer Lagerbuchung, Nährstoffübersicht
-- [ ] Ackerschlagkartei mit Filtern und Export
+- [x] Lagerartikel, Lagerjournal, Mindestbestand, Inventur
+- [x] Feldarbeiten für mehrere Felder, schnelle Erfassung am Handy
+- [x] Düngung mit automatischer Lagerbuchung, Nährstoffübersicht
+- [x] Ackerschlagkartei mit Filtern, CSV-Export, Druck/PDF
+- [ ] Pflanzenschutz: Wirkstoff, Zulassungsnummer, Wartefrist
+- [ ] Echtes .xlsx und gestaltete PDF-Berichte
 
 ## Phase 5 bis 8
 - [ ] Maschinen und Wartung
