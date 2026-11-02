@@ -16,6 +16,9 @@ const MITTEL_KATEGORIE: Partial<Record<Arbeitsart, Lagerbestand['kategorie']>> =
   Säen: 'Saatgut',
   Pflanzenschutz: 'Pflanzenschutzmittel',
 };
+/** Arbeiten, bei denen Betriebsmittel angegeben werden können (Häkchen); bei Düngen und Pflanzenschutz standardmässig an */
+const MIT_MITTEL_MOEGLICH: Arbeitsart[] = ['Düngen', 'Säen', 'Pflanzenschutz', 'Andere'];
+const MITTEL_STANDARD: Arbeitsart[] = ['Düngen', 'Pflanzenschutz'];
 
 interface MittelZeile {
   artikel_id: string;
@@ -38,6 +41,7 @@ export function Erfassen() {
   const [geplant, setGeplant] = useState(false);
   const [gewaehlt, setGewaehlt] = useState<Record<string, string>>({}); // feld_id → Teilfläche in ha ('' = ganzes Feld)
   const [mittel, setMittel] = useState<MittelZeile[]>([]);
+  const [mitMittel, setMitMittel] = useState(true);
   const [mehr, setMehr] = useState(false);
   const [dauer, setDauer] = useState('');
   const [maschine, setMaschine] = useState('');
@@ -68,6 +72,7 @@ export function Erfassen() {
     }
     setGewaehlt(felderMap);
     setMittel(a.feldarbeit_mittel.map((m) => ({ artikel_id: m.artikel_id, menge_je_ha: String(m.menge_je_ha), vom_lager: m.vom_lager !== false })));
+    setMitMittel(a.feldarbeit_mittel.length > 0);
     setDauer(a.dauer_h == null ? '' : String(a.dauer_h));
     setMaschine(a.maschine ?? '');
     setGeraet(a.geraet ?? '');
@@ -84,12 +89,23 @@ export function Erfassen() {
     if (!id && profil) setPerson(profil.id);
   }, [id, profil]);
 
-  // Aus der Hof-Ansicht: ?feld=<id> wählt das Feld vor
+  // Aus der Hof-Ansicht: ?feld=<id> wählt das Feld vor; aus den Aufgaben: ?geplant=1
   const [params] = useSearchParams();
   useEffect(() => {
     const feld = params.get('feld');
     if (!id && feld) setGewaehlt({ [feld]: '' });
+    if (!id && params.get('geplant')) {
+      setGeplant(true);
+      setMehr(true);
+    }
   }, [id, params]);
+
+  // Betriebsmittel: je nach Arbeitsart vorschlagen (beim Laden einer bestehenden Arbeit nicht überschreiben)
+  useEffect(() => {
+    if (vorhanden.data && vorhanden.data.arbeitsart === arbeitsart) return;
+    setMitMittel(MITTEL_STANDARD.includes(arbeitsart));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [arbeitsart]);
 
   const aktiveFelder = (felder.data ?? []).filter((f) => f.status === 'bewirtschaftet');
   const inBetrieb = (maschinen.data ?? []).filter((m) => m.status === 'in Betrieb');
@@ -106,12 +122,13 @@ export function Erfassen() {
   );
   const kategorie = MITTEL_KATEGORIE[arbeitsart];
   const artikelAuswahl = (lager.data ?? []).filter((a) => !kategorie || a.kategorie === kategorie);
-  const zeigeMittel = !!kategorie || mittel.length > 0;
+  const mittelMoeglich = MIT_MITTEL_MOEGLICH.includes(arbeitsart) || (mittel.length > 0 && mittel.some((m) => m.artikel_id));
+  const zeigeMittel = mittelMoeglich && mitMittel;
 
   useEffect(() => {
-    if (kategorie && mittel.length === 0) setMittel([{ artikel_id: '', menge_je_ha: '', vom_lager: true }]);
+    if (zeigeMittel && mittel.length === 0) setMittel([{ artikel_id: '', menge_je_ha: '', vom_lager: true }]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [kategorie]);
+  }, [zeigeMittel]);
 
   function feldUmschalten(fid: string) {
     setGewaehlt((g) => {
@@ -131,7 +148,7 @@ export function Erfassen() {
     });
     if (felderListe.length === 0) return setFehler('Bitte mindestens ein Feld wählen.');
     const mittelListe = [];
-    for (const m of mittel) {
+    for (const m of zeigeMittel ? mittel : []) {
       if (!m.artikel_id && !m.menge_je_ha) continue;
       const wert = zahlAus(m.menge_je_ha);
       if (!m.artikel_id) return setFehler('Bitte bei jeder Mengenangabe ein Mittel wählen.');
@@ -168,7 +185,7 @@ export function Erfassen() {
     setSpeichert(false);
     if (error) return setFehler(fehlertext(error));
     ABHAENGIGE_DATEN.forEach((k) => qc.invalidateQueries({ queryKey: k }));
-    navigate('/kartei');
+    navigate(geplant ? '/aufgaben' : '/kartei');
   }
 
   async function loeschen() {
@@ -188,7 +205,7 @@ export function Erfassen() {
         <Link to={id ? '/kartei' : '/'} aria-label="Zurück" className="knopf-leise h-11 w-11 px-0">
           <Icon name="zurueck" />
         </Link>
-        <h1 className="m-0 text-2xl font-extrabold text-hof">{id ? 'Arbeit bearbeiten' : 'Arbeit erfassen'}</h1>
+        <h1 className="m-0 text-2xl font-extrabold text-hof">{id ? 'Arbeit bearbeiten' : geplant ? 'Arbeit planen' : 'Arbeit erfassen'}</h1>
       </header>
 
       <fieldset disabled={!darfAendern} className="m-0 flex flex-col gap-5 border-0 p-0">
@@ -291,6 +308,12 @@ export function Erfassen() {
             </label>
           </div>
 
+          {mittelMoeglich && (
+            <label className="flex min-h-11 items-center gap-2 text-sm font-extrabold">
+              <input type="checkbox" className="h-5 w-5 accent-hof" checked={mitMittel} onChange={(e) => setMitMittel(e.target.checked)} />
+              Betriebsmittel angeben ({kategorie ?? 'Saatgut, Dünger …'})
+            </label>
+          )}
           {zeigeMittel && (
             <div className="flex flex-col gap-3">
               <h2 className="m-0 text-[15px] font-extrabold text-[#3E4C41]">3 · Womit und wie viel?</h2>
@@ -375,13 +398,15 @@ export function Erfassen() {
               )}
             </div>
           )}
-          <button
-            type="button"
-            className="self-start text-sm font-extrabold text-hof"
-            onClick={() => setMittel([...mittel, { artikel_id: '', menge_je_ha: '', vom_lager: true }])}
-          >
-            + {zeigeMittel ? 'weiteres Mittel' : 'Betriebsmittel'}
-          </button>
+          {zeigeMittel && (
+            <button
+              type="button"
+              className="self-start text-sm font-extrabold text-hof"
+              onClick={() => setMittel([...mittel, { artikel_id: '', menge_je_ha: '', vom_lager: true }])}
+            >
+              + weiteres Mittel
+            </button>
+          )}
           {!mehr && (
             <button type="button" className="self-start text-sm font-extrabold text-hof" onClick={() => setMehr(true)}>
               + Dauer, Maschine, Person, Teilfläche, Bemerkung
@@ -391,11 +416,11 @@ export function Erfassen() {
             <div className="flex flex-col gap-3">
               <div className="grid grid-cols-2 gap-3">
                 <label className="feld-label">
-                  Dauer (Std.)
+                  {geplant ? 'Geschätzte Dauer (Std.)' : 'Dauer (Std.)'}
                   <input className="eingabe" inputMode="decimal" value={dauer} onChange={(e) => setDauer(e.target.value)} />
                 </label>
                 <label className="feld-label">
-                  Ausgeführt von
+                  {geplant ? 'Wer?' : 'Ausgeführt von'}
                   <select className="eingabe" value={person} onChange={(e) => setPerson(e.target.value)}>
                     <option value="">–</option>
                     {(benutzer.data ?? []).map((b) => (

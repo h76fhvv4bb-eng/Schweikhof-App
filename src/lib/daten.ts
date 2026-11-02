@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from './supabase';
 import type {
   Anbau, Feld, Feldarbeit, FeldHinweis, FlaecheJeKultur, Hofobjekt, Kultur, Lagerbestand, Maschine, MaschinenEintrag,
-  NaehrstoffeJeFeld, Partner, WartungFaellig, Wartungsplan, Auftrag, Ernte, Kartenobjekt,
+  NaehrstoffeJeFeld, Partner, WartungFaellig, Wartungsplan, Auftrag, Ernte, Kartenobjekt, Aufgabe,
 } from './typen';
 
 export function useFelder() {
@@ -76,7 +76,7 @@ export function useLager() {
 }
 
 const FELDARBEIT_SELECT =
-  'id, datum, arbeitsart, status, dauer_h, maschine, geraet, ausgefuehrt_von, ausbringung, bemerkungen, erstellt_von, version, maschine_id, geraet_id, partner_id,' +
+  'id, datum, arbeitsart, status, dauer_h, maschine, geraet, ausgefuehrt_von, ausbringung, bemerkungen, erstellt_von, version, maschine_id, geraet_id, partner_id, maschine_stunden, maschine_km, geraet_stunden, beobachtung,' +
   ' feldarbeit_felder(feld_id, flaeche_m2, anbau(kulturen(name))),' +
   ' feldarbeit_mittel(artikel_id, menge_je_ha, gesamtmenge, vom_lager, lagerartikel(bezeichnung, einheit))';
 
@@ -133,7 +133,7 @@ export function useBenutzer() {
 }
 
 /** Nach jeder Buchung: alles neu laden, was vom Lager oder den Arbeiten abhängt. */
-export const ABHAENGIGE_DATEN = [['lager'], ['feldarbeiten'], ['feldarbeit'], ['naehrstoffe'], ['lagerjournal'], ['maschinen'], ['maschineneintraege'], ['wartung']];
+export const ABHAENGIGE_DATEN = [['lager'], ['feldarbeiten'], ['feldarbeit'], ['naehrstoffe'], ['lagerjournal'], ['maschinen'], ['maschineneintraege'], ['wartung'], ['aufgaben']];
 
 export function useBetrieb() {
   return useQuery({
@@ -304,6 +304,37 @@ export function useKartenobjekte() {
       // Fehlt Migration 9 noch, bleibt die Karte ohne diese Objekte nutzbar.
       if (error) return [] as Kartenobjekt[];
       return data as Kartenobjekt[];
+    },
+  });
+}
+
+/** Alle geplanten Feldarbeiten (unabhängig vom Jahr) */
+export function useGeplanteArbeiten() {
+  return useQuery({
+    queryKey: ['feldarbeiten', 'geplant'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('feldarbeiten')
+        .select(FELDARBEIT_SELECT)
+        .is('geloescht_am', null)
+        .eq('status', 'geplant')
+        .order('datum');
+      if (error) throw error;
+      return data as unknown as Feldarbeit[];
+    },
+  });
+}
+
+export function useAufgaben(status: 'offen' | 'erledigt' = 'offen') {
+  return useQuery({
+    queryKey: ['aufgaben', status],
+    queryFn: async () => {
+      let q = supabase.from('aufgaben').select('*').eq('status', status);
+      q = status === 'offen' ? q.order('faellig_am', { ascending: true, nullsFirst: false }) : q.order('erledigt_am', { ascending: false }).limit(50);
+      const { data, error } = await q;
+      // Fehlt Migration 11 noch, bleibt die Liste leer.
+      if (error) return [] as Aufgabe[];
+      return data as Aufgabe[];
     },
   });
 }

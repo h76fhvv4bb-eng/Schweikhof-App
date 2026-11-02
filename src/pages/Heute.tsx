@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useAuth } from '../lib/auth';
-import { useFeldarbeiten, useFelder, useFlaecheJeKultur, useLager, useMaschinen, useMaschinenEintraege, useWartungFaellig } from '../lib/daten';
+import { useAufgaben, useFeldarbeiten, useFelder, useFlaecheJeKultur, useGeplanteArbeiten, useLager, useMaschinen, useMaschinenEintraege, useWartungFaellig } from '../lib/daten';
 import { tageBis } from './Maschinen';
 import { datum, ha, menge, wochentagDatum } from '../lib/format';
 import { Icon } from '../components/Icon';
@@ -13,9 +13,17 @@ export function Heute() {
   const lager = useLager();
   const arbeiten = useFeldarbeiten(jahr);
   const knapp = (lager.data ?? []).filter((a) => a.unter_mindestbestand);
-  const geplant = (arbeiten.data ?? []).filter((a) => a.status === 'geplant').reverse().slice(0, 3);
-  const letzte = (arbeiten.data ?? []).filter((a) => a.status === 'erledigt').slice(0, 4);
   const feldName = new Map((felder.data ?? []).map((f) => [f.id, f.name]));
+  const geplanteArbeiten = useGeplanteArbeiten();
+  const offeneAufgaben = useAufgaben('offen');
+  const heuteIso = new Date().toISOString().slice(0, 10);
+  const todo = [
+    ...(geplanteArbeiten.data ?? []).map((a) => ({
+      key: a.id, link: `/arbeiten/${a.id}`, datum: a.datum as string | null, text: `${a.arbeitsart} · ${a.feldarbeit_felder.map((f) => feldName.get(f.feld_id)).join(', ')}`,
+    })),
+    ...(offeneAufgaben.data ?? []).map((a) => ({ key: a.id, link: '/aufgaben', datum: a.faellig_am, text: a.titel })),
+  ].sort((a, b) => (a.datum ?? '9999').localeCompare(b.datum ?? '9999'));
+  const letzte = (arbeiten.data ?? []).filter((a) => a.status === 'erledigt').slice(0, 4);
   const maschinen = useMaschinen();
   const wartung = useWartungFaellig();
   const maschEintraege = useMaschinenEintraege();
@@ -116,19 +124,21 @@ export function Heute() {
         </Link>
       )}
 
-      {geplant.length > 0 && (
-        <section className="karte flex flex-col gap-2">
-          <h2 className="m-0 text-lg font-extrabold">Geplante Arbeiten</h2>
-          {geplant.map((a) => (
-            <Link key={a.id} to={`/arbeiten/${a.id}`} className="flex justify-between gap-2 text-sm text-text no-underline">
-              <span className="font-bold">
-                {a.arbeitsart} · {a.feldarbeit_felder.map((f) => feldName.get(f.feld_id)).join(', ')}
-              </span>
-              <span className={a.datum < new Date().toISOString().slice(0, 10) ? 'font-bold text-fehler' : 'text-leise'}>{datum(a.datum)}</span>
-            </Link>
-          ))}
-        </section>
-      )}
+      <section className="karte flex flex-col gap-2">
+        <div className="flex items-center justify-between">
+          <h2 className="m-0 text-lg font-extrabold">Aufgaben</h2>
+          <Link to="/aufgaben" className="text-sm font-bold">
+            Alle ({todo.length})
+          </Link>
+        </div>
+        {todo.length === 0 && <p className="m-0 text-sm text-leise">Nichts geplant.</p>}
+        {todo.slice(0, 5).map((a) => (
+          <Link key={a.key} to={a.link} className="flex justify-between gap-2 text-sm text-text no-underline">
+            <span className="font-bold">{a.text}</span>
+            <span className={a.datum && a.datum < heuteIso ? 'shrink-0 font-bold text-fehler' : 'shrink-0 text-leise'}>{a.datum ? datum(a.datum) : ''}</span>
+          </Link>
+        ))}
+      </section>
 
       <section className="karte flex flex-col gap-2">
         <div className="flex items-center justify-between">

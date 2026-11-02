@@ -147,6 +147,10 @@ export interface Feldarbeit {
   maschine_id: string | null;
   geraet_id: string | null;
   partner_id: string | null;
+  maschine_stunden?: number | null;
+  maschine_km?: number | null;
+  geraet_stunden?: number | null;
+  beobachtung?: string | null;
   version: number;
   feldarbeit_felder: { feld_id: string; flaeche_m2: number; anbau: { kulturen: { name: string } | null } | null }[];
   feldarbeit_mittel: { artikel_id: string; menge_je_ha: number; gesamtmenge: number; vom_lager: boolean; lagerartikel: { bezeichnung: string; einheit: string } | null }[];
@@ -236,6 +240,7 @@ export interface Maschine {
   kaufdatum: string | null;
   kaufpreis: number | null;
   betriebsstunden: number | null;
+  kilometerstand?: number | null;
   standort_id: string | null;
   status: 'in Betrieb' | 'ausser Betrieb' | 'verkauft';
   bemerkungen: string | null;
@@ -275,6 +280,7 @@ export interface MaschinenEintrag {
   art: (typeof EINTRAGSARTEN)[number];
   datum: string;
   betriebsstunden: number | null;
+  kilometerstand?: number | null;
   titel: string;
   beschreibung: string | null;
   kosten: number | null;
@@ -411,5 +417,26 @@ export interface Kartenobjekt {
   pflanzjahr: number | null;
   hochstamm: boolean;
   bemerkungen: string | null;
+  version: number;
+}
+
+// ---------------------------------------------------------------- Aufgaben
+export interface Aufgabe {
+  id: string;
+  art: 'Maschine' | 'Allgemein';
+  titel: string;
+  faellig_am: string | null;
+  zugewiesen_an: string | null;
+  wichtig: boolean;
+  maschine_id: string | null;
+  eintragsart: 'Wartung' | 'Reparatur' | 'Kontrolle' | null;
+  partner_id: string | null;
+  beobachtung_id: string | null;
+  bemerkungen: string | null;
+  status: 'offen' | 'erledigt';
+  erledigt_am: string | null;
+  dauer_h: number | null;
+  ergebnis: string | null;
+  erstellt_von: string | null;
   version: number;
 }

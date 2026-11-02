@@ -130,3 +130,12 @@ beliebig viele Dienstleister mit Leistung und Kosten (`ernte_dienstleister`) und
 Eine Abgabe «Lager» bucht einen Eingang (Art «Ernte») ins Lagerjournal, Quelle ist die Abgabe; ohne gewählten Artikel wird ein
 Artikel «Produkt Ballenart Jahr – Lagerort» in der Kategorie Erzeugnisse angelegt bzw. wiederverwendet. Der Lagerort ist ein
 Gebäude der Hof-Ansicht. Ändern oder Löschen der Ernte entfernt die alten Buchungen und bucht neu.
+
+## 2026-11-02 · Aufgaben und Erledigen
+Geplante Feldarbeiten bleiben Feldarbeiten mit Status «geplant» (eine Quelle für Kartei und Planung). Maschinen- und
+allgemeine Aufgaben stehen in `aufgaben`. Die Seite «Aufgaben» zeigt beides zusammen nach Fälligkeit. Erledigen läuft
+über `feldarbeit_erledigen` bzw. `aufgabe_erledigen`: effektive Mengen (Lager wird danach gebucht), Dauer, Stunden- und
+Kilometerzähler (werden bei der Maschine nur nach oben nachgeführt) und Beobachtungen; eine Beobachtung kann als offener
+Punkt bei der Maschine gemeldet werden. Aus einer Maschinen-Aufgabe entsteht beim Erledigen ein Wartungs-/Reparatureintrag.
+Betriebsmittel werden in der Erfassung nur noch per Häkchen angegeben (Säen, Düngen, Pflanzenschutz, Andere);
+bei Bodenbearbeitung und Ernte entfällt die Auswahl.

@@ -17,7 +17,7 @@ const TEXTFELDER = [
   'motoroel', 'hydraulikoel', 'getriebeoel', 'versicherung', 'bemerkungen', 'mfk_faellig', 'kaufdatum',
 ] as const;
 const ZAHLFELDER = [
-  'baujahr', 'leistung_ps', 'leergewicht_kg', 'gesamtgewicht_kg', 'hoechstgeschw_kmh', 'arbeitsbreite_m', 'tankinhalt_l', 'kaufpreis', 'betriebsstunden',
+  'baujahr', 'leistung_ps', 'leergewicht_kg', 'gesamtgewicht_kg', 'hoechstgeschw_kmh', 'arbeitsbreite_m', 'tankinhalt_l', 'kaufpreis', 'betriebsstunden', 'kilometerstand',
 ] as const;
 const MIT_SCHILD = ['Traktor', 'Hoflader/Teleskoplader', 'Anhänger', 'Güllefass', 'Ladewagen'];
 
@@ -166,6 +166,7 @@ export function MaschineDetail() {
             <div className="grid grid-cols-2 gap-3">
               {motor && feld('leistung_ps', 'Leistung (PS)', 'zahl')}
               {motor && feld('betriebsstunden', 'Betriebsstunden (Zähler)', 'zahl')}
+              {motor && feld('kilometerstand', 'Kilometerstand', 'zahl')}
               {!motor && feld('arbeitsbreite_m', 'Arbeitsbreite (m)', 'zahl')}
               {feld('leergewicht_kg', 'Leergewicht (kg)', 'zahl')}
               {(motor || schild) && feld('gesamtgewicht_kg', 'Gesamtgewicht (kg)', 'zahl')}
@@ -315,6 +316,11 @@ function Eintraege({ maschine }: { maschine: Maschine }) {
           {kosten > 0 && <span className="text-xs text-leise">Kosten total {chf(kosten)}</span>}
         </div>
         <div className="flex flex-wrap gap-2">
+          {profil?.rolle !== 'lesen' && (
+            <Link to={`/aufgaben?neu=maschine&maschine=${maschine.id}`} className="knopf-leise no-underline">
+              <Icon name="aufgaben" /> Planen
+            </Link>
+          )}
           {darfVerwalten && (
             <Link to={`/auftraege/neu?art=Werkstatt&maschine=${maschine.id}`} className="knopf-leise no-underline">
               <Icon name="auftrag" /> Werkstattauftrag
@@ -344,6 +350,7 @@ function Eintraege({ maschine }: { maschine: Maschine }) {
             {[
               datum(e.datum),
               e.betriebsstunden != null && `${menge(Number(e.betriebsstunden))} h`,
+              e.kilometerstand != null && `${menge(Number(e.kilometerstand))} km`,
               e.kosten != null && chf(Number(e.kosten)),
               e.partner_id && partner.data?.find((p) => p.id === e.partner_id)?.name,
               ...e.eintrag_teile.map((t) => `${menge(Number(t.menge), t.lagerartikel?.einheit)} ${t.lagerartikel?.bezeichnung}`),

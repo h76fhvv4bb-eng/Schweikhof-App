@@ -20,6 +20,7 @@ import { MaschineDetail } from './pages/MaschineDetail';
 import { PartnerFormular, PartnerListe } from './pages/Partner';
 import { AuftraegeListe, AuftragFormular } from './pages/Auftraege';
 import { ErnteFormular, ErnteListe } from './pages/Ernte';
+import { Aufgaben } from './pages/Aufgaben';
 
 export function App() {
   const { session, profil, laedt, passwortNeu } = useAuth();
@@ -40,6 +41,7 @@ export function App() {
     <Routes>
       <Route element={<AppShell />}>
         <Route index element={<Heute />} />
+        <Route path="aufgaben" element={<Aufgaben />} />
         <Route path="felder" element={<Felder />} />
         <Route path="felder/neu" element={<FeldFormular />} />
         <Route path="felder/:id" element={<FeldFormular />} />

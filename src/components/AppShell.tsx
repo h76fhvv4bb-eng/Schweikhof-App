@@ -5,6 +5,7 @@ import { APP_KURZ } from '../lib/marke';
 
 export const NAVIGATION: { pfad: string; text: string; icon: IconName; gruppe: string }[] = [
   { pfad: '/', text: 'Heute', icon: 'heute', gruppe: 'Übersicht' },
+  { pfad: '/aufgaben', text: 'Aufgaben', icon: 'aufgaben', gruppe: 'Übersicht' },
   { pfad: '/felder', text: 'Felder', icon: 'felder', gruppe: 'Pflanzenbau' },
   { pfad: '/fruchtfolge', text: 'Fruchtfolge', icon: 'fruchtfolge', gruppe: 'Pflanzenbau' },
   { pfad: '/ernte', text: 'Ernte & Erträge', icon: 'ernte', gruppe: 'Pflanzenbau' },
@@ -19,7 +20,7 @@ export const NAVIGATION: { pfad: string; text: string; icon: IconName; gruppe: s
 const unten: { pfad: string; text: string; icon: IconName }[] = [
   { pfad: '/', text: 'Heute', icon: 'heute' },
   { pfad: '/felder', text: 'Felder', icon: 'felder' },
-  { pfad: '/kartei', text: 'Kartei', icon: 'kartei' },
+  { pfad: '/aufgaben', text: 'Aufgaben', icon: 'aufgaben' },
   { pfad: '/mehr', text: 'Mehr', icon: 'mehr' },
 ];
 
