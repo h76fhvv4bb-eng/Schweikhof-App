@@ -130,6 +130,14 @@ export function FeldFormular() {
     onError: (e) => setFehler(fehlertext(e)),
   });
 
+  async function grenzeZuruecksetzen() {
+    if (!feld || !confirm(`Grenze von «${feld.name}» entfernen? Das Feld und seine Daten bleiben erhalten, nur die Zeichnung wird gelöscht.`)) return;
+    setFehler(null);
+    const { error } = await supabase.from('felder').update({ geometrie: null, flaeche_gezeichnet_m2: null, version: feld.version }).eq('id', feld.id);
+    if (error) return setFehler(fehlertext(error));
+    qc.invalidateQueries({ queryKey: ['felder'] });
+  }
+
   async function loeschen() {
     if (!feld) return;
     setFehler(null);
@@ -271,9 +279,16 @@ export function FeldFormular() {
               : 'Noch nicht auf der Karte eingezeichnet.'}
           </p>
           {darfVerwalten && (
-            <Link to={`/felder?zeichnen=${feld.id}`} className="knopf-leise self-start no-underline">
-              {feld.geometrie ? 'Neu zeichnen' : 'Auf der Karte zeichnen'}
-            </Link>
+            <div className="flex flex-wrap gap-2">
+              <Link to={`/felder?zeichnen=${feld.id}`} className="knopf-leise no-underline">
+                {feld.geometrie ? 'Neu zeichnen' : 'Auf der Karte zeichnen'}
+              </Link>
+              {feld.geometrie && (
+                <button type="button" className="knopf-leise text-fehler" onClick={grenzeZuruecksetzen}>
+                  Grenze zurücksetzen
+                </button>
+              )}
+            </div>
           )}
         </section>
       )}

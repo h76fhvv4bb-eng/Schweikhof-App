@@ -5,16 +5,19 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import '@geoman-io/leaflet-geoman-free';
 import '@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css';
-import type { MultiPolygon, Polygon } from 'geojson';
+import type { MultiPolygon, Point, Polygon } from 'geojson';
 import { supabase, fehlertext } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
-import { useAnbau, useFelder, useHinweise, useHofobjekte, useMaschinen } from '../lib/daten';
+import { useAnbau, useFelder, useHinweise, useHofobjekte, useKartenobjekte, useMaschinen } from '../lib/daten';
 import { ha } from '../lib/format';
 import {
-  GEBAEUDE, KARTEN, QUELLE, SCHWEIZ, feldLabelHtml, feldTeilen, felderVereinigen, flaecheM2, gebaeudeHtml, hinweisHtml, ortSuchen,
+  FLAECHE_FARBE, GEBAEUDE, KARTEN, QUELLE, SCHWEIZ, baumHtml, feldLabelHtml, feldTeilen, felderVereinigen, flaecheM2, gebaeudeHtml, hinweisHtml,
+  ortHtml, ortSuchen,
 } from '../lib/karte';
 import { HinweisListe } from '../components/FeldWerkzeuge';
-import { HOFOBJEKT_TYPEN, NUTZUNGSARTEN, type FeldHinweis, type HofobjektTyp } from '../lib/typen';
+import {
+  BAUMARTEN, BAUMTYPEN, FLAECHENTYPEN, HOFOBJEKT_TYPEN, NUTZUNGSARTEN, ORTSTYPEN, type FeldHinweis, type HofobjektTyp, type Kartenobjekt,
+} from '../lib/typen';
 import { Icon } from '../components/Icon';
 import { BETRIEB_VORGABE } from '../lib/marke';
 
@@ -26,7 +29,34 @@ type Modus =
   | { art: 'verschieben'; id: string }
   | { art: 'teilen'; feldId: string }
   | { art: 'zusammen'; feldId: string; wahl: string[] }
-  | { art: 'hinweis'; feldId: string };
+  | { art: 'hinweis'; feldId: string }
+  | { art: 'flaeche' }
+  | { art: 'ort'; typ: string }
+  | { art: 'baum'; vorlage: BaumVorlage }
+  | { art: 'objektGrenze'; id: string }
+  | { art: 'objektVerschieben'; id: string };
+
+type BaumVorlage = { typ: string; baumart: string; sorte: string; pflanzjahr: string; hochstamm: boolean };
+type Ebene = 'hof' | 'baeume';
+
+/** Modi, in denen Klicks auf die Karte gehen (zeichnen, platzieren) – Felder sind dann nicht anklickbar */
+const KLICK_AUF_KARTE = new Set(['zeichnen', 'teilen', 'flaeche', 'gebaeude', 'ort', 'baum', 'hinweis']);
+
+function gespeichert<T extends string>(schluessel: string, erlaubt: T[], vorgabe: T): T {
+  try {
+    const w = localStorage.getItem(schluessel) as T | null;
+    return w && erlaubt.includes(w) ? w : vorgabe;
+  } catch {
+    return vorgabe;
+  }
+}
+function merken(schluessel: string, wert: string) {
+  try {
+    localStorage.setItem(schluessel, wert);
+  } catch {
+    /* ohne Speicher gilt die Wahl bis zum Neuladen */
+  }
+}
 
 type Geometrie = Polygon | MultiPolygon;
 
@@ -41,12 +71,15 @@ export default function Hofkarte() {
   const anbau = useAnbau(jahr, jahr);
   const objekte = useHofobjekte();
   const hinweise = useHinweise();
+  const kartenobjekte = useKartenobjekte();
 
   const divRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const ebenen = useRef<{
     luftbild: L.TileLayer; karte: L.TileLayer; parzellen: L.TileLayer; felder: L.LayerGroup; gebaeude: L.LayerGroup; hinweise: L.LayerGroup;
+    flaechen: L.LayerGroup; orte: L.LayerGroup; baeume: L.LayerGroup;
   } | null>(null);
+  const objektLayer = useRef(new Map<string, L.Layer>());
   const feldLayer = useRef(new Map<string, L.Polygon>());
   const markerRef = useRef(new Map<string, L.Marker>());
   const eingepasst = useRef(false);
@@ -57,7 +90,25 @@ export default function Hofkarte() {
     modusRef.current = m;
     setModusState(m);
   };
-  const [gewaehlt, setGewaehlt] = useState<{ art: 'feld' | 'gebaeude'; id: string } | null>(null);
+  const [gewaehlt, setGewaehlt] = useState<{ art: 'feld' | 'gebaeude' | 'objekt'; id: string } | null>(null);
+  const [ebene, setEbeneState] = useState<Ebene>(() => gespeichert<Ebene>('hofkarte-ebene', ['hof', 'baeume'], 'hof'));
+  const setEbene = (e: Ebene) => {
+    setEbeneState(e);
+    setGewaehlt(null);
+    merken('hofkarte-ebene', e);
+  };
+  const [einrasten, setEinrastenState] = useState(() => gespeichert('hofkarte-einrasten', ['an', 'aus'], 'an') === 'an');
+  const einrastenRef = useRef(einrasten);
+  const setEinrasten = (an: boolean) => {
+    einrastenRef.current = an;
+    setEinrastenState(an);
+    merken('hofkarte-einrasten', an ? 'an' : 'aus');
+  };
+  const [neueFlaeche, setNeueFlaeche] = useState<{ geometrie: Geometrie; flaeche: number } | null>(null);
+  const [neuerPunkt, setNeuerPunkt] = useState<{ breite: number; laenge: number; typ: string } | null>(null);
+  const [baumWahl, setBaumWahl] = useState(false);
+  const [objektWahl, setObjektWahl] = useState(false);
+  const [gesetzt, setGesetzt] = useState(0);
   const [zeichnung, setZeichnung] = useState<{ geometrie: Geometrie; flaeche: number; feldId?: string } | null>(null);
   const [neuerOrt, setNeuerOrt] = useState<{ breite: number; laenge: number; typ: HofobjektTyp } | null>(null);
   const [grundkarte, setGrundkarte] = useState<'luftbild' | 'karte'>('luftbild');
@@ -70,6 +121,25 @@ export default function Hofkarte() {
 
   const kulturJeFeld = useMemo(() => new Map((anbau.data ?? []).map((a) => [a.feld_id, a.kulturen])), [anbau.data]);
 
+  // Bäume: jeder Klick setzt sofort einen Baum mit der gewählten Vorlage
+  const baumSetzenRef = useRef<(breite: number, laenge: number, v: BaumVorlage) => void>(() => {});
+  baumSetzenRef.current = async (breite, laenge, v) => {
+    const jahrZahl = Number(v.pflanzjahr);
+    const { error } = await supabase.from('kartenobjekte').insert({
+      betrieb_id: profil!.betrieb_id,
+      ebene: 'baum',
+      typ: v.typ,
+      geometrie: { type: 'Point', coordinates: [laenge, breite] },
+      baumart: v.baumart || null,
+      sorte: v.sorte.trim() || null,
+      pflanzjahr: Number.isInteger(jahrZahl) && jahrZahl > 1800 ? jahrZahl : null,
+      hochstamm: v.hochstamm,
+    });
+    if (error) return setFehler(fehlertext(error));
+    setGesetzt((n) => n + 1);
+    qc.invalidateQueries({ queryKey: ['kartenobjekte'] });
+  };
+
   // ---------- Karte einmal aufbauen ----------
   useEffect(() => {
     if (!divRef.current || mapRef.current) return;
@@ -81,10 +151,16 @@ export default function Hofkarte() {
     const felderGruppe = L.layerGroup().addTo(map);
     const gebaeudeGruppe = L.layerGroup().addTo(map);
     const hinweisGruppe = L.layerGroup().addTo(map);
-    ebenen.current = { luftbild, karte, parzellen: parz, felder: felderGruppe, gebaeude: gebaeudeGruppe, hinweise: hinweisGruppe };
+    const flaechenGruppe = L.layerGroup().addTo(map);
+    const orteGruppe = L.layerGroup().addTo(map);
+    const baumGruppe = L.layerGroup();
+    ebenen.current = {
+      luftbild, karte, parzellen: parz, felder: felderGruppe, gebaeude: gebaeudeGruppe, hinweise: hinweisGruppe,
+      flaechen: flaechenGruppe, orte: orteGruppe, baeume: baumGruppe,
+    };
 
     map.pm.setLang('de');
-    map.pm.setGlobalOptions({ snappable: true, snapDistance: 18, allowSelfIntersection: false });
+    map.pm.setGlobalOptions({ snappable: einrastenRef.current, snapDistance: 18, allowSelfIntersection: false });
 
     map.on('pm:create', (e) => {
       const layer = (e as unknown as { layer: L.Polygon }).layer;
@@ -92,6 +168,7 @@ export default function Hofkarte() {
       map.removeLayer(layer);
       const m = modusRef.current;
       if (m.art === 'teilen') setTeilSkizze({ feldId: m.feldId, geometrie });
+      else if (m.art === 'flaeche') setNeueFlaeche({ geometrie, flaeche: flaecheM2(geometrie) });
       else setZeichnung({ geometrie, flaeche: flaecheM2(geometrie), feldId: m.art === 'zeichnen' ? m.feldId : undefined });
       modusRef.current = { art: 'ansehen' };
       setModusState({ art: 'ansehen' });
@@ -106,6 +183,12 @@ export default function Hofkarte() {
         setNeuerHinweis({ feldId: m.feldId, breite: e.latlng.lat, laenge: e.latlng.lng });
         modusRef.current = { art: 'ansehen' };
         setModusState({ art: 'ansehen' });
+      } else if (m.art === 'ort') {
+        setNeuerPunkt({ breite: e.latlng.lat, laenge: e.latlng.lng, typ: m.typ });
+        modusRef.current = { art: 'ansehen' };
+        setModusState({ art: 'ansehen' });
+      } else if (m.art === 'baum') {
+        baumSetzenRef.current(e.latlng.lat, e.latlng.lng, m.vorlage);
       } else if (m.art === 'ansehen') {
         setGewaehlt(null);
       }
@@ -144,20 +227,23 @@ export default function Hofkarte() {
       const k = kulturJeFeld.get(f.id);
       const imZusammen = modus.art === 'zusammen' && (modus.feldId === f.id || modus.wahl.includes(f.id));
       const istGewaehlt = (gewaehlt?.art === 'feld' && gewaehlt.id === f.id) || imZusammen;
+      const baumAnsicht = ebene === 'baeume';
       const gruppe = L.geoJSON(f.geometrie, {
+        interactive: !KLICK_AUF_KARTE.has(modus.art) && !baumAnsicht,
         style: {
           color: istGewaehlt ? '#1F4D2E' : '#FFFFFF',
-          weight: istGewaehlt ? 4 : 3,
+          weight: istGewaehlt ? 4 : baumAnsicht ? 2 : 3,
           fillColor: k?.farbe ?? '#C9C2B0',
-          fillOpacity: 0.6,
+          fillOpacity: baumAnsicht ? 0.12 : 0.6,
         },
       });
       const polygon = gruppe.getLayers()[0] as L.Polygon;
-      polygon.bindTooltip(feldLabelHtml(f.name, k?.name ?? null, ha(Number(f.flaeche_m2), 1)), {
-        permanent: true,
-        direction: 'center',
-        className: 'hof-feld-label',
-      });
+      if (!baumAnsicht)
+        polygon.bindTooltip(feldLabelHtml(f.name, k?.name ?? null, ha(Number(f.flaeche_m2), 1)), {
+          permanent: true,
+          direction: 'center',
+          className: 'hof-feld-label',
+        });
       polygon.on('click', (ev) => {
         L.DomEvent.stopPropagation(ev as unknown as Event);
         const m = modusRef.current;
@@ -172,7 +258,98 @@ export default function Hofkarte() {
       polygon.addTo(e.felder);
       feldLayer.current.set(f.id, polygon);
     }
-  }, [felder.data, kulturJeFeld, gewaehlt, modus]);
+  }, [felder.data, kulturJeFeld, gewaehlt, modus, ebene]);
+
+  // ---------- Flächen, Orte und Bäume ohne Fruchtfolge ----------
+  useEffect(() => {
+    const map = mapRef.current;
+    const e = ebenen.current;
+    if (!map || !e) return;
+    e.flaechen.clearLayers();
+    e.orte.clearLayers();
+    e.baeume.clearLayers();
+    objektLayer.current.clear();
+    const klickbar = !KLICK_AUF_KARTE.has(modus.art);
+    for (const o of kartenobjekte.data ?? []) {
+      const istGewaehlt = gewaehlt?.art === 'objekt' && gewaehlt.id === o.id;
+      const klick = (ev: L.LeafletEvent) => {
+        L.DomEvent.stopPropagation(ev as unknown as Event);
+        if (modusRef.current.art === 'ansehen') setGewaehlt({ art: 'objekt', id: o.id });
+      };
+      if (o.ebene === 'flaeche') {
+        const farbe = FLAECHE_FARBE[o.typ] ?? FLAECHE_FARBE.Andere;
+        const poly = L.geoJSON(o.geometrie as Geometrie, {
+          interactive: klickbar,
+          style: { color: istGewaehlt ? '#1F4D2E' : farbe, weight: istGewaehlt ? 4 : 2, dashArray: '6 4', fillColor: farbe, fillOpacity: ebene === 'baeume' ? 0.12 : 0.35 },
+        }).getLayers()[0] as L.Polygon;
+        if (ebene === 'hof')
+          poly.bindTooltip((o.name || o.typ).replace(/</g, '&lt;'), { permanent: true, direction: 'center', className: 'hof-flaeche-label' });
+        poly.on('click', klick);
+        poly.addTo(e.flaechen);
+        objektLayer.current.set(o.id, poly);
+      } else {
+        const [laenge, breite] = (o.geometrie as Point).coordinates;
+        const verschieben = modus.art === 'objektVerschieben' && modus.id === o.id;
+        const baum = o.ebene === 'baum';
+        const marker = L.marker([breite, laenge], {
+          icon: L.divIcon({
+            html: baum ? baumHtml(o.baumart, o.hochstamm, istGewaehlt || verschieben) : ortHtml(o.typ, istGewaehlt || verschieben),
+            className: '',
+            iconSize: baum ? [28, 28] : [30, 30],
+            iconAnchor: baum ? [14, 24] : [15, 15],
+          }),
+          interactive: klickbar || verschieben,
+          draggable: verschieben,
+          keyboard: true,
+          title: baum ? [o.baumart ?? o.typ, o.sorte].filter(Boolean).join(' · ') : o.name || o.typ,
+        });
+        marker.bindTooltip(
+          (baum ? [o.baumart ?? o.typ, o.sorte, o.pflanzjahr, o.hochstamm ? 'Hochstamm' : ''] : [o.typ, o.name]).filter(Boolean).join(' · ').replace(/</g, '&lt;'),
+          { direction: 'top', offset: [0, baum ? -20 : -14] },
+        );
+        marker.on('click', klick);
+        marker.on('dragend', async () => {
+          const p = marker.getLatLng();
+          const { error } = await supabase
+            .from('kartenobjekte')
+            .update({ geometrie: { type: 'Point', coordinates: [p.lng, p.lat] }, version: o.version })
+            .eq('id', o.id);
+          if (error) setFehler(fehlertext(error));
+          qc.invalidateQueries({ queryKey: ['kartenobjekte'] });
+        });
+        marker.addTo(baum ? e.baeume : e.orte);
+        objektLayer.current.set(o.id, marker);
+      }
+    }
+  }, [kartenobjekte.data, gewaehlt, modus, ebene, qc]);
+
+  // ---------- Ebene: Hof oder Bäume ----------
+  useEffect(() => {
+    const map = mapRef.current;
+    const e = ebenen.current;
+    if (!map || !e) return;
+    const hof = ebene === 'hof';
+    for (const g of [e.gebaeude, e.hinweise, e.orte]) {
+      if (hof) g.addTo(map);
+      else map.removeLayer(g);
+    }
+    if (hof) map.removeLayer(e.baeume);
+    else e.baeume.addTo(map);
+  }, [ebene]);
+
+  // ---------- Einrasten an Punkten anderer Flächen ----------
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    map.pm.setGlobalOptions({ snappable: einrasten, snapDistance: 18, allowSelfIntersection: false });
+    const m = modusRef.current;
+    const layer =
+      m.art === 'grenze' ? feldLayer.current.get(m.feldId) : m.art === 'objektGrenze' ? (objektLayer.current.get(m.id) as L.Polygon | undefined) : undefined;
+    if (layer) {
+      layer.pm.disable();
+      layer.pm.enable({ allowSelfIntersection: false, snappable: einrasten });
+    }
+  }, [einrasten]);
 
   // ---------- Hinweise mit Position ----------
   useEffect(() => {
@@ -247,11 +424,18 @@ export default function Hofkarte() {
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
-    if (modus.art === 'zeichnen' || modus.art === 'teilen') map.pm.enableDraw('Polygon', { snappable: true });
+    if (modus.art === 'zeichnen' || modus.art === 'teilen' || modus.art === 'flaeche')
+      map.pm.enableDraw('Polygon', { snappable: einrastenRef.current });
     else map.pm.disableDraw();
-    if (modus.art === 'grenze') feldLayer.current.get(modus.feldId)?.pm.enable({ allowSelfIntersection: false, snappable: true });
+    const bearbeiten =
+      modus.art === 'grenze'
+        ? feldLayer.current.get(modus.feldId)
+        : modus.art === 'objektGrenze'
+          ? (objektLayer.current.get(modus.id) as L.Polygon | undefined)
+          : undefined;
+    bearbeiten?.pm.enable({ allowSelfIntersection: false, snappable: einrastenRef.current });
     return () => {
-      if (modus.art === 'grenze') feldLayer.current.get(modus.feldId)?.pm.disable();
+      bearbeiten?.pm.disable();
     };
   }, [modus]);
 
@@ -298,6 +482,29 @@ export default function Hofkarte() {
     qc.invalidateQueries({ queryKey: ['felder'] });
   }
 
+  async function grenzeZuruecksetzen(feldId: string) {
+    const f = felder.data?.find((x) => x.id === feldId);
+    if (!f || !confirm(`Grenze von «${f.name}» entfernen? Das Feld und seine Daten bleiben erhalten, nur die Zeichnung wird gelöscht.`)) return;
+    const { error } = await supabase.from('felder').update({ geometrie: null, flaeche_gezeichnet_m2: null, version: f.version }).eq('id', f.id);
+    if (error) return setFehler(fehlertext(error));
+    setGewaehlt(null);
+    qc.invalidateQueries({ queryKey: ['felder'] });
+  }
+
+  async function objektGrenzeSpeichern(id: string) {
+    const layer = objektLayer.current.get(id) as L.Polygon | undefined;
+    const o = kartenobjekte.data?.find((x) => x.id === id);
+    if (!layer || !o) return;
+    const geometrie = layer.toGeoJSON().geometry as Geometrie;
+    const { error } = await supabase.from('kartenobjekte').update({ geometrie, flaeche_m2: flaecheM2(geometrie), version: o.version }).eq('id', id);
+    if (error) setFehler(fehlertext(error));
+    setModus({ art: 'ansehen' });
+    qc.invalidateQueries({ queryKey: ['kartenobjekte'] });
+  }
+
+  const zeichnetGerade = ['zeichnen', 'teilen', 'flaeche', 'grenze', 'objektGrenze'].includes(modus.art);
+  const kobjekt = gewaehlt?.art === 'objekt' ? kartenobjekte.data?.find((o) => o.id === gewaehlt.id) : undefined;
+  const baumZahl = (kartenobjekte.data ?? []).filter((o) => o.ebene === 'baum');
   const feld = gewaehlt?.art === 'feld' ? felder.data?.find((f) => f.id === gewaehlt.id) : undefined;
   const objekt = gewaehlt?.art === 'gebaeude' ? objekte.data?.find((o) => o.id === gewaehlt.id) : undefined;
   const ohneGrenze = (felder.data ?? []).filter((f) => !f.geometrie).length;
@@ -329,11 +536,23 @@ export default function Hofkarte() {
           >
             Parzellengrenzen
           </button>
+          <div className="flex rounded-full bg-white p-1 shadow" role="group" aria-label="Kartenebene">
+            {(['hof', 'baeume'] as const).map((k) => (
+              <button
+                key={k}
+                onClick={() => setEbene(k)}
+                aria-pressed={ebene === k}
+                className={`min-h-9 rounded-full px-3 text-xs font-extrabold ${ebene === k ? 'bg-hof text-white' : 'text-text'}`}
+              >
+                {k === 'hof' ? 'Hof & Felder' : `Bäume${baumZahl.length ? ` (${baumZahl.length})` : ''}`}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
       {/* Werkzeuge */}
-      {darfVerwalten && modus.art === 'ansehen' && !zeichnung && !neuerOrt && !gewaehlt && (
+      {darfVerwalten && modus.art === 'ansehen' && !zeichnung && !neuerOrt && !neueFlaeche && !neuerPunkt && !gewaehlt && ebene === 'hof' && (
         <div className="absolute bottom-3 left-3 z-[1000] flex flex-col items-start gap-2">
           {gebaeudeWahl && (
             <div className="flex max-w-[300px] flex-wrap gap-1.5 rounded-2xl bg-white p-2 shadow-lg">
@@ -352,14 +571,86 @@ export default function Hofkarte() {
               ))}
             </div>
           )}
-          <div className="flex gap-2">
+          {objektWahl && (
+            <div className="flex max-w-[320px] flex-col gap-2 rounded-2xl bg-white p-2 shadow-lg">
+              <button
+                className="knopf-leise justify-start"
+                onClick={() => {
+                  setObjektWahl(false);
+                  setModus({ art: 'flaeche' });
+                }}
+              >
+                ▱ Fläche zeichnen (Garten, ungenutzt, Hecke …)
+              </button>
+              <span className="px-1 text-xs font-bold text-leise">Ort setzen</span>
+              <div className="flex flex-wrap gap-1.5">
+                {ORTSTYPEN.map((t) => (
+                  <button
+                    key={t}
+                    onClick={() => {
+                      setObjektWahl(false);
+                      setModus({ art: 'ort', typ: t });
+                    }}
+                    className="min-h-10 rounded-xl bg-grund px-2 text-xs font-extrabold"
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
+              <span className="px-1 text-xs text-leise">Zählt nicht als Feld: keine Fruchtfolge, keine Kartei.</span>
+            </div>
+          )}
+          <div className="flex flex-wrap gap-2">
             <button className="knopf" onClick={() => setModus({ art: 'zeichnen' })}>
               <Icon name="felder" /> Feld zeichnen
             </button>
-            <button className="knopf-leise shadow" onClick={() => setGebaeudeWahl(!gebaeudeWahl)}>
+            <button
+              className="knopf-leise shadow"
+              onClick={() => {
+                setObjektWahl(!objektWahl);
+                setGebaeudeWahl(false);
+              }}
+            >
+              Fläche / Ort
+            </button>
+            <button
+              className="knopf-leise shadow"
+              onClick={() => {
+                setGebaeudeWahl(!gebaeudeWahl);
+                setObjektWahl(false);
+              }}
+            >
               <Icon name="heute" /> Gebäude
             </button>
           </div>
+        </div>
+      )}
+
+      {/* Werkzeuge Bäume */}
+      {darfVerwalten && modus.art === 'ansehen' && !gewaehlt && ebene === 'baeume' && (
+        <div className="absolute bottom-3 left-3 z-[1000] flex flex-col items-start gap-2">
+          {baumWahl && (
+            <BaumVorlageWahl
+              onStart={(v) => {
+                setBaumWahl(false);
+                setGesetzt(0);
+                setModus({ art: 'baum', vorlage: v });
+              }}
+              onAbbrechen={() => setBaumWahl(false)}
+            />
+          )}
+          {!baumWahl && (
+            <div className="flex flex-wrap items-center gap-2">
+              <button className="knopf" onClick={() => setBaumWahl(true)}>
+                <Icon name="plus" /> Bäume setzen
+              </button>
+              {baumZahl.length > 0 && (
+                <span className="rounded-full bg-white/90 px-3 py-2 text-xs font-bold shadow">
+                  {baumZahl.length} Bäume · {baumZahl.filter((b) => b.hochstamm).length} Hochstamm
+                </span>
+              )}
+            </div>
+          )}
         </div>
       )}
 
@@ -377,10 +668,30 @@ export default function Hofkarte() {
             {modus.art === 'zusammen' &&
               `Tippe die Felder an, die in «${felder.data?.find((f) => f.id === modus.feldId)?.name}» aufgehen sollen (${modus.wahl.length} gewählt).`}
             {modus.art === 'hinweis' && 'Tippe auf die Stelle im Feld, an der sich der Hinweis befindet.'}
+            {modus.art === 'flaeche' && 'Ecken der Fläche antippen. Zum Abschliessen den ersten Punkt erneut antippen. Die Fläche zählt nicht als Feld.'}
+            {modus.art === 'ort' && `Tippe auf die Stelle für «${modus.typ}».`}
+            {modus.art === 'baum' &&
+              `Jeder Tipp setzt einen Baum (${[modus.vorlage.baumart || modus.vorlage.typ, modus.vorlage.sorte].filter(Boolean).join(', ')}${
+                modus.vorlage.hochstamm ? ', Hochstamm' : ''
+              }). ${gesetzt ? `${gesetzt} gesetzt.` : ''}`}
+            {modus.art === 'objektGrenze' && 'Eckpunkte ziehen. Neue Punkte entstehen, wenn du die Mitte einer Kante ziehst.'}
+            {modus.art === 'objektVerschieben' && 'Symbol an die richtige Stelle ziehen.'}
           </span>
+          {zeichnetGerade && (
+            <label className="flex min-h-10 items-center gap-2 text-sm font-bold">
+              <input type="checkbox" className="h-5 w-5 accent-hof" checked={einrasten} onChange={(e) => setEinrasten(e.target.checked)} />
+              An Ecken und Kanten anderer Flächen einrasten
+              <span className="font-normal text-leise">{einrasten ? '' : '(aus: frei zeichnen, auch innerhalb anderer Felder)'}</span>
+            </label>
+          )}
           <div className="flex gap-2">
             {modus.art === 'grenze' && (
               <button className="knopf flex-1" onClick={() => grenzeSpeichern(modus.feldId)}>
+                Grenze speichern
+              </button>
+            )}
+            {modus.art === 'objektGrenze' && (
+              <button className="knopf flex-1" onClick={() => objektGrenzeSpeichern(modus.id)}>
                 Grenze speichern
               </button>
             )}
@@ -390,13 +701,14 @@ export default function Hofkarte() {
               </button>
             )}
             <button
-              className={modus.art === 'verschieben' ? 'knopf flex-1' : 'knopf-leise flex-1'}
+              className={['verschieben', 'objektVerschieben', 'baum'].includes(modus.art) ? 'knopf flex-1' : 'knopf-leise flex-1'}
               onClick={() => {
                 setModus({ art: 'ansehen' });
                 qc.invalidateQueries({ queryKey: ['felder'] });
+                qc.invalidateQueries({ queryKey: ['kartenobjekte'] });
               }}
             >
-              {modus.art === 'verschieben' ? 'Fertig' : 'Abbrechen'}
+              {['verschieben', 'objektVerschieben', 'baum'].includes(modus.art) ? 'Fertig' : 'Abbrechen'}
             </button>
           </div>
         </div>
@@ -430,6 +742,11 @@ export default function Hofkarte() {
                 Grenze ändern
               </button>
             )}
+            {darfVerwalten && (
+              <button className="knopf-leise text-fehler" onClick={() => grenzeZuruecksetzen(feld.id)}>
+                Grenze zurücksetzen
+              </button>
+            )}
             {darfVerwalten && feld.geometrie && (
               <button className="knopf-leise" onClick={() => setModus({ art: 'teilen', feldId: feld.id })}>
                 Teilen
@@ -459,6 +776,44 @@ export default function Hofkarte() {
             setGewaehlt(null);
             setModus({ art: 'verschieben', id: objekt.id });
           }}
+          onFehler={setFehler}
+        />
+      )}
+
+      {/* Gewählte Fläche, Ort oder Baum */}
+      {kobjekt && modus.art === 'ansehen' && (
+        <KartenobjektKarte
+          objekt={kobjekt}
+          onSchliessen={() => setGewaehlt(null)}
+          onGrenze={() => {
+            setGewaehlt(null);
+            setModus({ art: 'objektGrenze', id: kobjekt.id });
+          }}
+          onVerschieben={() => {
+            setGewaehlt(null);
+            setModus({ art: 'objektVerschieben', id: kobjekt.id });
+          }}
+          onFehler={setFehler}
+        />
+      )}
+
+      {neueFlaeche && (
+        <NeuesKartenobjekt
+          ebene="flaeche"
+          geometrie={neueFlaeche.geometrie}
+          flaeche={neueFlaeche.flaeche}
+          betriebId={profil!.betrieb_id}
+          onFertig={() => setNeueFlaeche(null)}
+          onFehler={setFehler}
+        />
+      )}
+      {neuerPunkt && (
+        <NeuesKartenobjekt
+          ebene="ort"
+          typVorgabe={neuerPunkt.typ}
+          geometrie={{ type: 'Point', coordinates: [neuerPunkt.laenge, neuerPunkt.breite] }}
+          betriebId={profil!.betrieb_id}
+          onFertig={() => setNeuerPunkt(null)}
           onFehler={setFehler}
         />
       )}
@@ -881,6 +1236,261 @@ function NeuerHinweis({
       <button className="knopf mt-2" onClick={speichern}>
         Speichern
       </button>
+    </Karte>
+  );
+}
+
+function BaumVorlageWahl({ onStart, onAbbrechen }: { onStart: (v: BaumVorlage) => void; onAbbrechen: () => void }) {
+  const [v, setV] = useState<BaumVorlage>(() => {
+    try {
+      const alt = JSON.parse(localStorage.getItem('hofkarte-baumvorlage') ?? 'null') as BaumVorlage | null;
+      if (alt && typeof alt.typ === 'string') return alt;
+    } catch {
+      /* ohne gespeicherte Vorlage */
+    }
+    return { typ: 'Obstbaum', baumart: 'Apfel', sorte: '', pflanzjahr: '', hochstamm: true };
+  });
+  function start() {
+    merken('hofkarte-baumvorlage', JSON.stringify(v));
+    onStart(v);
+  }
+  return (
+    <div className="flex w-[min(340px,calc(100vw-24px))] flex-col gap-2 rounded-2xl bg-white p-3 shadow-lg">
+      <span className="text-sm font-extrabold">Welche Bäume setzt du?</span>
+      <div className="grid grid-cols-2 gap-2">
+        <label className="feld-label">
+          Typ
+          <select className="eingabe" value={v.typ} onChange={(e) => setV({ ...v, typ: e.target.value })}>
+            {BAUMTYPEN.map((t) => (
+              <option key={t}>{t}</option>
+            ))}
+          </select>
+        </label>
+        <label className="feld-label">
+          Baumart
+          <select className="eingabe" value={v.baumart} onChange={(e) => setV({ ...v, baumart: e.target.value })}>
+            <option value="">–</option>
+            {BAUMARTEN.map((t) => (
+              <option key={t}>{t}</option>
+            ))}
+          </select>
+        </label>
+        <label className="feld-label">
+          Sorte
+          <input className="eingabe" value={v.sorte} onChange={(e) => setV({ ...v, sorte: e.target.value })} placeholder="z. B. Boskoop" />
+        </label>
+        <label className="feld-label">
+          Pflanzjahr
+          <input className="eingabe" inputMode="numeric" value={v.pflanzjahr} onChange={(e) => setV({ ...v, pflanzjahr: e.target.value })} />
+        </label>
+      </div>
+      <label className="flex min-h-10 items-center gap-2 text-sm font-bold">
+        <input type="checkbox" className="h-5 w-5 accent-hof" checked={v.hochstamm} onChange={(e) => setV({ ...v, hochstamm: e.target.checked })} />
+        Hochstamm
+      </label>
+      <div className="flex gap-2">
+        <button className="knopf flex-1" onClick={start}>
+          Auf der Karte setzen
+        </button>
+        <button className="knopf-leise" onClick={onAbbrechen}>
+          Abbrechen
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function NeuesKartenobjekt({
+  ebene,
+  typVorgabe,
+  geometrie,
+  flaeche,
+  betriebId,
+  onFertig,
+  onFehler,
+}: {
+  ebene: 'flaeche' | 'ort';
+  typVorgabe?: string;
+  geometrie: Geometrie | Point;
+  flaeche?: number;
+  betriebId: string;
+  onFertig: () => void;
+  onFehler: (t: string) => void;
+}) {
+  const qc = useQueryClient();
+  const [typ, setTyp] = useState(typVorgabe ?? 'Garten');
+  const [name, setName] = useState('');
+  const [bemerkungen, setBemerkungen] = useState('');
+  async function sichern() {
+    const { error } = await supabase.from('kartenobjekte').insert({
+      betrieb_id: betriebId,
+      ebene,
+      typ,
+      name: name.trim() || null,
+      geometrie,
+      flaeche_m2: flaeche ?? null,
+      bemerkungen: bemerkungen.trim() || null,
+    });
+    if (error) return onFehler(fehlertext(error));
+    qc.invalidateQueries({ queryKey: ['kartenobjekte'] });
+    onFertig();
+  }
+  return (
+    <Karte onSchliessen={onFertig}>
+      <h2 className="m-0 text-xl font-extrabold">{ebene === 'flaeche' ? `Neue Fläche: ${ha(flaeche ?? 0)}` : `Neuer Ort: ${typ}`}</h2>
+      <span className="text-xs text-leise">Ohne Fruchtfolge – erscheint nur auf der Karte.</span>
+      <div className="mt-2 grid grid-cols-2 gap-2">
+        <label className="feld-label">
+          Art
+          <select className="eingabe" value={typ} onChange={(e) => setTyp(e.target.value)}>
+            {(ebene === 'flaeche' ? FLAECHENTYPEN : ORTSTYPEN).map((t) => (
+              <option key={t}>{t}</option>
+            ))}
+          </select>
+        </label>
+        <label className="feld-label">
+          Name (optional)
+          <input className="eingabe" value={name} onChange={(e) => setName(e.target.value)} autoFocus />
+        </label>
+      </div>
+      <label className="feld-label">
+        Bemerkungen
+        <input className="eingabe" value={bemerkungen} onChange={(e) => setBemerkungen(e.target.value)} />
+      </label>
+      <button className="knopf mt-2" onClick={sichern}>
+        Speichern
+      </button>
+    </Karte>
+  );
+}
+
+function KartenobjektKarte({
+  objekt,
+  onSchliessen,
+  onGrenze,
+  onVerschieben,
+  onFehler,
+}: {
+  objekt: Kartenobjekt;
+  onSchliessen: () => void;
+  onGrenze: () => void;
+  onVerschieben: () => void;
+  onFehler: (t: string) => void;
+}) {
+  const { darfVerwalten } = useAuth();
+  const qc = useQueryClient();
+  const baum = objekt.ebene === 'baum';
+  const [w, setW] = useState({
+    typ: objekt.typ,
+    name: objekt.name ?? '',
+    baumart: objekt.baumart ?? '',
+    sorte: objekt.sorte ?? '',
+    pflanzjahr: objekt.pflanzjahr ? String(objekt.pflanzjahr) : '',
+    hochstamm: objekt.hochstamm,
+    bemerkungen: objekt.bemerkungen ?? '',
+  });
+  const typen = objekt.ebene === 'flaeche' ? FLAECHENTYPEN : objekt.ebene === 'ort' ? ORTSTYPEN : BAUMTYPEN;
+
+  async function sichern() {
+    const j = Number(w.pflanzjahr);
+    if (w.pflanzjahr.trim() && (!Number.isInteger(j) || j < 1800 || j > 2100)) return onFehler('Pflanzjahr ungültig.');
+    const { error } = await supabase
+      .from('kartenobjekte')
+      .update({
+        typ: w.typ,
+        name: w.name.trim() || null,
+        baumart: baum ? w.baumart || null : null,
+        sorte: baum ? w.sorte.trim() || null : null,
+        pflanzjahr: baum && w.pflanzjahr.trim() ? j : null,
+        hochstamm: baum ? w.hochstamm : false,
+        bemerkungen: w.bemerkungen.trim() || null,
+        version: objekt.version,
+      })
+      .eq('id', objekt.id);
+    if (error) return onFehler(fehlertext(error));
+    qc.invalidateQueries({ queryKey: ['kartenobjekte'] });
+    onSchliessen();
+  }
+  async function entfernen() {
+    if (!confirm(`${baum ? 'Diesen Baum' : `«${objekt.name || objekt.typ}»`} von der Karte entfernen?`)) return;
+    const { error } = await supabase.from('kartenobjekte').delete().eq('id', objekt.id);
+    if (error) return onFehler(fehlertext(error));
+    qc.invalidateQueries({ queryKey: ['kartenobjekte'] });
+    onSchliessen();
+  }
+
+  return (
+    <Karte onSchliessen={onSchliessen}>
+      <span className="text-xs font-bold text-leise">
+        {baum ? 'Baum' : objekt.ebene === 'flaeche' ? `Fläche ohne Fruchtfolge${objekt.flaeche_m2 ? ` · ${ha(Number(objekt.flaeche_m2))}` : ''}` : 'Ort'}
+      </span>
+      <fieldset disabled={!darfVerwalten} className="m-0 flex flex-col gap-2 border-0 p-0">
+        <div className="grid grid-cols-2 gap-2">
+          <label className="feld-label">
+            Art
+            <select className="eingabe" value={w.typ} onChange={(e) => setW({ ...w, typ: e.target.value })}>
+              {[...new Set([...typen, w.typ])].map((t) => (
+                <option key={t}>{t}</option>
+              ))}
+            </select>
+          </label>
+          {baum ? (
+            <label className="feld-label">
+              Baumart
+              <select className="eingabe" value={w.baumart} onChange={(e) => setW({ ...w, baumart: e.target.value })}>
+                <option value="">–</option>
+                {[...new Set([...BAUMARTEN, ...(w.baumart ? [w.baumart] : [])])].map((t) => (
+                  <option key={t}>{t}</option>
+                ))}
+              </select>
+            </label>
+          ) : (
+            <label className="feld-label">
+              Name
+              <input className="eingabe" value={w.name} onChange={(e) => setW({ ...w, name: e.target.value })} />
+            </label>
+          )}
+          {baum && (
+            <>
+              <label className="feld-label">
+                Sorte
+                <input className="eingabe" value={w.sorte} onChange={(e) => setW({ ...w, sorte: e.target.value })} />
+              </label>
+              <label className="feld-label">
+                Pflanzjahr
+                <input className="eingabe" inputMode="numeric" value={w.pflanzjahr} onChange={(e) => setW({ ...w, pflanzjahr: e.target.value })} />
+              </label>
+              <label className="col-span-2 flex min-h-10 items-center gap-2 text-sm font-bold">
+                <input type="checkbox" className="h-5 w-5 accent-hof" checked={w.hochstamm} onChange={(e) => setW({ ...w, hochstamm: e.target.checked })} />
+                Hochstamm
+              </label>
+            </>
+          )}
+        </div>
+        <label className="feld-label">
+          Bemerkungen
+          <input className="eingabe" value={w.bemerkungen} onChange={(e) => setW({ ...w, bemerkungen: e.target.value })} />
+        </label>
+      </fieldset>
+      {darfVerwalten && (
+        <div className="mt-2 flex flex-wrap gap-2">
+          <button className="knopf" onClick={sichern}>
+            Speichern
+          </button>
+          {objekt.ebene === 'flaeche' ? (
+            <button className="knopf-leise" onClick={onGrenze}>
+              Grenze ändern
+            </button>
+          ) : (
+            <button className="knopf-leise" onClick={onVerschieben}>
+              Verschieben
+            </button>
+          )}
+          <button className="knopf-leise text-fehler" onClick={entfernen}>
+            Entfernen
+          </button>
+        </div>
+      )}
     </Karte>
   );
 }

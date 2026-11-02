@@ -112,3 +112,14 @@ vollständig bleiben. Die Feldnummer eines gelöschten Feldes darf sofort neu ve
 Pro Feld und Jahr gibt es genau eine Hauptkultur (Grundlage für Kartei, Ernte und Flächenstatistik). Weitere Kulturen
 werden als Zweitkultur (z. B. Silomais nach Grünschnittroggen oder auf einer Teilfläche), Zwischenkultur oder Untersaat
 erfasst, beliebig viele, jede Kultur einmal pro Jahr und Art. Jede Kultur kann eine Teilfläche haben (leer = ganzes Feld).
+
+## 2026-11-02 · Flächen, Orte und Bäume ausserhalb der Felder
+Garten, ungenutzte Flächen, Hecken, Brunnen, Tore usw. sowie Bäume liegen in `kartenobjekte` (Ebene flaeche, ort, baum),
+nicht in `felder`. So erscheinen sie nie in Felderliste, Fruchtfolge, Kartei oder Ernte. Bäume haben eine eigene
+Kartenebene («Bäume»), damit die Hof-Ansicht übersichtlich bleibt; dort sind die Felder nur blass als Orientierung sichtbar.
+Beim Setzen von Bäumen gilt eine Vorlage (Art, Sorte, Pflanzjahr, Hochstamm), jeder Klick setzt einen Baum.
+
+## 2026-11-02 · Einrasten beim Zeichnen
+Das Einrasten an Ecken und Kanten anderer Flächen lässt sich während des Zeichnens ausschalten (Einstellung bleibt im
+Browser gespeichert). In Zeichen- und Platziermodi sind Felder nicht anklickbar, damit Punkte auch innerhalb bestehender
+Felder gesetzt werden können.

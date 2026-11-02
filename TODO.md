@@ -1,6 +1,6 @@
 # To-do-Liste
 
-Stand: 02.11.2026 (Version 0.8). Wird nach jedem Entwicklungsschritt aktualisiert.
+Stand: 02.11.2026 (Version 0.9). Wird nach jedem Entwicklungsschritt aktualisiert.
 
 ## Phase 1 – Planung
 - [x] Anforderungsanalyse, Architektur, Datenmodell, Kosten, Risiken
@@ -14,7 +14,7 @@ Stand: 02.11.2026 (Version 0.8). Wird nach jedem Entwicklungsschritt aktualisier
 - [x] Migration 4 einspielen (Maschinen, Partner, Hinweise, Teilen)
 - [ ] Migration 5 einspielen (Aufträge)
 - [ ] Migration 6 einspielen (Benutzerverwaltung)
-- [ ] Migrationen 7 und 8 einspielen, danach Import Fruchtfolge 2023–2029
+- [ ] Migrationen 7, 8 und 9 einspielen, danach Import Fruchtfolge 2023–2029
 - [ ] Feldgrenzen der 13 importierten Felder auf der Karte zeichnen
 - [ ] Supabase: eigenen Mailversand (SMTP) einrichten, Standard-Mails sind auf wenige pro Stunde begrenzt
 - [ ] Domain bei Jimdo klären (eigene DNS-Einträge möglich?)
@@ -37,6 +37,9 @@ Stand: 02.11.2026 (Version 0.8). Wird nach jedem Entwicklungsschritt aktualisier
 - [x] Zeitachse mit Saat- und Erntezeitpunkt, Zwischenkulturen
 - [x] Mehrere Kulturen je Jahr (Zweitkultur, mehrere Zwischenkulturen, Untersaat, Teilfläche)
 - [x] Felder löschen mit Papierkorb (24 h)
+- [x] Feldgrenze zurücksetzen, Einrasten abschaltbar
+- [x] Flächen/Orte ohne Fruchtfolge, Bäume auf eigener Kartenebene (Hochstamm-Zählung)
+- [ ] Baumliste mit Export (z. B. für Hochstamm-Beiträge)
 - [ ] Parzellen zu Feldern zuordnen
 - [ ] Fotos zu Feldern
 - [x] Hof-Ansicht mit swisstopo-Luftbild, Feldgrenzen zeichnen/ändern, Gebäude mit Links, Schalter Hof-Ansicht/Liste

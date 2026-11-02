@@ -121,3 +121,35 @@ export function hinweisHtml(art: string): string {
   const farbe = HINWEIS_FARBE[art] ?? '#D99A1E';
   return `<div class="hof-hinweis" style="background:${farbe}"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M12 7v6"/><path d="M12 17h.01"/></svg></div>`;
 }
+
+// ---------------------------------------------------------------- Flächen, Orte und Bäume ohne Fruchtfolge
+export const FLAECHE_FARBE: Record<string, string> = {
+  Garten: '#E9A23B',
+  'Ungenutzte Fläche': '#B9B2A0',
+  Hofplatz: '#9C8F7A',
+  Wald: '#2E6B3A',
+  Hecke: '#5E8F3E',
+  Biodiversitätsfläche: '#C77DBA',
+  Obstgarten: '#8DB84A',
+  Weg: '#D8CBB0',
+  Gewässer: '#4A90C2',
+  Andere: '#A0A0A0',
+};
+
+const ORT_ZEICHEN: Record<string, string> = {
+  Brunnen: '💧', Tränke: '🪣', Zufahrt: '⬆', Tor: '🚪', Schacht: '⊙', Bienenstand: '🐝', Sammelplatz: '⚑', Andere: '•',
+};
+
+export function ortHtml(typ: string, gewaehlt: boolean): string {
+  return `<div class="hof-ort${gewaehlt ? ' gewaehlt' : ''}" aria-hidden="true">${ORT_ZEICHEN[typ] ?? '•'}</div>`;
+}
+
+/** Baum als kleine Krone; Hochstamm mit dunklerem Rand */
+export function baumHtml(baumart: string | null, hochstamm: boolean, gewaehlt: boolean): string {
+  const farbe =
+    baumart === 'Kirsche' ? '#B83A3A' : baumart === 'Birne' ? '#9DBB3A' : baumart === 'Zwetschge' ? '#6A4C93' : baumart === 'Baumnuss' ? '#7A5A3A' : '#3E8E41';
+  return `<svg class="hof-baum${gewaehlt ? ' gewaehlt' : ''}" viewBox="0 0 28 28" width="28" height="28" aria-hidden="true">
+    <rect x="12.5" y="16" width="3" height="9" rx="1" fill="#6B4A2B"/>
+    <circle cx="14" cy="12" r="9" fill="${farbe}" stroke="${hochstamm ? '#173D1F' : '#FFFFFF'}" stroke-width="${gewaehlt ? 3.5 : 2}"/>
+  </svg>`;
+}

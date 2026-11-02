@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from './supabase';
 import type {
   Anbau, Feld, Feldarbeit, FeldHinweis, FlaecheJeKultur, Hofobjekt, Kultur, Lagerbestand, Maschine, MaschinenEintrag,
-  NaehrstoffeJeFeld, Partner, WartungFaellig, Wartungsplan, Auftrag, Ernte,
+  NaehrstoffeJeFeld, Partner, WartungFaellig, Wartungsplan, Auftrag, Ernte, Kartenobjekt,
 } from './typen';
 
 export function useFelder() {
@@ -290,6 +290,18 @@ export function usePapierkorb() {
         .order('geloescht_am', { ascending: false });
       if (error) throw error;
       return data as Pick<Feld, 'id' | 'feldnummer' | 'name' | 'flaeche_m2' | 'geloescht_am'>[];
+    },
+  });
+}
+
+export function useKartenobjekte() {
+  return useQuery({
+    queryKey: ['kartenobjekte'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('kartenobjekte').select('*').order('erstellt_am');
+      // Fehlt Migration 9 noch, bleibt die Karte ohne diese Objekte nutzbar.
+      if (error) return [] as Kartenobjekt[];
+      return data as Kartenobjekt[];
     },
   });
 }

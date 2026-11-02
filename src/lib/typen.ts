@@ -1,4 +1,4 @@
-import type { MultiPolygon, Polygon } from 'geojson';
+import type { MultiPolygon, Point, Polygon } from 'geojson';
 
 export type Rolle = 'administrator' | 'betriebsleiter' | 'mitarbeiter' | 'lesen';
 
@@ -371,4 +371,26 @@ export interface Ernte {
   erstellt_von: string | null;
   version: number;
   ernte_abnehmer: ErnteAbnehmer[];
+}
+
+// ---------------------------------------------------------------- Karte: Flächen, Orte, Bäume (ohne Fruchtfolge)
+export const FLAECHENTYPEN = ['Garten', 'Ungenutzte Fläche', 'Hofplatz', 'Wald', 'Hecke', 'Biodiversitätsfläche', 'Obstgarten', 'Weg', 'Gewässer', 'Andere'] as const;
+export const ORTSTYPEN = ['Brunnen', 'Tränke', 'Zufahrt', 'Tor', 'Schacht', 'Bienenstand', 'Sammelplatz', 'Andere'] as const;
+export const BAUMTYPEN = ['Obstbaum', 'Nussbaum', 'Einzelbaum', 'Andere'] as const;
+export const BAUMARTEN = ['Apfel', 'Birne', 'Kirsche', 'Zwetschge', 'Quitte', 'Baumnuss', 'Linde', 'Eiche', 'Ahorn', 'Andere'] as const;
+
+export interface Kartenobjekt {
+  id: string;
+  betrieb_id: string;
+  ebene: 'flaeche' | 'ort' | 'baum';
+  typ: string;
+  name: string | null;
+  geometrie: Polygon | MultiPolygon | Point;
+  flaeche_m2: number | null;
+  baumart: string | null;
+  sorte: string | null;
+  pflanzjahr: number | null;
+  hochstamm: boolean;
+  bemerkungen: string | null;
+  version: number;
 }
