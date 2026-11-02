@@ -40,18 +40,28 @@ export interface Feld {
   korrektur_mg: number | null;
   bodenprobe_jahr: number | null;
   zusammengefuehrt_in: string | null;
+  geloescht_am?: string | null;
   geometrie: Polygon | MultiPolygon | null;
   flaeche_gezeichnet_m2: number | null;
   version: number;
 }
+
+export const ANBAUARTEN = ['Hauptkultur', 'Zweitkultur', 'Zwischenkultur', 'Untersaat'] as const;
+export const ANBAUART_TEXT: Record<(typeof ANBAUARTEN)[number], string> = {
+  Hauptkultur: 'Hauptkultur (eine pro Jahr)',
+  Zweitkultur: 'Zweitkultur (nach der Hauptkultur oder auf Teilfläche)',
+  Zwischenkultur: 'Zwischenkultur / Gründüngung',
+  Untersaat: 'Untersaat / Mischpartner',
+};
 
 export interface Anbau {
   id: string;
   feld_id: string;
   kultur_id: string;
   jahr: number;
-  art: 'Hauptkultur' | 'Zwischenkultur';
+  art: (typeof ANBAUARTEN)[number];
   status: 'geplant' | 'ist';
+  flaeche_m2?: number | null;
   version: number;
   saatdatum?: string | null;
   erntedatum?: string | null;

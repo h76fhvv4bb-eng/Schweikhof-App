@@ -4,6 +4,7 @@ import { useAnbau, useFelder } from '../lib/daten';
 import { useAuth } from '../lib/auth';
 import { ha } from '../lib/format';
 import { Icon } from '../components/Icon';
+import { Papierkorb } from '../components/Papierkorb';
 
 const Hofkarte = lazy(() => import('./Hofkarte'));
 
@@ -118,6 +119,7 @@ export function Felder() {
       })}
         </>
       )}
+      <Papierkorb />
     </div>
   );
 }

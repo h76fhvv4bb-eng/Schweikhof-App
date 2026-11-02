@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase, fehlertext } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
-import { useAnbau, useFelder, useKulturen } from '../lib/daten';
+import { useAnbau, useAnbauAlle, useFelder, useKulturen } from '../lib/daten';
 import { hinweiseFuerJahr } from '../lib/fruchtfolgeRegeln';
 import { datum, ha } from '../lib/format';
 import type { Anbau, Kultur } from '../lib/typen';
@@ -24,6 +24,7 @@ export function Fruchtfolge() {
   const felder = useFelder();
   const kulturen = useKulturen();
   const anbau = useAnbau(start - 5, jahre[jahre.length - 1]);
+  const alle = useAnbauAlle(jahre[0], jahre[jahre.length - 1]);
   const [fehler, setFehler] = useState<string | null>(null);
   const [speichert, setSpeichert] = useState<string | null>(null);
   const [ansicht, setAnsicht] = useState<'raster' | 'zeitachse'>(() => {
@@ -33,7 +34,16 @@ export function Fruchtfolge() {
       return 'raster';
     }
   });
-  const [planen, setPlanen] = useState<{ feldId: string; feldName: string; jahr: number; eintrag: Anbau | null } | null>(null);
+  const [planen, setPlanen] = useState<{ feldId: string; feldName: string; feldM2: number; jahr: number; eintrag: Anbau | null; art?: Anbau['art'] } | null>(null);
+  const weitere = useMemo(() => {
+    const m = new Map<string, Anbau[]>();
+    for (const a of alle.data ?? []) {
+      if (a.art === 'Hauptkultur') continue;
+      const k = `${a.feld_id}|${a.jahr}`;
+      m.set(k, [...(m.get(k) ?? []), a]);
+    }
+    return m;
+  }, [alle.data]);
   function waehleAnsicht(a: 'raster' | 'zeitachse') {
     setAnsicht(a);
     try {
@@ -112,7 +122,14 @@ export function Fruchtfolge() {
         f.feldnummer,
         f.name,
         (Number(f.flaeche_m2) / 10000).toFixed(2),
-        ...jahre.map((j) => kulturById.get(zelle.get(`${f.id}|${j}`)?.kultur_id ?? '')?.name ?? ''),
+        ...jahre.map((j) =>
+          [
+            kulturById.get(zelle.get(`${f.id}|${j}`)?.kultur_id ?? '')?.name ?? '',
+            ...(weitere.get(`${f.id}|${j}`) ?? []).map((x) => `${x.art}: ${x.kulturen?.name ?? ''}`),
+          ]
+            .filter(Boolean)
+            .join(' + '),
+        ),
       ]);
     const kopf = [`Fruchtfolge ${jahre[0]}–${jahre[jahre.length - 1]}`, `Erstellt ${datum(new Date())}`];
     const text = [kopf, [], ...zeilen].map((z) => z.map((x) => `"${String(x).replace(/"/g, '""')}"`).join(';')).join('\r\n');
@@ -201,15 +218,6 @@ export function Fruchtfolge() {
                   <th scope="row" className="whitespace-nowrap px-2 text-left">
                     <span className="block text-[15px] font-extrabold">{f.name}</span>
                     <span className="text-xs font-semibold text-leise">{ha(Number(f.flaeche_m2))}</span>
-                    {darfVerwalten && (
-                      <button
-                        type="button"
-                        className="block text-xs font-bold text-hof underline"
-                        onClick={() => setPlanen({ feldId: f.id, feldName: f.name, jahr: aktuell, eintrag: zelle.get(`${f.id}|${aktuell}`) ?? null })}
-                      >
-                        Details
-                      </button>
-                    )}
                   </th>
                   {jahre.map((j) => {
                     const a = zelle.get(`${f.id}|${j}`);
@@ -247,6 +255,46 @@ export function Fruchtfolge() {
                             </select>
                           )}
                         </label>
+                        {(darfVerwalten || (weitere.get(schluessel)?.length ?? 0) > 0) && (
+                          <div className="mt-1 flex flex-wrap justify-center gap-1">
+                            {darfVerwalten && a && (
+                              <button
+                                type="button"
+                                className="rounded-md bg-grund px-1.5 text-[11px] font-bold text-hof"
+                                title="Saat, Ernte, Teilfläche der Hauptkultur"
+                                onClick={() => setPlanen({ feldId: f.id, feldName: f.name, feldM2: Number(f.flaeche_m2), jahr: j, eintrag: a })}
+                              >
+                                Details
+                              </button>
+                            )}
+                            {(weitere.get(schluessel) ?? []).map((x) => (
+                              <button
+                                key={x.id}
+                                type="button"
+                                className="max-w-full truncate rounded-md px-1.5 text-[11px] font-bold"
+                                style={{ background: x.kulturen?.farbe ?? '#ddd', opacity: x.status === 'geplant' ? 0.8 : 1 }}
+                                title={`${x.art}: ${x.kulturen?.name}`}
+                                onClick={() => setPlanen({ feldId: f.id, feldName: f.name, feldM2: Number(f.flaeche_m2), jahr: j, eintrag: x })}
+                              >
+                                {x.art === 'Zweitkultur' ? '2. ' : x.art === 'Untersaat' ? '↳ ' : 'ZK '}
+                                {x.kulturen?.name}
+                              </button>
+                            ))}
+                            {darfVerwalten && (
+                              <button
+                                type="button"
+                                className="rounded-md border border-dashed border-linie px-1.5 text-[11px] font-bold text-leise"
+                                aria-label={`Weitere Kultur ${f.name} ${j}`}
+                                title="Weitere Kultur: Zweitkultur, Zwischenkultur oder Untersaat"
+                                onClick={() =>
+                                  setPlanen({ feldId: f.id, feldName: f.name, feldM2: Number(f.flaeche_m2), jahr: j, eintrag: null, art: a ? 'Zwischenkultur' : 'Hauptkultur' })
+                                }
+                              >
+                                +
+                              </button>
+                            )}
+                          </div>
+                        )}
                       </td>
                     );
                   })}
@@ -273,13 +321,21 @@ export function Fruchtfolge() {
           )}
         </table>
         <p className="m-0 mt-2 px-2 text-xs text-leise">
-          Tipp: Kultur direkt wählen oder mit «Details» Saat- und Erntezeitpunkt, Status und Zwischenkulturen planen (auch in der Zeitachse).
+          Tipp: Hauptkultur direkt im Feld wählen. «Details» für Saat, Ernte und Teilfläche, «+» für weitere Kulturen im gleichen Jahr (Zweitkultur, Zwischenkultur, Untersaat). ZK = Zwischenkultur, 2. = Zweitkultur, ↳ = Untersaat.
         </p>
       </div>
       )}
 
       {planen && (
-        <AnbauDialog eintrag={planen.eintrag} feldId={planen.feldId} feldName={planen.feldName} jahr={planen.jahr} onFertig={() => setPlanen(null)} />
+        <AnbauDialog
+          eintrag={planen.eintrag}
+          feldId={planen.feldId}
+          feldName={planen.feldName}
+          feldM2={planen.feldM2}
+          jahr={planen.jahr}
+          art={planen.art}
+          onFertig={() => setPlanen(null)}
+        />
       )}
 
       <HinweisListe

@@ -67,7 +67,7 @@ def main(pfad):
     out.append('-- =====================================================================')
     out.append('-- Hofmanager SchweikFarm – Import: Ackerflächen und Fruchtfolge 2023–2029')
     out.append('-- Quelle: Fruchtfolgerapport/Parzellenregister (Excel, Blatt «Anpassung 26»)')
-    out.append('-- Einspielen: Supabase › SQL Editor › gesamten Inhalt einfügen › Run (Migration 7 muss eingespielt sein)')
+    out.append('-- Einspielen: Supabase › SQL Editor › gesamten Inhalt einfügen › Run (Migrationen 7 und 8 müssen eingespielt sein)')
     out.append('-- Bestehende Felder mit gleichem Namen werden aktualisiert, Anbau-Einträge je Jahr überschrieben.')
     out.append('-- Saat-/Erntemonat stammen aus dem Monatsraster und sind als «nur Monat» markiert.')
     out.append('-- =====================================================================')
@@ -78,6 +78,9 @@ def main(pfad):
     out.append('  v_nr text;')
     out.append('begin')
     out.append("  if v_betrieb is null then raise exception 'Zuerst in der App den Betrieb einrichten'; end if;")
+    out.append("  if not exists (select 1 from pg_indexes where schemaname = 'public' and indexname = 'anbau_hauptkultur') then")
+    out.append("    raise exception 'Zuerst Migration 8 (Papierkorb, mehrere Kulturen) einspielen';")
+    out.append("  end if;")
     for f in felder:
         nr = f['nr']
         if nr in gesehen:
@@ -104,7 +107,9 @@ def main(pfad):
                 f"  insert into public.anbau (betrieb_id, feld_id, kultur_id, jahr, art, status, saatdatum, erntedatum, nur_monat, bemerkungen) "
                 f"select v_betrieb, v_feld, id, {jahr}, '{art}', '{status}', {sql_text(saat)}::date, {sql_text(ernte)}::date, true, 'Fruchtfolgerapport' "
                 f"from public.kulturen where betrieb_id is null and name = {sql_text(kultur)} "
-                f"on conflict (feld_id, jahr, art) do update set kultur_id = excluded.kultur_id, status = excluded.status, "
+                + (f"on conflict (feld_id, jahr) where art = 'Hauptkultur' do update set kultur_id = excluded.kultur_id, status = excluded.status, "
+                   if art == 'Hauptkultur' else
+                   f"on conflict (feld_id, jahr, art, kultur_id) do update set status = excluded.status, ") +
                 f"saatdatum = excluded.saatdatum, erntedatum = excluded.erntedatum, nur_monat = true;"
             )
     out.append('end $$;')

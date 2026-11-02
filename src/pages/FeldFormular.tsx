@@ -88,7 +88,8 @@ export function FeldFormular() {
         .from('anbau')
         .select('id, feld_id, kultur_id, jahr, art, status, version, kulturen(name, farbe), felder(name)')
         .in('feld_id', [id!, ...(feld?.vorgaenger ?? [])])
-        .order('jahr', { ascending: false });
+        .order('jahr', { ascending: false })
+        .order('art');
       if (error) throw error;
       return data as unknown as (Anbau & { felder: { name: string } | null })[];
     },
@@ -128,6 +129,28 @@ export function FeldFormular() {
     },
     onError: (e) => setFehler(fehlertext(e)),
   });
+
+  async function loeschen() {
+    if (!feld) return;
+    setFehler(null);
+    const { data } = await supabase.rpc('feld_aufzeichnungen', { p_id: feld.id });
+    const a = (data ?? {}) as { arbeiten?: number; ernten?: number; auftraege?: number };
+    const teile = [
+      a.arbeiten ? `${a.arbeiten} Arbeiten` : '',
+      a.ernten ? `${a.ernten} Ernten` : '',
+      a.auftraege ? `${a.auftraege} Aufträge` : '',
+    ].filter(Boolean);
+    const text =
+      `«${feld.name}» löschen?\n\nDas Feld kommt in den Papierkorb und lässt sich 24 Stunden lang wiederherstellen.` +
+      (teile.length
+        ? `\n\nZu diesem Feld gibt es ${teile.join(', ')}. Diese Aufzeichnungen bleiben erhalten; das Feld wird darum nur archiviert, nicht ganz entfernt.`
+        : '\n\nDanach wird es mit Fruchtfolge und Hinweisen endgültig entfernt.');
+    if (!confirm(text)) return;
+    const { error } = await supabase.rpc('feld_loeschen', { p_id: feld.id });
+    if (error) return setFehler(fehlertext(error));
+    ['felder', 'anbau', 'flaeche_je_kultur'].forEach((k) => qc.invalidateQueries({ queryKey: [k] }));
+    navigate('/felder');
+  }
 
   function absenden(e: FormEvent) {
     e.preventDefault();
@@ -268,6 +291,7 @@ export function FeldFormular() {
                 {a.kulturen?.name}
               </span>
               <span className="text-xs text-leise">
+                {a.art !== 'Hauptkultur' ? `${a.art} · ` : ''}
                 {a.status === 'ist' ? 'Ist' : 'Plan'}
                 {a.feld_id !== id && a.felder && ` · auf ${a.felder.name}`}
               </span>
@@ -285,6 +309,19 @@ export function FeldFormular() {
       )}
 
       {!neu && feld && darfVerwalten && <FeldTeilenZusammenfuehren feld={feld} />}
+
+      {!neu && feld && darfVerwalten && (
+        <section className="karte flex flex-col gap-2">
+          <h2 className="m-0 text-lg font-extrabold">Feld löschen</h2>
+          <p className="m-0 text-sm text-leise">
+            Das Feld kommt in den Papierkorb (unten in der Felderliste) und ist 24 Stunden wiederherstellbar. Wird es nur nicht mehr bewirtschaftet,
+            besser den Status auf «aufgegeben» setzen; dann bleibt die Historie sichtbar.
+          </p>
+          <button type="button" className="knopf-leise self-start text-fehler" onClick={loeschen}>
+            Feld löschen
+          </button>
+        </section>
+      )}
     </div>
   );
 }

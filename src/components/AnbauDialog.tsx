@@ -3,13 +3,15 @@ import { useQueryClient } from '@tanstack/react-query';
 import { supabase, fehlertext } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
 import { useKulturen } from '../lib/daten';
-import type { Anbau } from '../lib/typen';
+import { ANBAUARTEN, ANBAUART_TEXT, type Anbau } from '../lib/typen';
+import { zahlAus } from '../lib/format';
 
 /** Anbau (Kultur je Feld und Jahr) mit Saat und Ernte planen oder bearbeiten */
 export function AnbauDialog({
   eintrag,
   feldId,
   feldName,
+  feldM2,
   jahr,
   art,
   onFertig,
@@ -17,6 +19,7 @@ export function AnbauDialog({
   eintrag: Anbau | null;
   feldId: string;
   feldName: string;
+  feldM2?: number;
   jahr: number;
   art?: Anbau['art'];
   onFertig: () => void;
@@ -34,6 +37,7 @@ export function AnbauDialog({
     saat: eintrag?.saatdatum ?? '',
     ernte: eintrag?.erntedatum ?? '',
     bemerkungen: eintrag?.bemerkungen ?? '',
+    teil_ha: eintrag?.flaeche_m2 ? String(Number(eintrag.flaeche_m2) / 10000) : '',
   });
   const [fehler, setFehler] = useState<string | null>(null);
   const monat = (d: string) => (d ? d.slice(0, 7) : '');
@@ -45,6 +49,9 @@ export function AnbauDialog({
     if (!w.kultur_id) return setFehler('Bitte eine Kultur wählen.');
     if (!Number.isInteger(j) || j < 1990 || j > 2100) return setFehler('Jahr ungültig.');
     if (w.saat && w.ernte && w.ernte < w.saat) return setFehler('Die Ernte kann nicht vor der Saat liegen.');
+    const teil = zahlAus(w.teil_ha);
+    if (w.teil_ha.trim() && (teil == null || teil <= 0)) return setFehler('Teilfläche in ha eingeben, z. B. 0.4');
+    if (teil != null && feldM2 && teil * 10000 > feldM2) return setFehler('Die Teilfläche ist grösser als das Feld.');
     const daten = {
       kultur_id: w.kultur_id,
       art: w.art,
@@ -54,11 +61,17 @@ export function AnbauDialog({
       saatdatum: w.saat || null,
       erntedatum: w.ernte || null,
       bemerkungen: w.bemerkungen.trim() || null,
+      flaeche_m2: teil != null ? Math.round(teil * 10000) : null,
     };
     const { error } = eintrag
       ? await supabase.from('anbau').update({ ...daten, version: eintrag.version }).eq('id', eintrag.id)
       : await supabase.from('anbau').insert({ ...daten, betrieb_id: profil!.betrieb_id, feld_id: feldId });
-    if (error) return setFehler(error.message.includes('anbau_feld_id_jahr_art_key') ? `Für ${j} gibt es auf diesem Feld schon eine ${w.art}.` : fehlertext(error));
+    if (error) {
+      if (error.message.includes('anbau_hauptkultur'))
+        return setFehler(`Für ${j} hat dieses Feld schon eine Hauptkultur. Für eine weitere Kultur «Zweitkultur», «Zwischenkultur» oder «Untersaat» wählen.`);
+      if (error.message.includes('anbau_kultur_je_jahr')) return setFehler(`Diese Kultur ist für ${j} auf diesem Feld schon als ${w.art} eingetragen.`);
+      return setFehler(fehlertext(error));
+    }
     ['anbau', 'flaeche_je_kultur', 'anbau-feld'].forEach((k) => qc.invalidateQueries({ queryKey: [k] }));
     onFertig();
   }
@@ -106,11 +119,14 @@ export function AnbauDialog({
                 ))}
               </select>
             </label>
-            <label className="feld-label">
+            <label className="feld-label col-span-2">
               Art
               <select className="eingabe" value={w.art} onChange={set('art')}>
-                <option>Hauptkultur</option>
-                <option>Zwischenkultur</option>
+                {ANBAUARTEN.map((a) => (
+                  <option key={a} value={a}>
+                    {ANBAUART_TEXT[a]}
+                  </option>
+                ))}
               </select>
             </label>
             <label className="feld-label">
@@ -137,7 +153,7 @@ export function AnbauDialog({
               )}
             </label>
             <label className="feld-label">
-              {w.art === 'Zwischenkultur' ? 'Umbruch' : 'Ernte / Umbruch'}
+              {w.art === 'Zwischenkultur' || w.art === 'Untersaat' ? 'Umbruch / Ende' : 'Ernte / Umbruch'}
               {w.nur_monat ? (
                 <input className="eingabe" type="month" value={monat(w.ernte)} onChange={(e) => setW({ ...w, ernte: ausMonat(e.target.value) })} />
               ) : (
@@ -146,12 +162,18 @@ export function AnbauDialog({
             </label>
           </div>
           <label className="feld-label">
+            Teilfläche (ha) – leer = ganzes Feld{feldM2 ? ` (${(feldM2 / 10000).toLocaleString('de-CH')} ha)` : ''}
+            <input className="eingabe" inputMode="decimal" value={w.teil_ha} onChange={set('teil_ha')} placeholder="z. B. 0.4" />
+          </label>
+          <label className="feld-label">
             Bemerkungen
             <input className="eingabe" value={w.bemerkungen} onChange={set('bemerkungen')} placeholder="z. B. Sorte, Saatmenge" />
           </label>
         </fieldset>
         <p className="m-0 text-xs text-leise">
-          Das Anbaujahr ist das Jahr der Hauptnutzung: Winterweizen, im Oktober gesät, zählt zum Erntejahr. Mehrjährige Kunstwiesen haben pro Jahr einen Eintrag.
+          Das Anbaujahr ist das Jahr der Hauptnutzung: Winterweizen, im Oktober gesät, zählt zum Erntejahr. Mehrjährige Kunstwiesen haben pro Jahr einen Eintrag. Pro Jahr gibt es eine Hauptkultur; weitere Kulturen (z. B. Silomais nach
+          Grünschnittroggen, Kleegras-Untersaat, zwei Zwischenkulturen nacheinander oder zwei Kulturen auf Teilflächen) als Zweitkultur, Zwischenkultur oder
+          Untersaat erfassen.
         </p>
         {fehler && <p className="m-0 rounded-xl bg-fehler-hell p-3 text-sm font-semibold text-fehler">{fehler}</p>}
         {darfVerwalten && (

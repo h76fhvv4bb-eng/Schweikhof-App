@@ -101,3 +101,14 @@ abgegeben als geerntet wird. Der Zahlungsstatus darf direkt geändert werden, al
 das Jahr der Hauptnutzung (Winterweizen ab Oktober gesät zählt zum Folgejahr), mehrjährige Wiesen haben je Jahr einen Eintrag.
 Zwischenkulturen sind eigene Einträge mit Art «Zwischenkultur». Der Excel-Import (`scripts/fruchtfolge_import.py`)
 erzeugt eine wiederholbare SQL-Datei; erneutes Ausführen aktualisiert statt zu verdoppeln.
+
+## 2026-11-02 · Felder löschen über einen Papierkorb
+Löschen setzt `geloescht_am`; 24 Stunden lang stellt `feld_wiederherstellen` das Feld wieder her. Danach entfernt
+`papierkorb_leeren` (läuft beim Öffnen der Felderliste) das Feld mit Anbau, Hinweisen und Parzellenzuordnung. Hat das Feld
+Feldarbeiten, Ernten oder Aufträge, wird es nie entfernt, sondern bleibt ausgeblendet im Archiv, damit die Aufzeichnungen
+vollständig bleiben. Die Feldnummer eines gelöschten Feldes darf sofort neu vergeben werden.
+
+## 2026-11-02 · Mehrere Kulturen je Feld und Jahr
+Pro Feld und Jahr gibt es genau eine Hauptkultur (Grundlage für Kartei, Ernte und Flächenstatistik). Weitere Kulturen
+werden als Zweitkultur (z. B. Silomais nach Grünschnittroggen oder auf einer Teilfläche), Zwischenkultur oder Untersaat
+erfasst, beliebig viele, jede Kultur einmal pro Jahr und Art. Jede Kultur kann eine Teilfläche haben (leer = ganzes Feld).

@@ -252,9 +252,10 @@ export function useAnbauAlle(vonJahr: number, bisJahr: number) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('anbau')
-        .select('id, feld_id, kultur_id, jahr, art, status, version, saatdatum, erntedatum, nur_monat, bemerkungen, kulturen(name, farbe)')
+        .select('id, feld_id, kultur_id, jahr, art, status, version, saatdatum, erntedatum, nur_monat, bemerkungen, flaeche_m2, kulturen(name, farbe)')
         .gte('jahr', vonJahr)
-        .lte('jahr', bisJahr);
+        .lte('jahr', bisJahr)
+        .order('saatdatum', { ascending: true, nullsFirst: true });
       if (error) throw error;
       return data as unknown as Anbau[];
     },
@@ -270,6 +271,25 @@ export function useErnten(jahr?: number) {
       const { data, error } = await q;
       if (error) throw error;
       return data as unknown as Ernte[];
+    },
+  });
+}
+
+/** Gelöschte Felder (Papierkorb). Räumt beim Laden abgelaufene Einträge auf. */
+export function usePapierkorb() {
+  return useQuery({
+    queryKey: ['felder', 'papierkorb'],
+    queryFn: async () => {
+      await supabase.rpc('papierkorb_leeren'); // Fehler hier sind unkritisch (z. B. Migration fehlt)
+      const seit = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
+      const { data, error } = await supabase
+        .from('felder')
+        .select('id, feldnummer, name, flaeche_m2, geloescht_am')
+        .not('geloescht_am', 'is', null)
+        .gt('geloescht_am', seit)
+        .order('geloescht_am', { ascending: false });
+      if (error) throw error;
+      return data as Pick<Feld, 'id' | 'feldnummer' | 'name' | 'flaeche_m2' | 'geloescht_am'>[];
     },
   });
 }

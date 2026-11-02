@@ -3,7 +3,7 @@
 Digitale Betriebsführung für einen Schweizer Acker- und Futterbaubetrieb (ca. 16 ha, Kanton Zürich, ÖLN).
 Läuft im Browser auf Mac, iPhone und iPad und lässt sich als App auf den Startbildschirm legen (PWA).
 
-## Was schon funktioniert (Stand 02.11.2026, Version 0.7)
+## Was schon funktioniert (Stand 02.11.2026, Version 0.8)
 
 | Bereich | Stand |
 | --- | --- |
@@ -15,6 +15,8 @@ Läuft im Browser auf Mac, iPhone und iPad und lässt sich als App auf den Start
 | Fruchtfolge-Zeitachse: Saat und Ernte je Kultur (Monat oder Tag), Zwischenkulturen, Status geplant/ist | fertig |
 | Ernte & Erträge: Ballen, kg, Schnitt, Ertrag je ha; Abnehmer (Verkauf, Abgabe, Eigenbedarf, Lager) mit Preis und Zahlungsstatus | fertig |
 | Bodenprobe-Korrekturfaktoren je Feld | fertig |
+| Mehrere Kulturen je Feld und Jahr: Hauptkultur, Zweitkultur, mehrere Zwischenkulturen, Untersaat, Teilflächen | fertig |
+| Felder löschen mit Papierkorb (24 h wiederherstellbar; Felder mit Aufzeichnungen bleiben archiviert) | fertig |
 | Feldarbeiten erfassen (auch mehrere Felder, geplant/erledigt), Ackerschlagkartei mit Filtern, CSV-Export, Druck/PDF | fertig |
 | Lager: Artikel, Eingang, Verbrauch, Korrektur, Inventur, Mindestbestand, Lagerwert, Journal | fertig |
 | Düngung bucht automatisch vom Lager ab (ohne Doppelbuchung, Änderung/Löschung bucht zurück) | fertig |
