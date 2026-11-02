@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase, fehlertext } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
-import { useAnbau, useErnten, useFelder, useHofobjekte, useLager, usePartner } from '../lib/daten';
+import { useAnbau, useErnten, useFelder, useHofobjekte, useLager, usePartner, useVerrechneteAbgaben } from '../lib/daten';
 import { chf, datum, ha, heuteIso, menge, zahlAus } from '../lib/format';
 import { csvHerunterladen, csvZahl } from '../lib/export';
 import { ABGABEARTEN, BALLENARTEN, ERNTEPRODUKTE, LEISTUNGEN, type ErnteAbnehmer, type ErnteProdukt } from '../lib/typen';
@@ -279,6 +279,7 @@ type AbnehmerZeile = {
   lagerort_id: string;
   lagerartikel_id: string;
   kg_auto?: boolean; // kg aus Ballengewicht berechnet
+  id?: string; // bestehende Abgabe (bleibt mit Belegen verknüpft)
 };
 
 const neuesProdukt = (produkt: ErnteProdukt['produkt']): ProduktZeile => ({
@@ -318,6 +319,7 @@ export function ErnteFormular() {
   const orte = useHofobjekte();
   const lager = useLager();
   const ernten = useErnten();
+  const verrechnet = useVerrechneteAbgaben();
   const bestehend = ernten.data?.find((e) => e.id === id);
   const [w, setW] = useState({ feld_id: suche.get('feld') ?? '', datum: heuteIso(), schnitt: '', flaeche_ha: '', bemerkungen: '' });
   const [produkte, setProdukte] = useState<ProduktZeile[]>([]);
@@ -348,6 +350,7 @@ export function ErnteFormular() {
     setDienste(e.ernte_dienstleister.map((d) => ({ partner_id: d.partner_id, leistung: d.leistung, kosten: zuText(d.kosten_chf), bemerkung: d.bemerkung ?? '' })));
     setAbnehmer(
       e.ernte_abnehmer.map((a) => ({
+        id: a.id,
         produkt_index: Math.max(0, e.ernte_produkte.findIndex((p) => p.id === a.produkt_id)),
         partner_id: a.partner_id ?? '', art: a.art, ballen: zuText(a.ballen), menge_kg: zuText(a.menge_kg), preis: zuText(a.preis_chf),
         preis_einheit: 'total', bezahlt: a.bezahlt, bemerkung: a.bemerkung ?? '', lagerort_id: a.lagerort_id ?? '', lagerartikel_id: a.lagerartikel_id ?? '',
@@ -453,6 +456,7 @@ export function ErnteFormular() {
         })),
         dienstleister: dienste.map((d) => ({ partner_id: d.partner_id, leistung: d.leistung, kosten_chf: zahlAus(d.kosten), bemerkung: d.bemerkung.trim() || null })),
         abnehmer: abnehmer.map((a) => ({
+          id: a.id ?? null,
           produkt_index: a.produkt_index,
           partner_id: a.art === 'Lager' ? null : a.partner_id || null,
           art: a.art,
@@ -782,6 +786,15 @@ export function ErnteFormular() {
                   <input type="checkbox" className="h-5 w-5 accent-hof" checked={a.bezahlt} onChange={(e) => aendereAbgabe(i, { bezahlt: e.target.checked })} />
                   bezahlt
                 </label>
+                {a.id && verrechnet.data?.get(a.id) ? (
+                  <Link to={`/verkauf/${verrechnet.data.get(a.id)!.id}`} className="text-sm font-bold sm:col-span-4">
+                    {verrechnet.data.get(a.id)!.art} {verrechnet.data.get(a.id)!.nummer} ansehen
+                  </Link>
+                ) : a.id && darfVerwalten ? (
+                  <Link to={`/verkauf/neu?art=Rechnung&abgabe=${a.id}`} className="text-sm font-bold sm:col-span-4">
+                    Rechnung / Quittung erstellen
+                  </Link>
+                ) : null}
               </>
             )}
             <label className="feld-label sm:col-span-5">

@@ -23,6 +23,7 @@ import { ErnteFormular, ErnteListe } from './pages/Ernte';
 import { ErnteSammel } from './pages/ErnteSammel';
 import { Aufgaben } from './pages/Aufgaben';
 import { MitarbeiterSeite } from './pages/Mitarbeiter';
+import { VerkaufFormular, VerkaufListe } from './pages/Verkauf';
 
 export function App() {
   const { session, profil, laedt, passwortNeu } = useAuth();
@@ -62,6 +63,9 @@ export function App() {
         <Route path="mehr" element={<Mehr />} />
         <Route path="benutzer" element={<Benutzer />} />
         <Route path="mitarbeiter" element={<MitarbeiterSeite />} />
+        <Route path="verkauf" element={<VerkaufListe />} />
+        <Route path="verkauf/neu" element={<VerkaufFormular />} />
+        <Route path="verkauf/:id" element={<VerkaufFormular />} />
         <Route path="maschinen" element={<Maschinen />} />
         <Route path="maschinen/neu" element={<MaschineDetail />} />
         <Route path="maschinen/:id" element={<MaschineDetail />} />

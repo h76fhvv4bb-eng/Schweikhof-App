@@ -1,6 +1,6 @@
 # To-do-Liste
 
-Stand: 02.11.2026 (Version 0.13). Wird nach jedem Entwicklungsschritt aktualisiert.
+Stand: 02.11.2026 (Version 0.14). Wird nach jedem Entwicklungsschritt aktualisiert.
 
 ## Phase 1 – Planung
 - [x] Anforderungsanalyse, Architektur, Datenmodell, Kosten, Risiken
@@ -14,7 +14,7 @@ Stand: 02.11.2026 (Version 0.13). Wird nach jedem Entwicklungsschritt aktualisie
 - [x] Migration 4 einspielen (Maschinen, Partner, Hinweise, Teilen)
 - [ ] Migration 5 einspielen (Aufträge)
 - [ ] Migration 6 einspielen (Benutzerverwaltung)
-- [ ] Migrationen 7 bis 13 einspielen, danach Import Fruchtfolge 2023–2029
+- [ ] Migrationen 7 bis 14 einspielen; danach Betriebsangaben (Adresse, IBAN) ergänzen, danach Import Fruchtfolge 2023–2029
 - [ ] Feldgrenzen der 13 importierten Felder auf der Karte zeichnen
 - [ ] Supabase: eigenen Mailversand (SMTP) einrichten, Standard-Mails sind auf wenige pro Stunde begrenzt
 - [ ] Domain bei Jimdo klären (eigene DNS-Einträge möglich?)
@@ -60,7 +60,7 @@ Stand: 02.11.2026 (Version 0.13). Wird nach jedem Entwicklungsschritt aktualisie
 - [x] Dünger-Katalog
 - [x] Aufträge (Lohnarbeit, Werkstatt) mit PDF und Mail, Abschluss in Kartei/Reparatur
 - [x] Betriebsmittel «vom Dienstleister» dokumentiert ohne Lagerbuchung
-- [ ] Fotos und Dokumente (Anleitungen, Rechnungen) zu Maschinen und Feldern
+- [ ] Dokumente (Anleitungen, Rechnungen als PDF) zu Maschinen und Feldern
 - [ ] Betriebsstunden automatisch aus Feldarbeiten
 - [x] Ernte mit Erträgen und Abnehmern (Partner, Ballen, kg, Preis, bezahlt)
 - [x] Ernte ins Lager buchen mit Lagerort, mehrere Produkte und Dienstleister je Ernte
@@ -70,7 +70,10 @@ Stand: 02.11.2026 (Version 0.13). Wird nach jedem Entwicklungsschritt aktualisie
 - [x] Folgearbeiten (Ketten) und Aufträge aus Aufgaben
 - [x] Verknüpfungen: Verlauf bei Feld, Maschine, Partner; Kartei nach Person
 - [x] Ballengewicht wird bei Abgaben automatisch übernommen
-- [ ] Verkauf ab Lager (Ausgang mit Abnehmer und Preis)
+- [x] Verkauf ab Lager und aus der Ernte mit Rechnung (QR) und Quittung
+- [x] Fotos zu Maschinen und Einträgen
+- [ ] Fotos zu Feldern und Feldhinweisen, Beobachtungen beim Erledigen
+- [ ] Mahnung, Gutschrift (Ausgang mit Abnehmer und Preis)
 - [x] Aufgaben (Feldarbeit planen, Maschinen, Allgemein), Erledigen mit Zählern, Mengen, Zeit, Beobachtung
 - [x] Betriebsmittel nur per Häkchen bei Säen, Düngen, Pflanzenschutz
 - [ ] Kalenderansicht, Erinnerungen

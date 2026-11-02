@@ -458,3 +458,66 @@ export interface Mitarbeiter {
   bemerkungen: string | null;
   version: number;
 }
+
+// ---------------------------------------------------------------- Betrieb, Verkauf, Fotos
+export interface Betrieb {
+  id: string;
+  name: string;
+  kanton: string;
+  adresse: string | null;
+  telefon: string | null;
+  email: string | null;
+  strasse?: string | null;
+  hausnummer?: string | null;
+  plz?: string | null;
+  ort?: string | null;
+  iban?: string | null;
+  mwst_nr?: string | null;
+  zahlungsfrist_tage?: number;
+  version: number;
+}
+
+export interface VerkaufPosition {
+  id: string;
+  position: number;
+  bezeichnung: string;
+  menge: number;
+  einheit: string;
+  preis_je_einheit: number;
+  betrag: number;
+  artikel_id: string | null;
+  vom_lager: boolean;
+  ernte_abnehmer_id: string | null;
+}
+
+export interface Verkauf {
+  id: string;
+  nummer: string;
+  art: 'Rechnung' | 'Quittung';
+  datum: string;
+  partner_id: string | null;
+  kunde_name: string | null;
+  kunde_adresse: string | null;
+  zahlungsart: 'Bar' | 'TWINT' | 'Überweisung' | 'Andere' | null;
+  faellig_am: string | null;
+  bezahlt: boolean;
+  bezahlt_am: string | null;
+  mwst_satz: number | null;
+  total_chf: number;
+  bemerkungen: string | null;
+  storniert: boolean;
+  version: number;
+  verkauf_positionen: VerkaufPosition[];
+}
+
+export interface Foto {
+  id: string;
+  betrieb_id: string;
+  pfad: string;
+  maschine_id: string | null;
+  eintrag_id: string | null;
+  feld_id: string | null;
+  beschreibung: string | null;
+  erstellt_von: string | null;
+  erstellt_am: string;
+}

@@ -10,6 +10,9 @@ import { chf, datum, heuteIso, menge, zahlAus } from '../lib/format';
 import { EINTRAGSARTEN, MASCHINENKATEGORIEN, MIT_MOTOR, type Maschine, type MaschinenEintrag } from '../lib/typen';
 import { Icon } from '../components/Icon';
 import { Verlauf } from '../components/Verlauf';
+import { FotoGalerie, FotoKnopf, FotoVorschau } from '../components/Fotos';
+import { fotosHochladen } from '../lib/fotos';
+import { useFotos } from '../lib/daten';
 import { Marke, tageBis } from './Maschinen';
 
 type Werte = Record<string, string>;
@@ -103,6 +106,8 @@ export function MaschineDetail() {
       </header>
 
       {m && <Faelligkeiten maschine={m} />}
+
+      {m && <MaschinenFotos maschineId={m.id} />}
 
       {m && !offenDaten && (
         <button className="knopf-leise self-start" onClick={() => setOffenDaten(true)}>
@@ -302,7 +307,22 @@ function Wartungsplaene({ maschine }: { maschine: Maschine }) {
   );
 }
 
+function MaschinenFotos({ maschineId }: { maschineId: string }) {
+  const fotos = useFotos({ maschine_id: maschineId });
+  return (
+    <section className="karte">
+      <FotoGalerie
+        titel="Fotos"
+        fotos={(fotos.data ?? []).filter((f) => !f.eintrag_id)}
+        ziel={{ maschine_id: maschineId }}
+        leerText="Noch keine Fotos, z. B. Typenschild, Fahrzeugausweis oder Gesamtansicht."
+      />
+    </section>
+  );
+}
+
 function Eintraege({ maschine }: { maschine: Maschine }) {
+  const fotos = useFotos({ maschine_id: maschine.id });
   const { profil, darfVerwalten } = useAuth();
   const eintraege = useMaschinenEintraege(maschine.id);
   const partner = usePartner();
@@ -361,6 +381,15 @@ function Eintraege({ maschine }: { maschine: Maschine }) {
               .join(' · ')}
           </span>
           {e.beschreibung && <span className="text-sm">{e.beschreibung}</span>}
+          {(fotos.data ?? []).some((f) => f.eintrag_id === e.id) && (
+            <span className="mt-1 flex flex-wrap gap-1">
+              {(fotos.data ?? [])
+                .filter((f) => f.eintrag_id === e.id)
+                .map((f) => (
+                  <img key={f.id} src={f.url} alt="" loading="lazy" className="h-14 w-14 rounded-lg object-cover" />
+                ))}
+            </span>
+          )}
         </button>
       ))}
     </section>
@@ -389,6 +418,8 @@ function EintragFormular({ maschine, eintrag, onFertig }: { maschine: Maschine; 
     eintrag?.eintrag_teile.map((t) => ({ artikel_id: t.artikel_id, menge: String(t.menge) })) ?? [],
   );
   const [fehler, setFehler] = useState<string | null>(null);
+  const [neueFotos, setNeueFotos] = useState<File[]>([]);
+  const fotos = useFotos({ maschine_id: maschine.id });
   const darfAendern = !eintrag || darfVerwalten || eintrag.erstellt_von === profil?.id;
   const artikel = (lager.data ?? []).filter((a) => ['Ersatzteile', 'Betriebsstoffe', 'Verbrauchsmaterial'].includes(a.kategorie));
 
@@ -404,7 +435,7 @@ function EintragFormular({ maschine, eintrag, onFertig }: { maschine: Maschine; 
       teileListe.push({ artikel_id: t.artikel_id, menge: n });
     }
     if (new Set(teileListe.map((t) => t.artikel_id)).size !== teileListe.length) return setFehler('Jedes Teil nur einmal angeben.');
-    const { error } = await supabase.rpc('maschineneintrag_speichern', {
+    const { data: eintragId, error } = await supabase.rpc('maschineneintrag_speichern', {
       p: {
         id: eintrag?.id ?? null, version: eintrag?.version, maschine_id: maschine.id, art: w.art, datum: w.datum,
         betriebsstunden: zahlAus(w.betriebsstunden), titel: w.titel.trim(), beschreibung: w.beschreibung.trim(),
@@ -413,6 +444,15 @@ function EintragFormular({ maschine, eintrag, onFertig }: { maschine: Maschine; 
       },
     });
     if (error) return setFehler(fehlertext(error));
+    if (neueFotos.length) {
+      try {
+        await fotosHochladen(neueFotos, { maschine_id: maschine.id, eintrag_id: eintragId as string }, profil!.betrieb_id);
+        qc.invalidateQueries({ queryKey: ['fotos'] });
+      } catch (e) {
+        ABHAENGIGE_DATEN.forEach((k) => qc.invalidateQueries({ queryKey: k }));
+        return setFehler(`Eintrag gespeichert, aber: ${fehlertext(e)}`);
+      }
+    }
     ABHAENGIGE_DATEN.forEach((k) => qc.invalidateQueries({ queryKey: k }));
     onFertig();
   }
@@ -538,6 +578,27 @@ function EintragFormular({ maschine, eintrag, onFertig }: { maschine: Maschine; 
           </div>
         )}
       </fieldset>
+      <div className="flex flex-col gap-2 rounded-xl bg-white p-3">
+        {eintrag ? (
+          <FotoGalerie
+            fotos={(fotos.data ?? []).filter((f) => f.eintrag_id === eintrag.id)}
+            ziel={{ maschine_id: maschine.id, eintrag_id: eintrag.id }}
+            titel="Fotos"
+            leerText={w.art === 'Beobachtung' ? 'Foto vom Schaden hilft der Werkstatt.' : 'Noch keine Fotos.'}
+          />
+        ) : (
+          <>
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-sm font-extrabold">Fotos</span>
+              <FotoKnopf onDateien={(d) => setNeueFotos([...neueFotos, ...d])} text="Foto aufnehmen / wählen" />
+            </div>
+            <FotoVorschau dateien={neueFotos} onEntfernen={(i) => setNeueFotos(neueFotos.filter((_, j) => j !== i))} />
+            {!neueFotos.length && (
+              <span className="text-xs text-leise">{w.art === 'Beobachtung' ? 'Ein Foto vom Schaden hilft später der Werkstatt.' : 'Optional, z. B. Rechnung oder Zustand.'}</span>
+            )}
+          </>
+        )}
+      </div>
       {fehler && <p className="m-0 rounded-xl bg-fehler-hell p-3 text-sm font-semibold text-fehler">{fehler}</p>}
       <div className="flex flex-wrap gap-2">
         {darfAendern && <button className="knopf">Speichern</button>}

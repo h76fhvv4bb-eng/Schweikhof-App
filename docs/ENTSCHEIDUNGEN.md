@@ -154,3 +154,17 @@ Feldarbeiten mit `vorgaenger_id`; die Datenbank verhindert Kreise und das Erledi
 Aufträge). Ein Lohnauftrag kann eine geplante Arbeit (`auftraege.feldarbeit_id`) bzw. ein Werkstattauftrag eine Aufgabe
 (`aufgabe_id`) übernehmen; der Abschluss des Auftrags erledigt genau diese Arbeit/Aufgabe statt eine neue anzulegen.
 Solange ein Auftrag läuft, wird die Arbeit/Aufgabe über den Auftrag abgeschlossen.
+
+## 2026-11-02 · Verkauf mit Rechnung und Quittung
+Belege (`verkaeufe`, `verkauf_positionen`) werden nur über `verkauf_speichern`, `verkauf_bezahlt` und `verkauf_stornieren`
+geschrieben. Nummern laufen pro Jahr. Positionen aus dem Lager buchen einen Ausgang (Art «Verkauf»), Positionen aus der
+Ernte verweisen auf die Abgabe (jede Abgabe höchstens einmal verrechnet; Preis und Zahlungsstatus werden in die Ernte
+übernommen). Damit die Verknüpfung beim erneuten Speichern einer Ernte erhalten bleibt, behalten Abgaben ihre ID und der
+Fremdschlüssel wird erst am Transaktionsende geprüft. Stornierte Belege behalten ihre Nummer.
+Das PDF entsteht im Browser; Rechnungen erhalten einen Swiss-QR-Zahlteil (ohne Referenz, Zahlungspflichtiger leer), wenn
+Adresse und IBAN in den Betriebsangaben stehen. QR-IBAN wird nicht unterstützt. MWST ist optional (Satz frei wählbar).
+
+## 2026-11-02 · Fotos
+Fotos liegen im privaten Supabase-Storage-Bucket «fotos», Ordner je Betrieb; Zugriff nur für den eigenen Betrieb
+(signierte Links, 1 Stunde gültig). Bilder werden vor dem Hochladen im Browser auf max. 1600 px verkleinert.
+Die Tabelle `fotos` verknüpft sie mit Maschine, Eintrag (Wartung/Reparatur/Beobachtung) oder Feld.

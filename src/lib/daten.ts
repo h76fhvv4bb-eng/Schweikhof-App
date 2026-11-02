@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from './supabase';
 import type {
   Anbau, Feld, Feldarbeit, FeldHinweis, FlaecheJeKultur, Hofobjekt, Kultur, Lagerbestand, Maschine, MaschinenEintrag,
-  NaehrstoffeJeFeld, Partner, WartungFaellig, Wartungsplan, Auftrag, Ernte, Kartenobjekt, Aufgabe, Mitarbeiter,
+  NaehrstoffeJeFeld, Partner, WartungFaellig, Wartungsplan, Auftrag, Ernte, Kartenobjekt, Aufgabe, Mitarbeiter, Betrieb, Verkauf, Foto,
 } from './typen';
 
 export function useFelder() {
@@ -140,9 +140,9 @@ export function useBetrieb() {
     queryKey: ['betrieb'],
     staleTime: 60 * 60 * 1000,
     queryFn: async () => {
-      const { data, error } = await supabase.from('betriebe').select('id, name, kanton, adresse, telefon, email, version').maybeSingle();
+      const { data, error } = await supabase.from('betriebe').select('*').maybeSingle();
       if (error) throw error;
-      return data as { id: string; name: string; kanton: string; adresse: string | null; telefon: string | null; email: string | null; version: number } | null;
+      return data as Betrieb | null;
     },
   });
 }
@@ -383,5 +383,72 @@ export function useArbeitenVon(art: 'feld' | 'maschine' | 'partner' | 'mitarbeit
       if (error) throw error;
       return data as unknown as Feldarbeit[];
     },
+  });
+}
+
+export function useVerkaeufe(jahr: number) {
+  return useQuery({
+    queryKey: ['verkaeufe', jahr],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('verkaeufe')
+        .select('*, verkauf_positionen(*)')
+        .gte('datum', `${jahr}-01-01`)
+        .lte('datum', `${jahr}-12-31`)
+        .order('nummer', { ascending: false });
+      if (error) return [] as Verkauf[];
+      for (const v of data as Verkauf[]) v.verkauf_positionen.sort((a, b) => a.position - b.position);
+      return data as Verkauf[];
+    },
+  });
+}
+
+export function useVerkauf(id: string | undefined) {
+  return useQuery({
+    queryKey: ['verkaeufe', 'einzeln', id],
+    enabled: !!id,
+    queryFn: async () => {
+      const { data, error } = await supabase.from('verkaeufe').select('*, verkauf_positionen(*)').eq('id', id!).single();
+      if (error) throw error;
+      const v = data as Verkauf;
+      v.verkauf_positionen.sort((a, b) => a.position - b.position);
+      return v;
+    },
+  });
+}
+
+/** Bereits verrechnete Ernte-Abgaben (ID → Belegnummer) */
+export function useVerrechneteAbgaben() {
+  return useQuery({
+    queryKey: ['verkaeufe', 'ernte'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('verkauf_positionen')
+        .select('ernte_abnehmer_id, verkaeufe(id, nummer, art)')
+        .not('ernte_abnehmer_id', 'is', null);
+      if (error) return new Map<string, { id: string; nummer: string; art: string }>();
+      return new Map(
+        (data as unknown as { ernte_abnehmer_id: string; verkaeufe: { id: string; nummer: string; art: string } }[]).map((r) => [r.ernte_abnehmer_id, r.verkaeufe]),
+      );
+    },
+  });
+}
+
+/** Fotos zu einer Maschine (inkl. ihrer Einträge) oder einem Feld */
+export function useFotos(ziel: { maschine_id?: string; feld_id?: string }) {
+  return useQuery({
+    queryKey: ['fotos', ziel.maschine_id ?? '', ziel.feld_id ?? ''],
+    enabled: !!(ziel.maschine_id || ziel.feld_id),
+    queryFn: async () => {
+      let q = supabase.from('fotos').select('*').order('erstellt_am', { ascending: false });
+      if (ziel.maschine_id) q = q.eq('maschine_id', ziel.maschine_id);
+      if (ziel.feld_id) q = q.eq('feld_id', ziel.feld_id);
+      const { data, error } = await q;
+      if (error || !data?.length) return [] as (Foto & { url: string })[];
+      const urls = await supabase.storage.from('fotos').createSignedUrls(data.map((f) => f.pfad as string), 3600);
+      const map = new Map((urls.data ?? []).map((u) => [u.path, u.signedUrl]));
+      return (data as Foto[]).map((f) => ({ ...f, url: map.get(f.pfad) ?? '' }));
+    },
+    staleTime: 30 * 60 * 1000,
   });
 }

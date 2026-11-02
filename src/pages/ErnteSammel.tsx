@@ -171,7 +171,7 @@ export function ErnteSammel() {
         const pname = z.ernte!.ernte_produkte.find((p) => p.id === a.produkt_id)?.produkt;
         const j = spalten.findIndex((s) => s.produkt === pname);
         if (j < 0 || index[j] < 0) throw new Error(`${name}: Für «${pname}» gibt es Abgaben, die Menge darf nicht leer sein.`);
-        abnehmer.push({ ...a, id: undefined, produkt_id: undefined, produkt_index: index[j] });
+        abnehmer.push({ ...a, produkt_id: undefined, produkt_index: index[j] });
       }
       // Gemeinsame Abgabe je Produkt (nur wo noch nichts zugeteilt ist)
       for (const [j, s] of spalten.entries()) {
