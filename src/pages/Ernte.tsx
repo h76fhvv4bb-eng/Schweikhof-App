@@ -6,7 +6,7 @@ import { useAuth } from '../lib/auth';
 import { useAnbau, useErnten, useFelder, useHofobjekte, useLager, usePartner } from '../lib/daten';
 import { chf, datum, ha, heuteIso, menge, zahlAus } from '../lib/format';
 import { csvHerunterladen, csvZahl } from '../lib/export';
-import { ABGABEARTEN, BALLENARTEN, ERNTEPRODUKTE, LEISTUNGEN, type Ernte, type ErnteAbnehmer, type ErnteProdukt } from '../lib/typen';
+import { ABGABEARTEN, BALLENARTEN, ERNTEPRODUKTE, LEISTUNGEN, type ErnteAbnehmer, type ErnteProdukt } from '../lib/typen';
 import { Icon } from '../components/Icon';
 
 const BALLENPRODUKTE = new Set(['Heu', 'Emd', 'Grassilage', 'Stroh']);
