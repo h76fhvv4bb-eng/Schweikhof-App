@@ -2,7 +2,8 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import { useAuth } from './lib/auth';
 import { konfigurationFehlt } from './lib/supabase';
 import { AppShell } from './components/AppShell';
-import { Login } from './pages/Login';
+import { Login, NeuesPasswort } from './pages/Login';
+import { Benutzer } from './pages/Benutzer';
 import { Einrichten } from './pages/Einrichten';
 import { Heute } from './pages/Heute';
 import { Felder } from './pages/Felder';
@@ -20,7 +21,7 @@ import { PartnerFormular, PartnerListe } from './pages/Partner';
 import { AuftraegeListe, AuftragFormular } from './pages/Auftraege';
 
 export function App() {
-  const { session, profil, laedt } = useAuth();
+  const { session, profil, laedt, passwortNeu } = useAuth();
 
   if (konfigurationFehlt)
     return (
@@ -30,6 +31,7 @@ export function App() {
     );
   if (laedt) return <p className="p-6 text-leise">Lade …</p>;
   if (!session) return <Login />;
+  if (passwortNeu) return <NeuesPasswort />;
   if (profil === null) return <Einrichten />;
   if (profil && !profil.aktiv) return <p className="p-6">Dein Konto ist deaktiviert.</p>;
 
@@ -49,6 +51,7 @@ export function App() {
         <Route path="lager/neu" element={<LagerArtikel />} />
         <Route path="lager/:id" element={<LagerArtikel />} />
         <Route path="mehr" element={<Mehr />} />
+        <Route path="benutzer" element={<Benutzer />} />
         <Route path="maschinen" element={<Maschinen />} />
         <Route path="maschinen/neu" element={<MaschineDetail />} />
         <Route path="maschinen/:id" element={<MaschineDetail />} />

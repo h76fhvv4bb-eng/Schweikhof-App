@@ -10,6 +10,8 @@ interface AuthWert {
   profil: Profil | null | undefined; // undefined = lädt, null = noch kein Betrieb
   darfVerwalten: boolean;
   abmelden: () => Promise<void>;
+  passwortNeu: boolean;
+  passwortGesetzt: () => void;
 }
 
 const AuthKontext = createContext<AuthWert | null>(null);
@@ -17,6 +19,7 @@ const AuthKontext = createContext<AuthWert | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [laedt, setLaedt] = useState(true);
+  const [passwortNeu, setPasswortNeu] = useState(false);
   const qc = useQueryClient();
 
   useEffect(() => {
@@ -24,8 +27,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(data.session);
       setLaedt(false);
     });
-    const { data } = supabase.auth.onAuthStateChange((_e, s) => {
+    const { data } = supabase.auth.onAuthStateChange((ereignis, s) => {
       setSession(s);
+      if (ereignis === 'PASSWORD_RECOVERY') setPasswortNeu(true);
       qc.invalidateQueries();
     });
     return () => data.subscription.unsubscribe();
@@ -55,6 +59,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await supabase.auth.signOut();
       qc.clear();
     },
+    passwortNeu,
+    passwortGesetzt: () => setPasswortNeu(false),
   };
   return <AuthKontext.Provider value={wert}>{children}</AuthKontext.Provider>;
 }

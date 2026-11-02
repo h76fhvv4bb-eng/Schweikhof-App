@@ -1,6 +1,7 @@
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { Icon, type IconName } from './Icon';
 import { useAuth } from '../lib/auth';
+import { APP_KURZ } from '../lib/marke';
 
 export const NAVIGATION: { pfad: string; text: string; icon: IconName; gruppe: string }[] = [
   { pfad: '/', text: 'Heute', icon: 'heute', gruppe: 'Übersicht' },
@@ -32,7 +33,10 @@ export function AppShell() {
           <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-hof text-white">
             <Icon name="heute" />
           </span>
-          <span className="text-lg font-extrabold text-hof">Hofmanager</span>
+          <span className="flex flex-col leading-tight">
+            <span className="text-[11px] font-bold text-leise">Hofmanager</span>
+            <span className="text-lg font-extrabold text-hof">{APP_KURZ}</span>
+          </span>
         </div>
         {profil?.rolle !== 'lesen' && (
           <NavLink to="/erfassen" className="knopf mb-2 no-underline">

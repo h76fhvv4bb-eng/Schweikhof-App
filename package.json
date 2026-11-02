@@ -1,9 +1,9 @@
 {
   "name": "schweikhof-app",
   "private": true,
-  "version": "0.5.0",
+  "version": "0.6.0",
   "type": "module",
-  "description": "Hofmanager – digitale Betriebsführung für den Schweikhof",
+  "description": "Hofmanager SchweikFarm – digitale Betriebsführung",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",

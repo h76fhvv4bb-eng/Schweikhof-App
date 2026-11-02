@@ -1,14 +1,14 @@
-# Hofmanager Schweikhof
+# Hofmanager SchweikFarm
 
 Digitale Betriebsführung für einen Schweizer Acker- und Futterbaubetrieb (ca. 16 ha, Kanton Zürich, ÖLN).
 Läuft im Browser auf Mac, iPhone und iPad und lässt sich als App auf den Startbildschirm legen (PWA).
 
-## Was schon funktioniert (Stand 02.11.2026, Version 0.5)
+## Was schon funktioniert (Stand 02.11.2026, Version 0.6)
 
 | Bereich | Stand |
 | --- | --- |
 | Anmeldung, Registrierung, Ersteinrichtung des Betriebs | fertig |
-| Rollen (Administrator, Betriebsleiter, Mitarbeiter, Lesen) in der Datenbank | fertig, Einladen weiterer Personen folgt |
+| Rollen (Administrator, Betriebsleiter, Mitarbeiter, Lesen), Benutzer einladen, Rolle ändern, deaktivieren, Aktivität, Passwort zurücksetzen/ändern | fertig |
 | Änderungsprotokoll und Versionsschutz | fertig |
 | Felder anlegen, bearbeiten, suchen, Feldhistorie | fertig |
 | Fruchtfolge-Raster mit Kulturfarben, Flächensummen, Hinweisen, CSV-Export | fertig |
@@ -51,10 +51,12 @@ npm install
 npm run dev
 ```
 
-### 3. Erste Anmeldung
+### 3. Erste Anmeldung und weitere Benutzer
 
 App öffnen › **Registrieren** › E-Mail bestätigen › anmelden › Betrieb anlegen.
 Der erste Benutzer wird Administrator. Danach kann kein zweiter Betrieb mehr angelegt werden.
+Weitere Personen: **Mehr › Benutzer verwalten › Person einladen**. Die Person registriert sich mit genau dieser E-Mail-Adresse
+und wird nach der Bestätigung automatisch mit der gewählten Rolle zugeordnet.
 
 ### 4. Veröffentlichen
 

@@ -1,4 +1,4 @@
-# Technische Entscheidungen
+# Technische Entscheidungen – Hofmanager SchweikFarm
 
 Kurz begründet, damit die Software auch ohne den ursprünglichen Entwickler weitergeführt werden kann.
 
@@ -83,3 +83,9 @@ Bestandsführung angelegt. Bei Werkstattaufträgen entsteht ein Reparatur-Eintra
 Das PDF entsteht im Browser mit jsPDF (erst beim ersten Gebrauch geladen). Versand über die Web-Share-Funktion:
 auf iPhone, iPad und Mac «Mail» wählen, das PDF ist angehängt. Wo das nicht geht, wird das PDF heruntergeladen und das
 Mailprogramm mit vorbereitetem Text geöffnet (Anhängen von Hand). So braucht es keinen eigenen Mailserver.
+
+## 2026-11-02 · Benutzer per Einladung statt Adminkonto-Anlage
+Ohne eigenen Server darf die App keine Konten für andere anlegen (dafür bräuchte es den geheimen service_role-Schlüssel).
+Darum: Der Administrator erstellt eine Einladung (E-Mail, Rolle). Die Person registriert sich selbst; nach bestätigter
+E-Mail ordnet `einladung_annehmen` sie dem Betrieb zu. Rollen und Aktiv-Status ändert nur `benutzer_aendern`, das den
+letzten aktiven Administrator schützt. Deaktivierte Konten sehen keine Daten mehr (`mein_betrieb()` liefert nichts).

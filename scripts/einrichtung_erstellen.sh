@@ -4,7 +4,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 echo "-- ====================================================================="
-echo "-- Hofmanager – KOMPLETTE Ersteinrichtung der Datenbank (alle Migrationen)"
+echo "-- Hofmanager SchweikFarm – KOMPLETTE Ersteinrichtung der Datenbank (alle Migrationen)"
 echo "-- Nur EINMAL in einer LEEREN Datenbank ausführen: Supabase › SQL Editor › einfügen › Run"
 echo "-- Bestehende Datenbank: stattdessen nur die neuen Dateien aus supabase/migrations einspielen."
 echo "-- Erzeugt mit scripts/einrichtung_erstellen.sh – nicht von Hand ändern."

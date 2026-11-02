@@ -1,6 +1,6 @@
 # To-do-Liste
 
-Stand: 02.11.2026 (Version 0.5). Wird nach jedem Entwicklungsschritt aktualisiert.
+Stand: 02.11.2026 (Version 0.6). Wird nach jedem Entwicklungsschritt aktualisiert.
 
 ## Phase 1 – Planung
 - [x] Anforderungsanalyse, Architektur, Datenmodell, Kosten, Risiken
@@ -13,6 +13,8 @@ Stand: 02.11.2026 (Version 0.5). Wird nach jedem Entwicklungsschritt aktualisier
 - [x] Migration 1–3 einspielen (komplett)
 - [x] Migration 4 einspielen (Maschinen, Partner, Hinweise, Teilen)
 - [ ] Migration 5 einspielen (Aufträge)
+- [ ] Migration 6 einspielen (Benutzerverwaltung)
+- [ ] Supabase: eigenen Mailversand (SMTP) einrichten, Standard-Mails sind auf wenige pro Stunde begrenzt
 - [ ] Domain bei Jimdo klären (eigene DNS-Einträge möglich?)
 
 ## Phase 2 – Grundsystem
@@ -21,8 +23,9 @@ Stand: 02.11.2026 (Version 0.5). Wird nach jedem Entwicklungsschritt aktualisier
 - [x] Anmeldung, Registrierung, Ersteinrichtung
 - [x] Navigation Handy (unten) und Mac (Seitenleiste)
 - [x] Automatische Prüfungen (Build, Datenbanktests)
-- [ ] Weitere Benutzer einladen, Rollen ändern, deaktivieren
-- [ ] Passwort zurücksetzen
+- [x] Weitere Benutzer einladen, Rollen ändern, deaktivieren, Aktivität
+- [x] Passwort zurücksetzen und ändern
+- [x] Umbenennung in «Hofmanager SchweikFarm», App-Symbole für iPhone/Android
 
 ## Phase 3 – Felder und Fruchtfolge
 - [x] Felder anlegen, bearbeiten, Feldhistorie

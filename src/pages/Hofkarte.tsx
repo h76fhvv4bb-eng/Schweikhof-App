@@ -16,6 +16,7 @@ import {
 import { HinweisListe } from '../components/FeldWerkzeuge';
 import { HOFOBJEKT_TYPEN, NUTZUNGSARTEN, type FeldHinweis, type HofobjektTyp } from '../lib/typen';
 import { Icon } from '../components/Icon';
+import { BETRIEB_VORGABE } from '../lib/marke';
 
 type Modus =
   | { art: 'ansehen' }
@@ -675,7 +676,7 @@ function NeuesGebaeude({
   onFehler: (t: string) => void;
 }) {
   const qc = useQueryClient();
-  const [name, setName] = useState(ort.typ === 'Hof' ? 'Schweikhof' : ort.typ);
+  const [name, setName] = useState(ort.typ === 'Hof' ? BETRIEB_VORGABE : ort.typ);
   async function speichern() {
     const { error } = await supabase.from('hofobjekte').insert({
       betrieb_id: betriebId,
