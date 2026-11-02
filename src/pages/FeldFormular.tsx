@@ -1,0 +1,216 @@
+import { useEffect, useState, type FormEvent } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { z } from 'zod';
+import { supabase, fehlertext } from '../lib/supabase';
+import { useAuth } from '../lib/auth';
+import { useFelder } from '../lib/daten';
+import { ha, haZuM2 } from '../lib/format';
+import { FELDSTATUS, NUTZUNGSARTEN, type Anbau, type Feld } from '../lib/typen';
+import { Icon } from '../components/Icon';
+
+const schema = z.object({
+  feldnummer: z.string().trim().min(1, 'Feldnummer fehlt').max(20),
+  name: z.string().trim().min(1, 'Name fehlt').max(80),
+  flaeche_m2: z.number({ invalid_type_error: 'Fläche in ha eingeben, z. B. 2.4' }).positive('Fläche muss grösser als 0 sein').max(5_000_000),
+  gemeinde: z.string().trim().max(80).nullable(),
+  nutzungsart: z.enum(NUTZUNGSARTEN),
+  bodenart: z.string().trim().max(80).nullable(),
+  hangneigung_prozent: z.number().min(0).max(100).nullable(),
+  status: z.enum(FELDSTATUS),
+  bemerkungen: z.string().trim().max(2000).nullable(),
+});
+
+const leer = (s: string) => (s.trim() === '' ? null : s.trim());
+
+export function FeldFormular() {
+  const { id } = useParams();
+  const neu = !id;
+  const navigate = useNavigate();
+  const qc = useQueryClient();
+  const { profil, darfVerwalten } = useAuth();
+  const felder = useFelder();
+  const feld = felder.data?.find((f) => f.id === id);
+
+  const [w, setW] = useState({
+    feldnummer: '',
+    name: '',
+    flaeche: '',
+    gemeinde: '',
+    nutzungsart: 'Ackerland' as Feld['nutzungsart'],
+    bodenart: '',
+    hang: '',
+    status: 'bewirtschaftet' as Feld['status'],
+    bemerkungen: '',
+  });
+  const [fehler, setFehler] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (feld)
+      setW({
+        feldnummer: feld.feldnummer,
+        name: feld.name,
+        flaeche: String(Number(feld.flaeche_m2) / 10000),
+        gemeinde: feld.gemeinde ?? '',
+        nutzungsart: feld.nutzungsart,
+        bodenart: feld.bodenart ?? '',
+        hang: feld.hangneigung_prozent == null ? '' : String(feld.hangneigung_prozent),
+        status: feld.status,
+        bemerkungen: feld.bemerkungen ?? '',
+      });
+    else if (neu && felder.data) {
+      const naechste = felder.data.reduce((m, f) => Math.max(m, Number(f.feldnummer) || 0), 0) + 1;
+      setW((x) => ({ ...x, feldnummer: x.feldnummer || String(naechste) }));
+    }
+  }, [feld, neu, felder.data]);
+
+  const historie = useQuery({
+    queryKey: ['anbau-feld', id],
+    enabled: !!id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('anbau')
+        .select('id, feld_id, kultur_id, jahr, art, status, version, kulturen(name, farbe)')
+        .eq('feld_id', id!)
+        .order('jahr', { ascending: false });
+      if (error) throw error;
+      return data as unknown as Anbau[];
+    },
+  });
+
+  const speichern = useMutation({
+    mutationFn: async () => {
+      const roh = {
+        feldnummer: w.feldnummer,
+        name: w.name,
+        flaeche_m2: haZuM2(w.flaeche) ?? NaN,
+        gemeinde: leer(w.gemeinde),
+        nutzungsart: w.nutzungsart,
+        bodenart: leer(w.bodenart),
+        hangneigung_prozent: w.hang.trim() === '' ? null : Number(w.hang.replace(',', '.')),
+        status: w.status,
+        bemerkungen: leer(w.bemerkungen),
+      };
+      const geprueft = schema.safeParse(roh);
+      if (!geprueft.success) throw new Error(geprueft.error.issues[0].message);
+      if (neu) {
+        const { error } = await supabase.from('felder').insert({ ...geprueft.data, betrieb_id: profil!.betrieb_id });
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from('felder').update({ ...geprueft.data, version: feld!.version }).eq('id', id!);
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['felder'] });
+      qc.invalidateQueries({ queryKey: ['flaeche_je_kultur'] });
+      navigate('/felder');
+    },
+    onError: (e) => setFehler(fehlertext(e)),
+  });
+
+  function absenden(e: FormEvent) {
+    e.preventDefault();
+    setFehler(null);
+    speichern.mutate();
+  }
+
+  const nurLesen = !darfVerwalten;
+  const set = (k: keyof typeof w) => (e: { target: { value: string } }) => setW({ ...w, [k]: e.target.value });
+
+  if (!neu && felder.isSuccess && !feld) return <p>Feld nicht gefunden.</p>;
+
+  return (
+    <div className="flex flex-col gap-4">
+      <header className="flex items-center gap-3">
+        <Link to="/felder" aria-label="Zurück" className="knopf-leise h-11 w-11 px-0">
+          <Icon name="zurueck" />
+        </Link>
+        <h1 className="m-0 text-2xl font-extrabold text-hof">{neu ? 'Neues Feld' : w.name || 'Feld'}</h1>
+      </header>
+
+      <form onSubmit={absenden} className="karte flex flex-col gap-3">
+        <fieldset disabled={nurLesen} className="m-0 flex flex-col gap-3 border-0 p-0">
+          <div className="grid grid-cols-[100px_1fr] gap-3">
+            <label className="feld-label">
+              Nr.
+              <input className="eingabe" required value={w.feldnummer} onChange={set('feldnummer')} />
+            </label>
+            <label className="feld-label">
+              Name
+              <input className="eingabe" required value={w.name} onChange={set('name')} placeholder="z. B. Oberacker" />
+            </label>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <label className="feld-label">
+              Fläche (ha)
+              <input className="eingabe" inputMode="decimal" required value={w.flaeche} onChange={set('flaeche')} placeholder="2.40" />
+              <span className="font-semibold">{haZuM2(w.flaeche) ? `= ${ha(haZuM2(w.flaeche))}` : ' '}</span>
+            </label>
+            <label className="feld-label">
+              Gemeinde
+              <input className="eingabe" value={w.gemeinde} onChange={set('gemeinde')} />
+            </label>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <label className="feld-label">
+              Nutzungsart
+              <select className="eingabe" value={w.nutzungsart} onChange={set('nutzungsart')}>
+                {NUTZUNGSARTEN.map((n) => (
+                  <option key={n}>{n}</option>
+                ))}
+              </select>
+            </label>
+            <label className="feld-label">
+              Status
+              <select className="eingabe" value={w.status} onChange={set('status')}>
+                {FELDSTATUS.map((n) => (
+                  <option key={n}>{n}</option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <label className="feld-label">
+              Bodenart
+              <input className="eingabe" value={w.bodenart} onChange={set('bodenart')} placeholder="z. B. sandiger Lehm" />
+            </label>
+            <label className="feld-label">
+              Hangneigung (%)
+              <input className="eingabe" inputMode="decimal" value={w.hang} onChange={set('hang')} />
+            </label>
+          </div>
+          <label className="feld-label">
+            Bemerkungen
+            <textarea className="eingabe min-h-24 py-2" value={w.bemerkungen} onChange={set('bemerkungen')} />
+          </label>
+        </fieldset>
+        {fehler && <p className="m-0 rounded-xl bg-fehler-hell p-3 text-sm font-semibold text-fehler">{fehler}</p>}
+        {!nurLesen && (
+          <button className="knopf" disabled={speichern.isPending}>
+            {speichern.isPending ? 'Speichere …' : 'Speichern'}
+          </button>
+        )}
+      </form>
+
+      {!neu && (
+        <section className="karte flex flex-col gap-2">
+          <h2 className="m-0 text-lg font-extrabold">Feldhistorie</h2>
+          {historie.data?.length === 0 && <p className="m-0 text-sm text-leise">Noch keine Kulturen erfasst.</p>}
+          {historie.data?.map((a) => (
+            <div key={a.id} className="flex items-center gap-3">
+              <span className="w-12 font-extrabold">{a.jahr}</span>
+              <span className="rounded-lg px-2 py-1 text-sm font-bold" style={{ background: a.kulturen?.farbe }}>
+                {a.kulturen?.name}
+              </span>
+              <span className="text-xs text-leise">{a.status === 'ist' ? 'Ist' : 'Plan'}</span>
+            </div>
+          ))}
+          <Link to="/fruchtfolge" className="text-sm font-bold text-hof">
+            In der Fruchtfolge bearbeiten
+          </Link>
+        </section>
+      )}
+    </div>
+  );
+}
