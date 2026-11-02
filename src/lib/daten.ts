@@ -266,11 +266,13 @@ export function useErnten(jahr?: number) {
   return useQuery({
     queryKey: ['ernten', jahr ?? 'alle'],
     queryFn: async () => {
-      let q = supabase.from('ernten').select('*, ernte_abnehmer(*)').order('datum', { ascending: false }).limit(500);
+      let q = supabase.from('ernten').select('*, ernte_produkte(*), ernte_abnehmer(*), ernte_dienstleister(*)').order('datum', { ascending: false }).limit(500);
       if (jahr) q = q.gte('datum', `${jahr}-01-01`).lte('datum', `${jahr}-12-31`);
       const { data, error } = await q;
       if (error) throw error;
-      return data as unknown as Ernte[];
+      const liste = data as unknown as Ernte[];
+      for (const e of liste) e.ernte_produkte.sort((a, b) => a.position - b.position);
+      return liste;
     },
   });
 }

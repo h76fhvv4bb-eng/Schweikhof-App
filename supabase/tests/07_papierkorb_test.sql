@@ -51,7 +51,8 @@ select public.feld_wiederherstellen((select id from felder where name = 'Acker B
 \set ON_ERROR_STOP 1
 
 -- Felder mit Ernte bleiben archiviert
-select public.ernte_speichern(jsonb_build_object('feld_id', (select id from felder where name = 'Acker B'), 'datum', current_date, 'produkt', 'Heu', 'ballen', 4));
+select public.ernte_speichern(jsonb_build_object('feld_id', (select id from felder where name = 'Acker B'), 'datum', current_date,
+  'produkte', jsonb_build_array(jsonb_build_object('produkt', 'Heu', 'ballen', 4))));
 select public.feld_loeschen((select id from felder where name = 'Acker B'));
 \set ON_ERROR_STOP 0
 select public.papierkorb_leeren((select id from felder where name = 'Acker B'));

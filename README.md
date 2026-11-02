@@ -3,7 +3,7 @@
 Digitale Betriebsführung für einen Schweizer Acker- und Futterbaubetrieb (ca. 16 ha, Kanton Zürich, ÖLN).
 Läuft im Browser auf Mac, iPhone und iPad und lässt sich als App auf den Startbildschirm legen (PWA).
 
-## Was schon funktioniert (Stand 02.11.2026, Version 0.9)
+## Was schon funktioniert (Stand 02.11.2026, Version 0.10)
 
 | Bereich | Stand |
 | --- | --- |
@@ -13,7 +13,7 @@ Läuft im Browser auf Mac, iPhone und iPad und lässt sich als App auf den Start
 | Felder anlegen, bearbeiten, suchen, Feldhistorie | fertig |
 | Fruchtfolge-Raster mit Kulturfarben, Flächensummen, Hinweisen, CSV-Export | fertig |
 | Fruchtfolge-Zeitachse: Saat und Ernte je Kultur (Monat oder Tag), Zwischenkulturen, Status geplant/ist | fertig |
-| Ernte & Erträge: Ballen, kg, Schnitt, Ertrag je ha; Abnehmer (Verkauf, Abgabe, Eigenbedarf, Lager) mit Preis und Zahlungsstatus | fertig |
+| Ernte & Erträge: mehrere Produkte je Ernte (z. B. Getreide und Stroh), mehrere Dienstleister (Dreschen, Pressen …) mit Kosten, Ertrag je ha; Abnehmer mit Preis und Zahlungsstatus; Einlagerung bucht ins Lager mit Lagerort | fertig |
 | Bodenprobe-Korrekturfaktoren je Feld | fertig |
 | Mehrere Kulturen je Feld und Jahr: Hauptkultur, Zweitkultur, mehrere Zwischenkulturen, Untersaat, Teilflächen | fertig |
 | Hof-Ansicht: Feldgrenze zurücksetzen, Einrasten ein-/ausschaltbar, Flächen und Orte ohne Fruchtfolge (Garten, Hecke, Brunnen …), Bäume auf eigener Kartenebene | fertig |

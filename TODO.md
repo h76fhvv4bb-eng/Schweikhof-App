@@ -1,6 +1,6 @@
 # To-do-Liste
 
-Stand: 02.11.2026 (Version 0.9). Wird nach jedem Entwicklungsschritt aktualisiert.
+Stand: 02.11.2026 (Version 0.10). Wird nach jedem Entwicklungsschritt aktualisiert.
 
 ## Phase 1 – Planung
 - [x] Anforderungsanalyse, Architektur, Datenmodell, Kosten, Risiken
@@ -14,7 +14,7 @@ Stand: 02.11.2026 (Version 0.9). Wird nach jedem Entwicklungsschritt aktualisier
 - [x] Migration 4 einspielen (Maschinen, Partner, Hinweise, Teilen)
 - [ ] Migration 5 einspielen (Aufträge)
 - [ ] Migration 6 einspielen (Benutzerverwaltung)
-- [ ] Migrationen 7, 8 und 9 einspielen, danach Import Fruchtfolge 2023–2029
+- [ ] Migrationen 7 bis 10 einspielen, danach Import Fruchtfolge 2023–2029
 - [ ] Feldgrenzen der 13 importierten Felder auf der Karte zeichnen
 - [ ] Supabase: eigenen Mailversand (SMTP) einrichten, Standard-Mails sind auf wenige pro Stunde begrenzt
 - [ ] Domain bei Jimdo klären (eigene DNS-Einträge möglich?)
@@ -63,6 +63,7 @@ Stand: 02.11.2026 (Version 0.9). Wird nach jedem Entwicklungsschritt aktualisier
 - [ ] Fotos und Dokumente (Anleitungen, Rechnungen) zu Maschinen und Feldern
 - [ ] Betriebsstunden automatisch aus Feldarbeiten
 - [x] Ernte mit Erträgen und Abnehmern (Partner, Ballen, kg, Preis, bezahlt)
-- [ ] Ernte direkt ins Lager buchen (Heu/Stroh als Lagerbestand)
+- [x] Ernte ins Lager buchen mit Lagerort, mehrere Produkte und Dienstleister je Ernte
+- [ ] Verkauf ab Lager (Ausgang mit Abnehmer und Preis)
 - [ ] Aufgaben und Kalender
 - [ ] Pflanzenschutz, Backups ausserhalb Supabase, Sicherheitsprüfung, Subdomain

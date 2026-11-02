@@ -233,7 +233,7 @@ function PartnerAbnahmen({ partnerId }: { partnerId: string }) {
   const [fehler, setFehler] = useState<string | null>(null);
   const feldName = new Map((felder.data ?? []).map((f) => [f.id, f.name]));
   const zeilen = (ernten.data ?? []).flatMap((e) => e.ernte_abnehmer.filter((a) => a.partner_id === partnerId).map((a) => ({ e, a })));
-  const lohn = (ernten.data ?? []).filter((e) => e.lohnunternehmen_id === partnerId);
+  const lohn = (ernten.data ?? []).flatMap((e) => e.ernte_dienstleister.filter((d) => d.partner_id === partnerId).map((d) => ({ e, d })));
   if (!zeilen.length && !lohn.length) return null;
   const summe = zeilen.reduce(
     (s, { a }) => ({
@@ -269,7 +269,7 @@ function PartnerAbnahmen({ partnerId }: { partnerId: string }) {
         <div key={a.id} className="flex items-center justify-between gap-2 border-b border-rand py-2 text-sm last:border-0">
           <Link to={`/ernte/${e.id}`} className="flex flex-col text-text no-underline">
             <span className="font-bold">
-              {datum(e.datum)} · {e.produkt} · {feldName.get(e.feld_id) ?? ''}
+              {datum(e.datum)} · {e.ernte_produkte.find((p) => p.id === a.produkt_id)?.produkt ?? ''} · {feldName.get(e.feld_id) ?? ''}
             </span>
             <span className="text-xs text-leise">
               {a.art}
@@ -286,7 +286,17 @@ function PartnerAbnahmen({ partnerId }: { partnerId: string }) {
           ) : null}
         </div>
       ))}
-      {lohn.length > 0 && <p className="m-0 text-xs text-leise">Als Lohnunternehmen bei {lohn.length} Ernte(n) im Einsatz.</p>}
+      {lohn.length > 0 && (
+        <div className="flex flex-col gap-1 border-t border-rand pt-2">
+          <span className="text-xs font-bold text-leise">Als Dienstleister bei der Ernte</span>
+          {lohn.map(({ e, d }) => (
+            <Link key={d.id} to={`/ernte/${e.id}`} className="text-sm text-text no-underline">
+              {datum(e.datum)} · {d.leistung} · {feldName.get(e.feld_id) ?? ''}
+              {d.kosten_chf ? ` · ${chf(Number(d.kosten_chf))}` : ''}
+            </Link>
+          ))}
+        </div>
+      )}
       {fehler && <p className="m-0 rounded-xl bg-fehler-hell p-3 text-sm font-semibold text-fehler">{fehler}</p>}
     </section>
   );

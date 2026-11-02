@@ -123,3 +123,10 @@ Beim Setzen von Bäumen gilt eine Vorlage (Art, Sorte, Pflanzjahr, Hochstamm), j
 Das Einrasten an Ecken und Kanten anderer Flächen lässt sich während des Zeichnens ausschalten (Einstellung bleibt im
 Browser gespeichert). In Zeichen- und Platziermodi sind Felder nicht anklickbar, damit Punkte auch innerhalb bestehender
 Felder gesetzt werden können.
+
+## 2026-11-02 · Ernte mit mehreren Produkten, Dienstleistern und Einlagerung
+Eine Ernte (Kopf: Feld, Datum, Schnitt, Fläche) hat ein oder mehrere Produkte (`ernte_produkte`, z. B. Getreide und Stroh),
+beliebig viele Dienstleister mit Leistung und Kosten (`ernte_dienstleister`) und Abgaben je Produkt (`ernte_abnehmer.produkt_id`).
+Eine Abgabe «Lager» bucht einen Eingang (Art «Ernte») ins Lagerjournal, Quelle ist die Abgabe; ohne gewählten Artikel wird ein
+Artikel «Produkt Ballenart Jahr – Lagerort» in der Kategorie Erzeugnisse angelegt bzw. wiederverwendet. Der Lagerort ist ein
+Gebäude der Hof-Ansicht. Ändern oder Löschen der Ernte entfernt die alten Buchungen und bucht neu.

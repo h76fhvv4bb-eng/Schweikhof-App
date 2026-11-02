@@ -342,8 +342,22 @@ export const ERNTEPRODUKTE = [
 export const BALLENARTEN = ['Rundballen', 'Quaderballen', 'Kleinballen', 'Siloballen'] as const;
 export const ABGABEARTEN = ['Verkauf', 'Abgabe', 'Eigenbedarf', 'Lager'] as const;
 
+export const LEISTUNGEN = ['Mähen', 'Zetten', 'Schwaden', 'Pressen', 'Wickeln', 'Dreschen', 'Häckseln', 'Roden', 'Transport', 'Ernte', 'Andere'] as const;
+
+export interface ErnteProdukt {
+  id: string;
+  position: number;
+  produkt: (typeof ERNTEPRODUKTE)[number];
+  ballen: number | null;
+  ballenart: (typeof BALLENARTEN)[number] | null;
+  menge_kg: number | null;
+  feuchte_prozent: number | null;
+  qualitaet: string | null;
+}
+
 export interface ErnteAbnehmer {
   id?: string;
+  produkt_id: string;
   partner_id: string | null;
   art: (typeof ABGABEARTEN)[number];
   ballen: number | null;
@@ -352,25 +366,30 @@ export interface ErnteAbnehmer {
   preis_einheit: 'total' | 'je Ballen' | 'je 100 kg' | 'je t' | null;
   bezahlt: boolean;
   bemerkung: string | null;
+  lagerartikel_id: string | null;
+  lagerort_id: string | null;
+}
+
+export interface ErnteDienstleister {
+  id: string;
+  partner_id: string;
+  leistung: (typeof LEISTUNGEN)[number];
+  kosten_chf: number | null;
+  bemerkung: string | null;
 }
 
 export interface Ernte {
   id: string;
   feld_id: string;
   datum: string;
-  produkt: (typeof ERNTEPRODUKTE)[number];
   schnitt: number | null;
   flaeche_m2: number;
-  ballen: number | null;
-  ballenart: (typeof BALLENARTEN)[number] | null;
-  menge_kg: number | null;
-  feuchte_prozent: number | null;
-  qualitaet: string | null;
-  lohnunternehmen_id: string | null;
   bemerkungen: string | null;
   erstellt_von: string | null;
   version: number;
+  ernte_produkte: ErnteProdukt[];
   ernte_abnehmer: ErnteAbnehmer[];
+  ernte_dienstleister: ErnteDienstleister[];
 }
 
 // ---------------------------------------------------------------- Karte: Flächen, Orte, Bäume (ohne Fruchtfolge)
