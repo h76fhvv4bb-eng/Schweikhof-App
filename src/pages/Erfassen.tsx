@@ -20,6 +20,7 @@ const MITTEL_KATEGORIE: Partial<Record<Arbeitsart, Lagerbestand['kategorie']>> =
 interface MittelZeile {
   artikel_id: string;
   menge_je_ha: string;
+  vom_lager: boolean;
 }
 
 export function Erfassen() {
@@ -66,7 +67,7 @@ export function Erfassen() {
       felderMap[f.feld_id] = feld && Math.abs(Number(feld.flaeche_m2) - Number(f.flaeche_m2)) > 0.5 ? String(Number(f.flaeche_m2) / 10000) : '';
     }
     setGewaehlt(felderMap);
-    setMittel(a.feldarbeit_mittel.map((m) => ({ artikel_id: m.artikel_id, menge_je_ha: String(m.menge_je_ha) })));
+    setMittel(a.feldarbeit_mittel.map((m) => ({ artikel_id: m.artikel_id, menge_je_ha: String(m.menge_je_ha), vom_lager: m.vom_lager !== false })));
     setDauer(a.dauer_h == null ? '' : String(a.dauer_h));
     setMaschine(a.maschine ?? '');
     setGeraet(a.geraet ?? '');
@@ -108,7 +109,7 @@ export function Erfassen() {
   const zeigeMittel = !!kategorie || mittel.length > 0;
 
   useEffect(() => {
-    if (kategorie && mittel.length === 0) setMittel([{ artikel_id: '', menge_je_ha: '' }]);
+    if (kategorie && mittel.length === 0) setMittel([{ artikel_id: '', menge_je_ha: '', vom_lager: true }]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [kategorie]);
 
@@ -135,7 +136,7 @@ export function Erfassen() {
       const wert = zahlAus(m.menge_je_ha);
       if (!m.artikel_id) return setFehler('Bitte bei jeder Mengenangabe ein Mittel wählen.');
       if (!wert || wert <= 0) return setFehler('Bitte eine Menge pro ha grösser als 0 eingeben.');
-      mittelListe.push({ artikel_id: m.artikel_id, menge_je_ha: wert });
+      mittelListe.push({ artikel_id: m.artikel_id, menge_je_ha: wert, vom_lager: m.vom_lager });
     }
     if (new Set(mittelListe.map((m) => m.artikel_id)).size !== mittelListe.length)
       return setFehler('Jedes Mittel nur einmal pro Arbeit angeben.');
@@ -297,7 +298,7 @@ export function Erfassen() {
                 const art = lager.data?.find((a) => a.id === m.artikel_id);
                 const proHa = zahlAus(m.menge_je_ha) ?? 0;
                 const gesamt = (proHa * flaecheM2) / 10000;
-                const fehlt = art && art.lagerfuehrung && !geplant && gesamt > Number(art.bestand) + (id ? gesamtAlt(vorhanden.data, art.id) : 0);
+                const fehlt = art && art.lagerfuehrung && m.vom_lager && !geplant && gesamt > Number(art.bestand) + (id ? gesamtAlt(vorhanden.data, art.id) : 0);
                 const n = art?.n_je_einheit != null ? proHa * Number(art.n_je_einheit) : null;
                 return (
                   <div key={i} className="flex flex-col gap-2 rounded-2xl bg-grund p-3">
@@ -348,6 +349,17 @@ export function Erfassen() {
                         Lager reicht nicht ({menge(Number(art!.bestand), art!.einheit)} vorhanden). Speichern ist trotzdem möglich.
                       </span>
                     )}
+                    {art?.lagerfuehrung && (
+                      <label className="flex min-h-11 items-center gap-2 text-sm font-bold">
+                        <input
+                          type="checkbox"
+                          className="h-5 w-5 accent-hof"
+                          checked={m.vom_lager}
+                          onChange={(e) => setMittel(mittel.map((x, j) => (j === i ? { ...x, vom_lager: e.target.checked } : x)))}
+                        />
+                        Vom eigenen Lager abbuchen (aus = vom Dienstleister mitgebracht)
+                      </label>
+                    )}
                     {mittel.length > 1 && (
                       <button type="button" className="self-start text-sm font-bold text-fehler" onClick={() => setMittel(mittel.filter((_, j) => j !== i))}>
                         Entfernen
@@ -366,7 +378,7 @@ export function Erfassen() {
           <button
             type="button"
             className="self-start text-sm font-extrabold text-hof"
-            onClick={() => setMittel([...mittel, { artikel_id: '', menge_je_ha: '' }])}
+            onClick={() => setMittel([...mittel, { artikel_id: '', menge_je_ha: '', vom_lager: true }])}
           >
             + {zeigeMittel ? 'weiteres Mittel' : 'Betriebsmittel'}
           </button>

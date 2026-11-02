@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from './supabase';
 import type {
   Anbau, Feld, Feldarbeit, FeldHinweis, FlaecheJeKultur, Hofobjekt, Kultur, Lagerbestand, Maschine, MaschinenEintrag,
-  NaehrstoffeJeFeld, Partner, WartungFaellig, Wartungsplan,
+  NaehrstoffeJeFeld, Partner, WartungFaellig, Wartungsplan, Auftrag,
 } from './typen';
 
 export function useFelder() {
@@ -78,7 +78,7 @@ export function useLager() {
 const FELDARBEIT_SELECT =
   'id, datum, arbeitsart, status, dauer_h, maschine, geraet, ausgefuehrt_von, ausbringung, bemerkungen, erstellt_von, version, maschine_id, geraet_id, partner_id,' +
   ' feldarbeit_felder(feld_id, flaeche_m2, anbau(kulturen(name))),' +
-  ' feldarbeit_mittel(artikel_id, menge_je_ha, gesamtmenge, lagerartikel(bezeichnung, einheit))';
+  ' feldarbeit_mittel(artikel_id, menge_je_ha, gesamtmenge, vom_lager, lagerartikel(bezeichnung, einheit))';
 
 export function useFeldarbeiten(jahr: number) {
   return useQuery({
@@ -140,9 +140,9 @@ export function useBetrieb() {
     queryKey: ['betrieb'],
     staleTime: 60 * 60 * 1000,
     queryFn: async () => {
-      const { data, error } = await supabase.from('betriebe').select('id, name, kanton').maybeSingle();
+      const { data, error } = await supabase.from('betriebe').select('id, name, kanton, adresse, telefon, email, version').maybeSingle();
       if (error) throw error;
-      return data as { id: string; name: string; kanton: string } | null;
+      return data as { id: string; name: string; kanton: string; adresse: string | null; telefon: string | null; email: string | null; version: number } | null;
     },
   });
 }
@@ -227,6 +227,20 @@ export function useHinweise() {
       const { data, error } = await supabase.from('feld_hinweise').select('*').eq('aktiv', true).order('art');
       if (error) throw error;
       return data as FeldHinweis[];
+    },
+  });
+}
+
+const AUFTRAG_SELECT =
+  '*, auftrag_felder(feld_id), auftrag_mittel(id, artikel_id, bezeichnung, kategorie, einheit, menge_je_ha, bereitstellung, bemerkung, lagerartikel(bezeichnung, einheit)), auftrag_beobachtungen(eintrag_id)';
+
+export function useAuftraege() {
+  return useQuery({
+    queryKey: ['auftraege'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('auftraege').select(AUFTRAG_SELECT).order('erstellt_am', { ascending: false }).limit(300);
+      if (error) throw error;
+      return data as unknown as Auftrag[];
     },
   });
 }

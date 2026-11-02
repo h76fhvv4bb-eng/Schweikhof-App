@@ -131,7 +131,7 @@ export interface Feldarbeit {
   partner_id: string | null;
   version: number;
   feldarbeit_felder: { feld_id: string; flaeche_m2: number; anbau: { kulturen: { name: string } | null } | null }[];
-  feldarbeit_mittel: { artikel_id: string; menge_je_ha: number; gesamtmenge: number; lagerartikel: { bezeichnung: string; einheit: string } | null }[];
+  feldarbeit_mittel: { artikel_id: string; menge_je_ha: number; gesamtmenge: number; vom_lager: boolean; lagerartikel: { bezeichnung: string; einheit: string } | null }[];
 }
 
 export interface NaehrstoffeJeFeld {
@@ -279,4 +279,41 @@ export interface FeldHinweis {
   laenge: number | null;
   aktiv: boolean;
   version: number;
+}
+
+export const AUFTRAGSSTATUS = ['Entwurf', 'Gesendet', 'Bestätigt', 'Erledigt', 'Abgebrochen'] as const;
+
+export interface AuftragMittel {
+  id?: string;
+  artikel_id: string | null;
+  bezeichnung: string | null;
+  kategorie: string;
+  einheit: string | null;
+  menge_je_ha: number | null;
+  bereitstellung: 'Betrieb' | 'Dienstleister';
+  bemerkung: string | null;
+  lagerartikel?: { bezeichnung: string; einheit: string } | null;
+}
+
+export interface Auftrag {
+  id: string;
+  betrieb_id: string;
+  nummer: string;
+  art: 'Lohnarbeit' | 'Werkstatt';
+  partner_id: string;
+  titel: string;
+  arbeitsart: string | null;
+  maschine_id: string | null;
+  termin_von: string | null;
+  termin_bis: string | null;
+  beschreibung: string | null;
+  status: (typeof AUFTRAGSSTATUS)[number];
+  gesendet_am: string | null;
+  erledigt_am: string | null;
+  feldarbeit_id: string | null;
+  eintrag_id: string | null;
+  version: number;
+  auftrag_felder: { feld_id: string }[];
+  auftrag_mittel: AuftragMittel[];
+  auftrag_beobachtungen: { eintrag_id: string }[];
 }

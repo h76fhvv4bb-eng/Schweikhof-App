@@ -1,4 +1,8 @@
+import { useEffect, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
+import { supabase, fehlertext } from '../lib/supabase';
+import { useBetrieb } from '../lib/daten';
 import { useAuth } from '../lib/auth';
 import { NAVIGATION } from '../components/AppShell';
 import { Icon } from '../components/Icon';
@@ -17,6 +21,7 @@ export function Mehr() {
           <Icon name="weiter" groesse={18} className="text-[#9AA59C]" />
         </Link>
       ))}
+      {profil?.rolle === 'administrator' && <Betriebsangaben />}
       <div className="karte flex flex-col gap-2">
         <span className="text-sm text-leise">
           Angemeldet als {profil?.name} ({profil?.rolle})
@@ -26,5 +31,54 @@ export function Mehr() {
         </button>
       </div>
     </div>
+  );
+}
+
+/** Name und Kontaktangaben des Betriebs (erscheinen im Briefkopf der Auftrags-PDFs) */
+function Betriebsangaben() {
+  const betrieb = useBetrieb();
+  const qc = useQueryClient();
+  const [w, setW] = useState({ name: '', adresse: '', telefon: '', email: '' });
+  const [meldung, setMeldung] = useState<{ text: string; fehler: boolean } | null>(null);
+  useEffect(() => {
+    if (betrieb.data)
+      setW({ name: betrieb.data.name, adresse: betrieb.data.adresse ?? '', telefon: betrieb.data.telefon ?? '', email: betrieb.data.email ?? '' });
+  }, [betrieb.data]);
+  async function speichern(e: FormEvent) {
+    e.preventDefault();
+    if (!betrieb.data || !w.name.trim()) return;
+    const { error } = await supabase
+      .from('betriebe')
+      .update({ name: w.name.trim(), adresse: w.adresse.trim() || null, telefon: w.telefon.trim() || null, email: w.email.trim() || null, version: betrieb.data.version })
+      .eq('id', betrieb.data.id);
+    setMeldung(error ? { text: fehlertext(error), fehler: true } : { text: 'Gespeichert.', fehler: false });
+    qc.invalidateQueries({ queryKey: ['betrieb'] });
+  }
+  const set = (k: keyof typeof w) => (e: { target: { value: string } }) => setW({ ...w, [k]: e.target.value });
+  return (
+    <form onSubmit={speichern} className="karte flex flex-col gap-3">
+      <h2 className="m-0 text-lg font-extrabold">Betriebsangaben</h2>
+      <span className="text-sm text-leise">Erscheinen im Briefkopf der Aufträge.</span>
+      <label className="feld-label">
+        Name
+        <input className="eingabe" value={w.name} onChange={set('name')} />
+      </label>
+      <label className="feld-label">
+        Adresse
+        <textarea className="eingabe min-h-16 py-2" value={w.adresse} onChange={set('adresse')} placeholder={'Strasse Nr.\nPLZ Ort'} />
+      </label>
+      <div className="grid grid-cols-2 gap-3">
+        <label className="feld-label">
+          Telefon
+          <input className="eingabe" type="tel" value={w.telefon} onChange={set('telefon')} />
+        </label>
+        <label className="feld-label">
+          E-Mail
+          <input className="eingabe" type="email" value={w.email} onChange={set('email')} />
+        </label>
+      </div>
+      {meldung && <p className={`m-0 rounded-xl p-3 text-sm font-semibold ${meldung.fehler ? 'bg-fehler-hell text-fehler' : 'bg-hof-hell text-hof'}`}>{meldung.text}</p>}
+      <button className="knopf">Speichern</button>
+    </form>
   );
 }

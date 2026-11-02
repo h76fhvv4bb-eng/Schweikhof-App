@@ -86,6 +86,12 @@ const pfade = {
       <path d="M16 14.2c2.8.4 5 2.8 5 5.8" />
     </>
   ),
+  auftrag: (
+    <>
+      <rect x="3" y="5" width="18" height="14" rx="2" />
+      <path d="M3 7l9 6 9-6" />
+    </>
+  ),
   suche: (
     <>
       <circle cx="11" cy="11" r="7" />

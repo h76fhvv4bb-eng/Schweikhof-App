@@ -11,6 +11,7 @@ export const NAVIGATION: { pfad: string; text: string; icon: IconName; gruppe: s
   { pfad: '/lager', text: 'Lager', icon: 'lager', gruppe: 'Betrieb' },
   { pfad: '/maschinen', text: 'Maschinen', icon: 'traktor', gruppe: 'Betrieb' },
   { pfad: '/partner', text: 'Partner', icon: 'partner', gruppe: 'Betrieb' },
+  { pfad: '/auftraege', text: 'Aufträge', icon: 'auftrag', gruppe: 'Betrieb' },
 ];
 
 const unten: { pfad: string; text: string; icon: IconName }[] = [

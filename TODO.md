@@ -1,6 +1,6 @@
 # To-do-Liste
 
-Stand: 02.11.2026 (Version 0.4). Wird nach jedem Entwicklungsschritt aktualisiert.
+Stand: 02.11.2026 (Version 0.5). Wird nach jedem Entwicklungsschritt aktualisiert.
 
 ## Phase 1 – Planung
 - [x] Anforderungsanalyse, Architektur, Datenmodell, Kosten, Risiken
@@ -11,7 +11,8 @@ Stand: 02.11.2026 (Version 0.4). Wird nach jedem Entwicklungsschritt aktualisier
 - [x] App online auf Cloudflare (schweikhof-app.hjbfdy94n5.workers.dev)
 - [x] Migration 2 einspielen
 - [x] Migration 1–3 einspielen (komplett)
-- [ ] Migration 4 einspielen (Maschinen, Partner, Hinweise, Teilen)
+- [x] Migration 4 einspielen (Maschinen, Partner, Hinweise, Teilen)
+- [ ] Migration 5 einspielen (Aufträge)
 - [ ] Domain bei Jimdo klären (eigene DNS-Einträge möglich?)
 
 ## Phase 2 – Grundsystem
@@ -46,6 +47,8 @@ Stand: 02.11.2026 (Version 0.4). Wird nach jedem Entwicklungsschritt aktualisier
 - [x] Partner (Lohnunternehmen, Mechaniker …)
 - [x] Felder teilen/zusammenführen, Feldhinweise
 - [x] Dünger-Katalog
+- [x] Aufträge (Lohnarbeit, Werkstatt) mit PDF und Mail, Abschluss in Kartei/Reparatur
+- [x] Betriebsmittel «vom Dienstleister» dokumentiert ohne Lagerbuchung
 - [ ] Fotos und Dokumente (Anleitungen, Rechnungen) zu Maschinen und Feldern
 - [ ] Betriebsstunden automatisch aus Feldarbeiten
 - [ ] Ernte und Verkauf

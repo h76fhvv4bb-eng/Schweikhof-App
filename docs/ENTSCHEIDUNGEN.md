@@ -71,3 +71,15 @@ Feldarbeiten verweisen jetzt auf Maschine, Gerät und Partner; die alten Textfel
 ## 2026-11-02 · Dünger-Katalog als Vorlage
 Der Katalog enthält Standardgehalte gängiger Mineraldünger als Richtwerte. Er legt normale Lagerartikel an,
 die danach frei angepasst werden. Massgebend bleibt die Deklaration des Produkts.
+
+## 2026-11-02 · Aufträge an Partner
+Aufträge (`auftraege` mit Feldern, Mitteln, Beobachtungen) werden nur über `auftrag_speichern`, `auftrag_status` und
+`auftrag_abschliessen` geschrieben. Nummern laufen pro Jahr (2026-001) und werden unter einer Sperre vergeben.
+Abschliessen erzeugt bei Lohnarbeit eine Feldarbeit mit Partner; Mittel mit Bereitstellung «Dienstleister» stehen in der
+Kartei, buchen aber nicht vom Lager (`feldarbeit_mittel.vom_lager = false`). Freitext-Mittel werden dafür als Artikel ohne
+Bestandsführung angelegt. Bei Werkstattaufträgen entsteht ein Reparatur-Eintrag, verknüpfte Beobachtungen werden geschlossen.
+
+## 2026-11-02 · PDF im Browser, Versand über das Teilen-Menü
+Das PDF entsteht im Browser mit jsPDF (erst beim ersten Gebrauch geladen). Versand über die Web-Share-Funktion:
+auf iPhone, iPad und Mac «Mail» wählen, das PDF ist angehängt. Wo das nicht geht, wird das PDF heruntergeladen und das
+Mailprogramm mit vorbereitetem Text geöffnet (Anhängen von Hand). So braucht es keinen eigenen Mailserver.

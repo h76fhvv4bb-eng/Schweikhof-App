@@ -17,6 +17,7 @@ import { Mehr } from './pages/Mehr';
 import { Maschinen } from './pages/Maschinen';
 import { MaschineDetail } from './pages/MaschineDetail';
 import { PartnerFormular, PartnerListe } from './pages/Partner';
+import { AuftraegeListe, AuftragFormular } from './pages/Auftraege';
 
 export function App() {
   const { session, profil, laedt } = useAuth();
@@ -54,6 +55,9 @@ export function App() {
         <Route path="partner" element={<PartnerListe />} />
         <Route path="partner/neu" element={<PartnerFormular />} />
         <Route path="partner/:id" element={<PartnerFormular />} />
+        <Route path="auftraege" element={<AuftraegeListe />} />
+        <Route path="auftraege/neu" element={<AuftragFormular />} />
+        <Route path="auftraege/:id" element={<AuftragFormular />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

@@ -300,7 +300,7 @@ function Wartungsplaene({ maschine }: { maschine: Maschine }) {
 }
 
 function Eintraege({ maschine }: { maschine: Maschine }) {
-  const { profil } = useAuth();
+  const { profil, darfVerwalten } = useAuth();
   const eintraege = useMaschinenEintraege(maschine.id);
   const partner = usePartner();
   const [bearbeiten, setBearbeiten] = useState<MaschinenEintrag | 'neu' | null>(null);
@@ -314,11 +314,18 @@ function Eintraege({ maschine }: { maschine: Maschine }) {
           <h2 className="m-0 text-lg font-extrabold">Wartungen, Reparaturen, Beobachtungen</h2>
           {kosten > 0 && <span className="text-xs text-leise">Kosten total {chf(kosten)}</span>}
         </div>
-        {profil?.rolle !== 'lesen' && bearbeiten == null && (
-          <button className="knopf" onClick={() => setBearbeiten('neu')}>
-            <Icon name="plus" /> Eintrag
-          </button>
-        )}
+        <div className="flex flex-wrap gap-2">
+          {darfVerwalten && (
+            <Link to={`/auftraege/neu?art=Werkstatt&maschine=${maschine.id}`} className="knopf-leise no-underline">
+              <Icon name="auftrag" /> Werkstattauftrag
+            </Link>
+          )}
+          {profil?.rolle !== 'lesen' && bearbeiten == null && (
+            <button className="knopf" onClick={() => setBearbeiten('neu')}>
+              <Icon name="plus" /> Eintrag
+            </button>
+          )}
+        </div>
       </div>
       {bearbeiten != null && <EintragFormular maschine={maschine} eintrag={bearbeiten === 'neu' ? null : bearbeiten} onFertig={() => setBearbeiten(null)} />}
       {eintraege.data?.length === 0 && bearbeiten == null && <p className="m-0 text-sm text-leise">Noch keine Einträge.</p>}

@@ -3,7 +3,9 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase, fehlertext } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
-import { usePartner } from '../lib/daten';
+import { useAuftraege, usePartner } from '../lib/daten';
+import { AuftragStatus } from './Auftraege';
+import { datum } from '../lib/format';
 import { PARTNERARTEN, type Partner } from '../lib/typen';
 import { Icon } from '../components/Icon';
 
@@ -184,6 +186,39 @@ export function PartnerFormular() {
           </button>
         )}
       </form>
+      {p && <PartnerAuftraege partnerId={p.id} art={p.art} />}
     </div>
+  );
+}
+
+function PartnerAuftraege({ partnerId, art }: { partnerId: string; art: Partner['art'] }) {
+  const { darfVerwalten } = useAuth();
+  const auftraege = useAuftraege();
+  const liste = (auftraege.data ?? []).filter((a) => a.partner_id === partnerId);
+  const neueArt = art === 'Mechaniker/Werkstatt' ? 'Werkstatt' : 'Lohnarbeit';
+  return (
+    <section className="karte flex flex-col gap-2">
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="m-0 text-lg font-extrabold">Aufträge</h2>
+        {darfVerwalten && (
+          <Link to={`/auftraege/neu?art=${neueArt}&partner=${partnerId}`} className="knopf no-underline">
+            <Icon name="plus" /> {neueArt === 'Werkstatt' ? 'Werkstattauftrag' : 'Lohnauftrag'}
+          </Link>
+        )}
+      </div>
+      {liste.length === 0 && <p className="m-0 text-sm text-leise">Noch keine Aufträge an diesen Partner.</p>}
+      {liste.map((a) => (
+        <Link key={a.id} to={`/auftraege/${a.id}`} className="flex items-center justify-between gap-2 border-b border-rand py-2 text-sm text-text no-underline last:border-0">
+          <span className="flex flex-col">
+            <span className="font-bold">{a.titel}</span>
+            <span className="text-xs text-leise">
+              Nr. {a.nummer}
+              {a.termin_von && ` · ${datum(a.termin_von)}`}
+            </span>
+          </span>
+          <AuftragStatus status={a.status} />
+        </Link>
+      ))}
+    </section>
   );
 }
