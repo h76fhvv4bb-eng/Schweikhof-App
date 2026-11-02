@@ -5,7 +5,7 @@ import type { MultiPolygon, Polygon } from 'geojson';
 import { supabase, fehlertext } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
 import {
-  ABHAENGIGE_DATEN, useAnbau, useAuftraege, useBetrieb, useFelder, useHinweise, useHofobjekte, useLager, useMaschinen, useMaschinenEintraege, usePartner,
+  ABHAENGIGE_DATEN, useAnbau, useAuftraege, useBetrieb, useFelder, useHinweise, useHofobjekte, useLager, useMaschinen, useMaschinenEintraege, usePartner, useAufgaben, useGeplanteArbeiten,
 } from '../lib/daten';
 import { datum, ha, heuteIso, menge, zahlAus } from '../lib/format';
 import { ARBEITSARTEN, LAGERKATEGORIEN, MIT_MOTOR, type Auftrag } from '../lib/typen';
@@ -155,6 +155,45 @@ export function AuftragFormular() {
   const [arbeitet, setArbeitet] = useState(false);
   const [abschluss, setAbschluss] = useState<{ datum: string; kosten: string; bemerkung: string } | null>(null);
   const geladen = useMemo(() => ({ id: '' }), []);
+  // Aus den Aufgaben: geplante Feldarbeit (Lohnarbeit) oder Maschinen-Aufgabe (Werkstatt) übernehmen
+  const geplanteArbeiten = useGeplanteArbeiten();
+  const offeneAufgaben = useAufgaben('offen');
+  const feldarbeitId = id ? (vorhanden?.feldarbeit_id ?? null) : params.get('feldarbeit');
+  const aufgabeId = id ? (vorhanden?.aufgabe_id ?? null) : params.get('aufgabe');
+  const quelleArbeit = (geplanteArbeiten.data ?? []).find((a) => a.id === feldarbeitId);
+  const quelleAufgabe = (offeneAufgaben.data ?? []).find((a) => a.id === aufgabeId);
+  const vorbelegt = useMemo(() => ({ fertig: false }), []);
+  useEffect(() => {
+    if (id || vorbelegt.fertig) return;
+    if (quelleArbeit && lager.data) {
+      vorbelegt.fertig = true;
+      setArt('Lohnarbeit');
+      setArbeitsart(quelleArbeit.arbeitsart);
+      setFeldWahl(quelleArbeit.feldarbeit_felder.map((f) => f.feld_id));
+      setTerminVon(quelleArbeit.datum);
+      if (quelleArbeit.partner_id) setPartnerId(quelleArbeit.partner_id);
+      if (quelleArbeit.bemerkungen) setBeschreibung(quelleArbeit.bemerkungen);
+      setMittel(
+        quelleArbeit.feldarbeit_mittel.map((m) => {
+          const a = lager.data?.find((x) => x.id === m.artikel_id);
+          return {
+            quelle: 'lager' as const, artikel_id: m.artikel_id, bezeichnung: '', kategorie: a?.kategorie ?? 'Saatgut', einheit: a?.einheit ?? 'kg',
+            menge_je_ha: String(m.menge_je_ha), bereitstellung: m.vom_lager === false ? ('Dienstleister' as const) : ('Betrieb' as const), bemerkung: '',
+          };
+        }),
+      );
+    } else if (quelleAufgabe) {
+      vorbelegt.fertig = true;
+      setArt('Werkstatt');
+      if (quelleAufgabe.maschine_id) setMaschineId(quelleAufgabe.maschine_id);
+      if (quelleAufgabe.partner_id) setPartnerId(quelleAufgabe.partner_id);
+      setTitel(quelleAufgabe.titel);
+      setTitelGeaendert(true);
+      if (quelleAufgabe.faellig_am) setTerminBis(quelleAufgabe.faellig_am);
+      if (quelleAufgabe.bemerkungen) setBeschreibung(quelleAufgabe.bemerkungen);
+      if (quelleAufgabe.beobachtung_id) setBeobWahl([quelleAufgabe.beobachtung_id]);
+    }
+  }, [id, quelleArbeit, quelleAufgabe, lager.data, vorbelegt]);
 
   useEffect(() => {
     const a = vorhanden;
@@ -241,6 +280,8 @@ export function AuftragFormular() {
       felder: art === 'Lohnarbeit' ? feldWahl : [],
       mittel: art === 'Lohnarbeit' ? mittelListe : [],
       beobachtungen: art === 'Werkstatt' ? beobWahl : [],
+      feldarbeit_id: art === 'Lohnarbeit' && quelleArbeit ? quelleArbeit.id : null,
+      aufgabe_id: aufgabeId || null,
     };
   }
 
@@ -397,6 +438,11 @@ export function AuftragFormular() {
         </Link>
         <div className="min-w-0">
           <h1 className="m-0 truncate text-2xl font-extrabold text-hof">{id ? `Auftrag ${vorhanden?.nummer ?? ''}` : art === 'Lohnarbeit' ? 'Neuer Lohnauftrag' : 'Neuer Werkstattauftrag'}</h1>
+          {(quelleArbeit || quelleAufgabe) && (
+            <span className="block text-xs font-bold text-hof">
+              Aus Aufgabe: {quelleArbeit ? `${quelleArbeit.arbeitsart} (${datum(quelleArbeit.datum)})` : quelleAufgabe?.titel} – beim Abschliessen wird sie erledigt.
+            </span>
+          )}
           {vorhanden && (
             <span className="flex items-center gap-2 text-sm text-leise">
               <AuftragStatus status={vorhanden.status} />

@@ -22,6 +22,7 @@ import { AuftraegeListe, AuftragFormular } from './pages/Auftraege';
 import { ErnteFormular, ErnteListe } from './pages/Ernte';
 import { ErnteSammel } from './pages/ErnteSammel';
 import { Aufgaben } from './pages/Aufgaben';
+import { MitarbeiterSeite } from './pages/Mitarbeiter';
 
 export function App() {
   const { session, profil, laedt, passwortNeu } = useAuth();
@@ -60,6 +61,7 @@ export function App() {
         <Route path="lager/:id" element={<LagerArtikel />} />
         <Route path="mehr" element={<Mehr />} />
         <Route path="benutzer" element={<Benutzer />} />
+        <Route path="mitarbeiter" element={<MitarbeiterSeite />} />
         <Route path="maschinen" element={<Maschinen />} />
         <Route path="maschinen/neu" element={<MaschineDetail />} />
         <Route path="maschinen/:id" element={<MaschineDetail />} />

@@ -9,6 +9,7 @@ import {
 import { chf, datum, heuteIso, menge, zahlAus } from '../lib/format';
 import { EINTRAGSARTEN, MASCHINENKATEGORIEN, MIT_MOTOR, type Maschine, type MaschinenEintrag } from '../lib/typen';
 import { Icon } from '../components/Icon';
+import { Verlauf } from '../components/Verlauf';
 import { Marke, tageBis } from './Maschinen';
 
 type Werte = Record<string, string>;
@@ -196,6 +197,7 @@ export function MaschineDetail() {
 
       {m && <Wartungsplaene maschine={m} />}
       {m && <Eintraege maschine={m} />}
+      {m && <Verlauf art="maschine" id={m.id} titel="Einsätze und offene Aufgaben" />}
     </div>
   );
 }

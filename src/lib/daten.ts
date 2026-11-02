@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from './supabase';
 import type {
   Anbau, Feld, Feldarbeit, FeldHinweis, FlaecheJeKultur, Hofobjekt, Kultur, Lagerbestand, Maschine, MaschinenEintrag,
-  NaehrstoffeJeFeld, Partner, WartungFaellig, Wartungsplan, Auftrag, Ernte, Kartenobjekt, Aufgabe,
+  NaehrstoffeJeFeld, Partner, WartungFaellig, Wartungsplan, Auftrag, Ernte, Kartenobjekt, Aufgabe, Mitarbeiter,
 } from './typen';
 
 export function useFelder() {
@@ -76,7 +76,7 @@ export function useLager() {
 }
 
 const FELDARBEIT_SELECT =
-  'id, datum, arbeitsart, status, dauer_h, maschine, geraet, ausgefuehrt_von, ausbringung, bemerkungen, erstellt_von, version, maschine_id, geraet_id, partner_id, maschine_stunden, maschine_km, geraet_stunden, beobachtung,' +
+  'id, datum, arbeitsart, status, dauer_h, maschine, geraet, ausgefuehrt_von, ausbringung, bemerkungen, erstellt_von, version, maschine_id, geraet_id, partner_id, maschine_stunden, maschine_km, geraet_stunden, beobachtung, mitarbeiter_id, vorgaenger_id,' +
   ' feldarbeit_felder(feld_id, flaeche_m2, anbau(kulturen(name))),' +
   ' feldarbeit_mittel(artikel_id, menge_je_ha, gesamtmenge, vom_lager, lagerartikel(bezeichnung, einheit))';
 
@@ -133,7 +133,7 @@ export function useBenutzer() {
 }
 
 /** Nach jeder Buchung: alles neu laden, was vom Lager oder den Arbeiten abhängt. */
-export const ABHAENGIGE_DATEN = [['lager'], ['feldarbeiten'], ['feldarbeit'], ['naehrstoffe'], ['lagerjournal'], ['maschinen'], ['maschineneintraege'], ['wartung'], ['aufgaben']];
+export const ABHAENGIGE_DATEN = [['lager'], ['feldarbeiten'], ['feldarbeit'], ['naehrstoffe'], ['lagerjournal'], ['maschinen'], ['maschineneintraege'], ['wartung'], ['aufgaben'], ['mitarbeiter_stunden'], ['auftraege']];
 
 export function useBetrieb() {
   return useQuery({
@@ -335,6 +335,53 @@ export function useAufgaben(status: 'offen' | 'erledigt' = 'offen') {
       // Fehlt Migration 11 noch, bleibt die Liste leer.
       if (error) return [] as Aufgabe[];
       return data as Aufgabe[];
+    },
+  });
+}
+
+export function useMitarbeiter() {
+  return useQuery({
+    queryKey: ['mitarbeiter'],
+    staleTime: 5 * 60 * 1000,
+    queryFn: async () => {
+      const { data, error } = await supabase.from('mitarbeiter').select('*').order('name');
+      // Fehlt Migration 13 noch, bleibt die Liste leer.
+      if (error) return [] as Mitarbeiter[];
+      return data as Mitarbeiter[];
+    },
+  });
+}
+
+export function useMitarbeiterStunden(jahr: number) {
+  return useQuery({
+    queryKey: ['mitarbeiter_stunden', jahr],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('mitarbeiter_stunden').select('*').eq('jahr', jahr);
+      if (error) return [] as { mitarbeiter_id: string; stunden: number; anzahl: number }[];
+      return data as { mitarbeiter_id: string; stunden: number; anzahl: number }[];
+    },
+  });
+}
+
+/** Feldarbeiten zu einem Feld, einer Maschine, einem Partner oder einer Person (für Verknüpfungen) */
+export function useArbeitenVon(art: 'feld' | 'maschine' | 'partner' | 'mitarbeiter', id: string | undefined) {
+  return useQuery({
+    queryKey: ['feldarbeiten', 'von', art, id],
+    enabled: !!id,
+    queryFn: async () => {
+      let q = supabase
+        .from('feldarbeiten')
+        .select(art === 'feld' ? FELDARBEIT_SELECT.replace('feldarbeit_felder(', 'feldarbeit_felder!inner(') : FELDARBEIT_SELECT)
+        .is('geloescht_am', null)
+        .order('datum', { ascending: false })
+        .limit(30);
+      if (art === 'feld') q = q.eq('feldarbeit_felder.feld_id', id!);
+      else if (art === 'maschine') q = q.or(`maschine_id.eq.${id},geraet_id.eq.${id}`);
+      else if (art === 'partner') q = q.eq('partner_id', id!);
+      else q = q.eq('mitarbeiter_id', id!);
+      const { data, error } = await q;
+      if (error) throw error;
+      return data as unknown as Feldarbeit[];
     },
   });
 }

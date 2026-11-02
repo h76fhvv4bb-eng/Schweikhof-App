@@ -4,11 +4,14 @@ import { useQueryClient } from '@tanstack/react-query';
 import { supabase, fehlertext } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
 import {
-  ABHAENGIGE_DATEN, useAufgaben, useBenutzer, useFelder, useGeplanteArbeiten, useMaschinen, useMaschinenEintraege, usePartner, useWartungFaellig,
+  ABHAENGIGE_DATEN, useAufgaben, useAuftraege, useFelder, useGeplanteArbeiten, useMaschinen, useMaschinenEintraege, useMitarbeiter, usePartner,
+  useWartungFaellig,
 } from '../lib/daten';
 import { datum, heuteIso, menge, zahlAus } from '../lib/format';
 import { MIT_MOTOR, type Aufgabe, type Feldarbeit, type Maschine } from '../lib/typen';
 import { Icon } from '../components/Icon';
+import { PersonAuswahl } from './Mitarbeiter';
+import type { Auftrag } from '../lib/typen';
 
 type Filter = 'alle' | 'feld' | 'maschine' | 'allgemein';
 
@@ -20,6 +23,8 @@ interface Eintrag {
   datum: string | null;
   wer: string | null;
   wichtig: boolean;
+  wartetAuf?: string;
+  auftrag?: Auftrag;
   feldarbeit?: Feldarbeit;
   aufgabe?: Aufgabe;
 }
@@ -34,11 +39,13 @@ const plusTage = (tage: number) => {
 type Vorlage = Partial<Pick<Aufgabe, 'art' | 'titel' | 'maschine_id' | 'eintragsart' | 'beobachtung_id' | 'faellig_am'>>;
 
 export function Aufgaben() {
-  const { profil } = useAuth();
+  const { profil, darfVerwalten } = useAuth();
   const [params, setParams] = useSearchParams();
   const felder = useFelder();
   const maschinen = useMaschinen();
-  const benutzer = useBenutzer();
+  const mitarbeiter = useMitarbeiter();
+  const auftraege = useAuftraege();
+  const ich = mitarbeiter.data?.find((m) => m.benutzer_id === profil?.id)?.id;
   const geplant = useGeplanteArbeiten();
   const aufgaben = useAufgaben('offen');
   const wartung = useWartungFaellig();
@@ -59,7 +66,9 @@ export function Aufgaben() {
 
   const feldName = useMemo(() => new Map((felder.data ?? []).map((f) => [f.id, f.name])), [felder.data]);
   const maschName = useMemo(() => new Map((maschinen.data ?? []).map((m) => [m.id, m.name])), [maschinen.data]);
-  const personName = useMemo(() => new Map((benutzer.data ?? []).map((b) => [b.id, b.name.split(' ')[0]])), [benutzer.data]);
+  const personName = useMemo(() => new Map((mitarbeiter.data ?? []).map((m) => [m.id, m.name.split(' ')[0]])), [mitarbeiter.data]);
+  const geplantNach = useMemo(() => new Map((geplant.data ?? []).map((a) => [a.id, a])), [geplant.data]);
+  const offeneAuftraege = (auftraege.data ?? []).filter((a) => !['Erledigt', 'Abgebrochen'].includes(a.status));
 
   const liste: Eintrag[] = [
     ...(geplant.data ?? []).map((a) => ({
@@ -74,9 +83,11 @@ export function Aufgaben() {
         .filter(Boolean)
         .join(' · '),
       datum: a.datum,
-      wer: a.ausgefuehrt_von,
+      wer: a.mitarbeiter_id ?? null,
       wichtig: false,
       feldarbeit: a,
+      wartetAuf: a.vorgaenger_id && geplantNach.get(a.vorgaenger_id) ? geplantNach.get(a.vorgaenger_id)!.arbeitsart : undefined,
+      auftrag: offeneAuftraege.find((x) => x.feldarbeit_id === a.id),
     })),
     ...(aufgaben.data ?? []).map((a) => ({
       key: `a-${a.id}`,
@@ -84,13 +95,14 @@ export function Aufgaben() {
       titel: a.titel,
       details: [a.maschine_id && `${maschName.get(a.maschine_id)} · ${a.eintragsart}`, a.bemerkungen].filter(Boolean).join(' · '),
       datum: a.faellig_am,
-      wer: a.zugewiesen_an,
+      wer: a.mitarbeiter_id ?? null,
       wichtig: a.wichtig,
       aufgabe: a,
+      auftrag: offeneAuftraege.find((x) => x.aufgabe_id === a.id),
     })),
   ]
     .filter((e) => filter === 'alle' || e.typ === filter)
-    .filter((e) => !nurMeine || e.wer === profil?.id || e.wer == null)
+    .filter((e) => !nurMeine || e.wer === ich || e.wer == null)
     .sort((a, b) => (a.datum ?? '9999').localeCompare(b.datum ?? '9999') || Number(b.wichtig) - Number(a.wichtig));
 
   const heute = heuteIso();
@@ -178,8 +190,27 @@ export function Aufgaben() {
           <section key={titel} className="flex flex-col gap-2">
             <h2 className={`m-0 text-sm font-extrabold tracking-wider ${titel === 'Überfällig' ? 'text-fehler' : 'text-leise'}`}>{titel.toUpperCase()}</h2>
             {l.map((e) => (
-              <div key={e.key} className="karte flex items-center gap-3 p-3">
-                {darfPlanen && (
+              <div key={e.key} className={`karte flex flex-wrap items-center gap-3 p-3 ${e.wartetAuf ? 'opacity-70' : ''}`}>
+                {darfPlanen && e.wartetAuf && (
+                  <span
+                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border-[3px] border-dashed border-linie text-lg"
+                    title={`Wartet auf «${e.wartetAuf}»`}
+                    aria-label={`Wartet auf ${e.wartetAuf}`}
+                  >
+                    🔒
+                  </span>
+                )}
+                {darfPlanen && !e.wartetAuf && e.auftrag && (
+                  <Link
+                    to={`/auftraege/${e.auftrag.id}`}
+                    title="Über den Auftrag abschliessen"
+                    aria-label={`Auftrag ${e.auftrag.nummer} öffnen`}
+                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border-[3px] border-hof text-hof no-underline hover:bg-hof-hell"
+                  >
+                    <Icon name="auftrag" groesse={20} />
+                  </Link>
+                )}
+                {darfPlanen && !e.wartetAuf && !e.auftrag && (
                   <button
                     onClick={() => setErledigen(e)}
                     aria-label={`${e.titel} erledigen`}
@@ -202,6 +233,31 @@ export function Aufgaben() {
                     </span>
                     <Unterzeile e={e} personName={personName} />
                   </button>
+                )}
+                {darfPlanen && (
+                  <div className="flex w-full flex-wrap gap-x-4 gap-y-1 pl-14 text-xs font-bold">
+                    {e.feldarbeit && (
+                      <Link to={`/erfassen?geplant=1&nach=${e.feldarbeit.id}`} className="text-hof">
+                        + Folgearbeit
+                      </Link>
+                    )}
+                    {darfVerwalten && e.feldarbeit && !e.auftrag && (
+                      <Link to={`/auftraege/neu?art=Lohnarbeit&feldarbeit=${e.feldarbeit.id}`} className="text-hof">
+                        Als Lohnauftrag vergeben
+                      </Link>
+                    )}
+                    {darfVerwalten && e.aufgabe?.art === 'Maschine' && !e.auftrag && (
+                      <Link to={`/auftraege/neu?art=Werkstatt&aufgabe=${e.aufgabe.id}`} className="text-hof">
+                        Werkstattauftrag erstellen
+                      </Link>
+                    )}
+                    {e.auftrag && (
+                      <Link to={`/auftraege/${e.auftrag.id}`} className="text-leise">
+                        Auftrag {e.auftrag.nummer} · {e.auftrag.status}
+                      </Link>
+                    )}
+                    {e.wartetAuf && <span className="text-leise">wartet auf «{e.wartetAuf}»</span>}
+                  </div>
                 )}
               </div>
             ))}
@@ -299,7 +355,7 @@ const istAufgabe = (v: Vorlage | Aufgabe): v is Aufgabe => 'id' in v && typeof (
 function AufgabeFormular({ vorlage, maschinen, onFertig }: { vorlage: Vorlage | Aufgabe; maschinen: Maschine[]; onFertig: () => void }) {
   const { profil, darfVerwalten } = useAuth();
   const qc = useQueryClient();
-  const benutzer = useBenutzer();
+  const mitarbeiter = useMitarbeiter();
   const partner = usePartner();
   const bestehend = istAufgabe(vorlage) ? vorlage : null;
   const [w, setW] = useState({
@@ -308,7 +364,7 @@ function AufgabeFormular({ vorlage, maschinen, onFertig }: { vorlage: Vorlage | 
     faellig_am: vorlage.faellig_am ?? '',
     maschine_id: vorlage.maschine_id ?? '',
     eintragsart: vorlage.eintragsart ?? 'Reparatur',
-    zugewiesen_an: bestehend?.zugewiesen_an ?? '',
+    mitarbeiter_id: bestehend?.mitarbeiter_id ?? '',
     partner_id: bestehend?.partner_id ?? '',
     wichtig: bestehend?.wichtig ?? false,
     bemerkungen: bestehend?.bemerkungen ?? '',
@@ -328,7 +384,8 @@ function AufgabeFormular({ vorlage, maschinen, onFertig }: { vorlage: Vorlage | 
       eintragsart: w.art === 'Maschine' ? w.eintragsart : null,
       partner_id: w.art === 'Maschine' ? w.partner_id || null : null,
       beobachtung_id: w.art === 'Maschine' ? (vorlage.beobachtung_id ?? null) : null,
-      zugewiesen_an: w.zugewiesen_an || null,
+      mitarbeiter_id: w.mitarbeiter_id || null,
+      zugewiesen_an: mitarbeiter.data?.find((m) => m.id === w.mitarbeiter_id)?.benutzer_id ?? null,
       wichtig: w.wichtig,
       bemerkungen: w.bemerkungen.trim() || null,
     };
@@ -410,16 +467,7 @@ function AufgabeFormular({ vorlage, maschinen, onFertig }: { vorlage: Vorlage | 
         </label>
         <label className="feld-label">
           Wer?
-          <select className="eingabe" value={w.zugewiesen_an} onChange={set('zugewiesen_an')}>
-            <option value="">– offen –</option>
-            {(benutzer.data ?? [])
-              .filter((b) => b.aktiv)
-              .map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.name}
-                </option>
-              ))}
-          </select>
+          <PersonAuswahl wert={w.mitarbeiter_id} onWahl={(v) => setW({ ...w, mitarbeiter_id: v })} />
         </label>
       </div>
       {w.art === 'Maschine' && (
@@ -517,6 +565,7 @@ function FeldarbeitErledigen({ arbeit, titel, maschinen, onFertig }: { arbeit: F
   const ha = arbeit.feldarbeit_felder.reduce((s, f) => s + Number(f.flaeche_m2), 0) / 10000;
   const [w, setW] = useState({
     datum: arbeit.datum < heuteIso() ? arbeit.datum : heuteIso(),
+    wer: arbeit.mitarbeiter_id ?? '',
     dauer: arbeit.dauer_h != null ? String(arbeit.dauer_h) : '',
     m_stunden: '',
     m_km: '',
@@ -543,6 +592,7 @@ function FeldarbeitErledigen({ arbeit, titel, maschinen, onFertig }: { arbeit: F
       p_id: arbeit.id,
       p: {
         datum: w.datum,
+        mitarbeiter_id: w.wer || null,
         dauer_h: zahlAus(w.dauer),
         maschine_stunden: zahlAus(w.m_stunden),
         maschine_km: zahlAus(w.m_km),
@@ -568,6 +618,10 @@ function FeldarbeitErledigen({ arbeit, titel, maschinen, onFertig }: { arbeit: F
         <label className="feld-label">
           Wie lange? (Std.)
           <input className="eingabe" inputMode="decimal" value={w.dauer} onChange={(e) => setW({ ...w, dauer: e.target.value })} placeholder="z. B. 2.5" />
+        </label>
+        <label className="feld-label col-span-2">
+          Wer hat es gemacht?
+          <PersonAuswahl wert={w.wer} onWahl={(v) => setW({ ...w, wer: v })} leer="– ich –" />
         </label>
       </div>
 
@@ -648,6 +702,7 @@ function AufgabeErledigen({ aufgabe, maschinen, onFertig }: { aufgabe: Aufgabe; 
   const maschine = maschinen.find((m) => m.id === aufgabe.maschine_id);
   const [w, setW] = useState({
     datum: heuteIso(),
+    wer: aufgabe.mitarbeiter_id ?? '',
     dauer: '',
     stunden: '',
     km: '',
@@ -671,6 +726,7 @@ function AufgabeErledigen({ aufgabe, maschinen, onFertig }: { aufgabe: Aufgabe; 
       p_id: aufgabe.id,
       p: {
         datum: w.datum,
+        mitarbeiter_id: w.wer || null,
         dauer_h: zahlAus(w.dauer),
         ergebnis: w.ergebnis.trim() || null,
         betriebsstunden: zahlAus(w.stunden),
@@ -697,6 +753,10 @@ function AufgabeErledigen({ aufgabe, maschinen, onFertig }: { aufgabe: Aufgabe; 
         <label className="feld-label">
           Wie lange? (Std.)
           <input className="eingabe" inputMode="decimal" value={w.dauer} onChange={(e) => setW({ ...w, dauer: e.target.value })} />
+        </label>
+        <label className="feld-label col-span-2">
+          Wer hat es gemacht?
+          <PersonAuswahl wert={w.wer} onWahl={(v) => setW({ ...w, wer: v })} leer="– ich –" />
         </label>
       </div>
       {maschine && (

@@ -3,7 +3,8 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase, fehlertext } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
-import { ABHAENGIGE_DATEN, useBenutzer, useFeldarbeit, useFelder, useHinweise, useLager, useMaschinen, usePartner } from '../lib/daten';
+import { ABHAENGIGE_DATEN, useFeldarbeit, useFelder, useGeplanteArbeiten, useHinweise, useLager, useMaschinen, useMitarbeiter, usePartner } from '../lib/daten';
+import { PersonAuswahl } from './Mitarbeiter';
 import { HinweisListe } from '../components/FeldWerkzeuge';
 import { MIT_MOTOR } from '../lib/typen';
 import { ha, heuteIso, menge, zahlAus } from '../lib/format';
@@ -34,8 +35,10 @@ export function Erfassen() {
   const { profil, darfVerwalten } = useAuth();
   const felder = useFelder();
   const lager = useLager();
-  const benutzer = useBenutzer();
+  const mitarbeiter = useMitarbeiter();
+  const geplanteArbeiten = useGeplanteArbeiten();
   const vorhanden = useFeldarbeit(id);
+  const [params] = useSearchParams();
 
   const [datum, setDatum] = useState(heuteIso());
   const [arbeitsart, setArbeitsart] = useState<Arbeitsart>('Düngen');
@@ -54,7 +57,8 @@ export function Erfassen() {
   const maschinen = useMaschinen();
   const partner = usePartner();
   const hinweise = useHinweise();
-  const [person, setPerson] = useState('');
+  const [person, setPerson] = useState(''); // Mitarbeiter-ID
+  const [vorgaengerId, setVorgaengerId] = useState('');
   const [ausbringung, setAusbringung] = useState('');
   const [bemerkungen, setBemerkungen] = useState('');
   const [fehler, setFehler] = useState<string | null>(null);
@@ -81,26 +85,41 @@ export function Erfassen() {
     setMaschineId(a.maschine_id ?? '');
     setGeraetId(a.geraet_id ?? '');
     setPartnerId(a.partner_id ?? '');
-    setPerson(a.ausgefuehrt_von ?? '');
+    setPerson(a.mitarbeiter_id ?? mitarbeiter.data?.find((m) => m.benutzer_id === a.ausgefuehrt_von)?.id ?? '');
+    setVorgaengerId(a.vorgaenger_id ?? '');
     setAusbringung(a.ausbringung ?? '');
     setBemerkungen(a.bemerkungen ?? '');
     setMehr(!!(a.dauer_h || a.maschine || a.geraet || a.bemerkungen || a.ausbringung || a.maschine_id || a.geraet_id || a.partner_id));
-  }, [vorhanden.data, felder.data]);
+  }, [vorhanden.data, felder.data, mitarbeiter.data]);
 
   useEffect(() => {
-    if (!id && profil) setPerson(profil.id);
-  }, [id, profil]);
+    const ich = mitarbeiter.data?.find((m) => m.benutzer_id === profil?.id);
+    if (!id && ich && !params.get('geplant')) setPerson(ich.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, profil, mitarbeiter.data]);
 
-  // Aus der Hof-Ansicht: ?feld=<id> wählt das Feld vor; aus den Aufgaben: ?geplant=1
-  const [params] = useSearchParams();
+  // Aus der Hof-Ansicht: ?feld=<id> wählt das Feld vor; aus den Aufgaben: ?geplant=1, Folgearbeit: ?nach=<id>
   useEffect(() => {
     const feld = params.get('feld');
     if (!id && feld) setGewaehlt({ [feld]: '' });
+    const nach = params.get('nach');
+    if (!id && nach) setVorgaengerId(nach);
     if (!id && params.get('geplant')) {
       setGeplant(true);
       setMehr(true);
     }
   }, [id, params]);
+
+  // Folgearbeit: Felder und Datum der vorherigen Arbeit übernehmen
+  const vorgaenger = (geplanteArbeiten.data ?? []).find((a) => a.id === vorgaengerId);
+  useEffect(() => {
+    if (id || !vorgaenger || params.get('nach') !== vorgaenger.id) return;
+    setGewaehlt((g) => (Object.keys(g).length ? g : Object.fromEntries(vorgaenger.feldarbeit_felder.map((f) => [f.feld_id, '']))));
+    const d = new Date(`${vorgaenger.datum}T12:00:00`);
+    d.setDate(d.getDate() + 1);
+    setDatum(d.toISOString().slice(0, 10));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vorgaenger?.id]);
 
   // Betriebsmittel: je nach Arbeitsart vorschlagen (beim Laden einer bestehenden Arbeit nicht überschreiben)
   useEffect(() => {
@@ -177,7 +196,9 @@ export function Erfassen() {
         maschine_id: maschineId || null,
         geraet_id: geraetId || null,
         partner_id: partnerId || null,
-        ausgefuehrt_von: person || null,
+        mitarbeiter_id: person || null,
+        ausgefuehrt_von: mitarbeiter.data?.find((m) => m.id === person)?.benutzer_id ?? null,
+        vorgaenger_id: vorgaengerId || null,
         ausbringung,
         bemerkungen,
         felder: felderListe,
@@ -310,6 +331,23 @@ export function Erfassen() {
             </label>
           </div>
 
+          {(geplant || vorgaengerId) && (
+            <label className="feld-label">
+              Erst nach … (Folgearbeit, optional)
+              <select className="eingabe" value={vorgaengerId} onChange={(e) => setVorgaengerId(e.target.value)}>
+                <option value="">– unabhängig –</option>
+                {(geplanteArbeiten.data ?? [])
+                  .filter((a) => a.id !== id)
+                  .map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.arbeitsart} · {a.feldarbeit_felder.map((f) => felder.data?.find((x) => x.id === f.feld_id)?.name).join(', ')} ({a.datum.split('-').reverse().join('.')})
+                    </option>
+                  ))}
+                {vorgaengerId && !geplanteArbeiten.data?.some((a) => a.id === vorgaengerId) && <option value={vorgaengerId}>bereits erledigte Arbeit</option>}
+              </select>
+              {vorgaenger && <span className="text-xs font-normal text-leise">Diese Arbeit kann erst erledigt werden, wenn «{vorgaenger.arbeitsart}» erledigt ist.</span>}
+            </label>
+          )}
           {mittelMoeglich && (
             <label className="flex min-h-11 items-center gap-2 text-sm font-extrabold">
               <input type="checkbox" className="h-5 w-5 accent-hof" checked={mitMittel} onChange={(e) => setMitMittel(e.target.checked)} />
@@ -429,14 +467,7 @@ export function Erfassen() {
                 </label>
                 <label className="feld-label">
                   {geplant ? 'Wer?' : 'Ausgeführt von'}
-                  <select className="eingabe" value={person} onChange={(e) => setPerson(e.target.value)}>
-                    <option value="">–</option>
-                    {(benutzer.data ?? []).map((b) => (
-                      <option key={b.id} value={b.id}>
-                        {b.name}
-                      </option>
-                    ))}
-                  </select>
+                  <PersonAuswahl wert={person} onWahl={setPerson} leer="–" />
                 </label>
                 <label className="feld-label">
                   Maschine

@@ -145,3 +145,12 @@ In Auswahlfeldern für Betriebsmittel und Partner gibt es «+ Neu …» (nur fü
 Der Dünger-Schnelldialog füllt Gehalte aus dem Katalog, wenn der Name passt. Mehrere Ernten werden über `ernten_speichern`
 in einer Transaktion gespeichert (alles oder nichts, Fehlermeldung nennt die Zeile). Beim gemeinsamen Bearbeiten bleiben
 bestehende Abgaben je Ernte erhalten; eine gemeinsame Abgabe gilt nur, wo für das Produkt noch nichts zugeteilt ist.
+
+## 2026-11-02 · Mitarbeitende, Folgearbeiten, Aufträge aus Aufgaben
+`mitarbeiter` enthält alle Personen, die auf dem Betrieb arbeiten; App-Konten werden automatisch übernommen
+(Trigger auf `benutzer_profile`), weitere Personen brauchen kein Konto. Feldarbeiten und Aufgaben verweisen auf
+`mitarbeiter_id`; `ausgefuehrt_von`/`zugewiesen_an` bleiben für App-Konten erhalten. Folgearbeiten sind normale geplante
+Feldarbeiten mit `vorgaenger_id`; die Datenbank verhindert Kreise und das Erledigen vor der Vorgängerin (auch über
+Aufträge). Ein Lohnauftrag kann eine geplante Arbeit (`auftraege.feldarbeit_id`) bzw. ein Werkstattauftrag eine Aufgabe
+(`aufgabe_id`) übernehmen; der Abschluss des Auftrags erledigt genau diese Arbeit/Aufgabe statt eine neue anzulegen.
+Solange ein Auftrag läuft, wird die Arbeit/Aufgabe über den Auftrag abgeschlossen.

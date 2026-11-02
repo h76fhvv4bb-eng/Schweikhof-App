@@ -278,6 +278,7 @@ type AbnehmerZeile = {
   bemerkung: string;
   lagerort_id: string;
   lagerartikel_id: string;
+  kg_auto?: boolean; // kg aus Ballengewicht berechnet
 };
 
 const neuesProdukt = (produkt: ErnteProdukt['produkt']): ProduktZeile => ({
@@ -373,7 +374,35 @@ export function ErnteFormular() {
         return n;
       }),
     );
-  const aendereAbgabe = (i: number, teil: Partial<AbnehmerZeile>) => setAbnehmer(abnehmer.map((a, j) => (j === i ? { ...a, ...teil } : a)));
+  /** Gewicht je Ballen eines Produkts: eingegeben oder aus Gesamtgewicht ÷ Ballen */
+  const kgJeBallen = (p: ProduktZeile | undefined) => {
+    if (!p) return null;
+    const je = zahlAus(p.kg_je_ballen);
+    if (je != null && je > 0) return je;
+    const kg = zahlAus(p.menge_kg);
+    const b = zahlAus(p.ballen);
+    return kg != null && b ? kg / b : null;
+  };
+  const aendereAbgabe = (i: number, teil: Partial<AbnehmerZeile>) =>
+    setAbnehmer(
+      abnehmer.map((a, j) => {
+        if (j !== i) return a;
+        const n = { ...a, ...teil };
+        if ('menge_kg' in teil) n.kg_auto = false;
+        // Ballen eingegeben: kg automatisch aus dem Ballengewicht
+        if (('ballen' in teil || 'produkt_index' in teil) && (n.kg_auto !== false || !n.menge_kg)) {
+          const je = kgJeBallen(produkte[n.produkt_index]);
+          const b = zahlAus(n.ballen);
+          if (je != null && b != null) {
+            n.menge_kg = String(Math.round(b * je));
+            n.kg_auto = true;
+          } else if (n.kg_auto) {
+            n.menge_kg = '';
+          }
+        }
+        return n;
+      }),
+    );
   const aendereDienst = (i: number, teil: Partial<DienstZeile>) => setDienste(dienste.map((d, j) => (j === i ? { ...d, ...teil } : d)));
 
   function produktEntfernen(i: number) {
@@ -731,6 +760,7 @@ export function ErnteFormular() {
             <label className="feld-label sm:col-span-2">
               kg
               <input className="eingabe" inputMode="decimal" value={a.menge_kg} onChange={(e) => aendereAbgabe(i, { menge_kg: e.target.value })} />
+              {a.kg_auto && <span className="text-xs font-normal text-leise">aus Ballengewicht berechnet</span>}
             </label>
             {a.art === 'Verkauf' && (
               <>

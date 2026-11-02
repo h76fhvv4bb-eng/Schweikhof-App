@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useBenutzer, useBetrieb, useFeldarbeiten, useFelder, useMaschinen, usePartner } from '../lib/daten';
+import { useMitarbeiter, useBetrieb, useFeldarbeiten, useFelder, useMaschinen, usePartner } from '../lib/daten';
 import { datum, ha, menge } from '../lib/format';
 import { csvHerunterladen, csvZahl } from '../lib/export';
 import { ARBEITSARTEN } from '../lib/typen';
@@ -15,14 +15,17 @@ export function Kartei() {
   const [kulturFilter, setKulturFilter] = useState('');
   const arbeiten = useFeldarbeiten(jahr);
   const felder = useFelder();
-  const benutzer = useBenutzer();
+  const mitarbeiter = useMitarbeiter();
   const maschinen = useMaschinen();
   const partner = usePartner();
   const maschinenName = (id: string | null, text: string | null) => (id ? (maschinen.data?.find((m) => m.id === id)?.name ?? text) : text);
   const partnerName = (id: string | null) => (id ? partner.data?.find((p) => p.id === id)?.name : undefined);
 
   const feldName = useMemo(() => new Map((felder.data ?? []).map((f) => [f.id, f.name])), [felder.data]);
-  const personName = useMemo(() => new Map((benutzer.data ?? []).map((b) => [b.id, b.name])), [benutzer.data]);
+  const personName = useMemo(() => new Map((mitarbeiter.data ?? []).map((m) => [m.id, m.name])), [mitarbeiter.data]);
+  /** Person einer Arbeit: Mitarbeiter/in, sonst das App-Konto, das sie erfasst hat */
+  const wer = (a: { mitarbeiter_id?: string | null; ausgefuehrt_von: string | null }) =>
+    a.mitarbeiter_id ?? mitarbeiter.data?.find((m) => m.benutzer_id === a.ausgefuehrt_von)?.id ?? null;
   const kulturen = [
     ...new Set((arbeiten.data ?? []).flatMap((a) => a.feldarbeit_felder.map((f) => f.anbau?.kulturen?.name).filter(Boolean) as string[])),
   ].sort();
@@ -31,7 +34,7 @@ export function Kartei() {
     (a) =>
       (!feldFilter || a.feldarbeit_felder.some((f) => f.feld_id === feldFilter)) &&
       (!artFilter || a.arbeitsart === artFilter) &&
-      (!personFilter || a.ausgefuehrt_von === personFilter) &&
+      (!personFilter || wer(a) === personFilter) &&
       (!kulturFilter || a.feldarbeit_felder.some((f) => f.anbau?.kulturen?.name === kulturFilter)),
   );
 
@@ -58,7 +61,7 @@ export function Kartei() {
             maschinenName(a.maschine_id, a.maschine) ?? '',
             maschinenName(a.geraet_id, a.geraet) ?? '',
             partnerName(a.partner_id) ?? '',
-            a.ausgefuehrt_von ? (personName.get(a.ausgefuehrt_von) ?? '') : '',
+            wer(a) ? (personName.get(wer(a)!) ?? '') : '',
             csvZahl(a.dauer_h),
             a.bemerkungen ?? '',
           ]);
@@ -135,7 +138,7 @@ export function Kartei() {
           Person
           <select className="eingabe" value={personFilter} onChange={(e) => setPersonFilter(e.target.value)}>
             <option value="">Alle</option>
-            {(benutzer.data ?? []).map((b) => (
+            {(mitarbeiter.data ?? []).map((b) => (
               <option key={b.id} value={b.id}>
                 {b.name}
               </option>
@@ -171,9 +174,9 @@ export function Kartei() {
               {m.lagerartikel?.bezeichnung}: {menge(m.menge_je_ha, `${m.lagerartikel?.einheit}/ha`)} · total {menge(m.gesamtmenge, m.lagerartikel?.einheit)}
             </span>
           ))}
-          {(a.maschine || a.geraet || a.maschine_id || a.geraet_id || a.partner_id || a.ausgefuehrt_von || a.dauer_h) && (
+          {(a.maschine || a.geraet || a.maschine_id || a.geraet_id || a.partner_id || wer(a) || a.dauer_h) && (
             <span className="text-xs text-leise">
-              {[a.ausgefuehrt_von && personName.get(a.ausgefuehrt_von), partnerName(a.partner_id), maschinenName(a.maschine_id, a.maschine), maschinenName(a.geraet_id, a.geraet), a.dauer_h && `${menge(a.dauer_h)} h`]
+              {[wer(a) && personName.get(wer(a)!), partnerName(a.partner_id), maschinenName(a.maschine_id, a.maschine), maschinenName(a.geraet_id, a.geraet), a.dauer_h && `${menge(a.dauer_h)} h`]
                 .filter(Boolean)
                 .join(' · ')}
             </span>

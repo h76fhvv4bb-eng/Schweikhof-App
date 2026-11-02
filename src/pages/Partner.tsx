@@ -8,6 +8,7 @@ import { AuftragStatus } from './Auftraege';
 import { chf, datum } from '../lib/format';
 import { PARTNERARTEN, type Partner } from '../lib/typen';
 import { Icon } from '../components/Icon';
+import { Verlauf } from '../components/Verlauf';
 
 export function PartnerListe() {
   const { darfVerwalten } = useAuth();
@@ -188,6 +189,7 @@ export function PartnerFormular() {
       </form>
       {p && <PartnerAuftraege partnerId={p.id} art={p.art} />}
       {p && <PartnerAbnahmen partnerId={p.id} />}
+      {p && <Verlauf art="partner" id={p.id} titel="Arbeiten durch diesen Partner" />}
     </div>
   );
 }

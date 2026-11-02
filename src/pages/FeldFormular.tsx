@@ -9,6 +9,7 @@ import { ha, haZuM2 } from '../lib/format';
 import { FELDSTATUS, NUTZUNGSARTEN, type Anbau, type Feld } from '../lib/typen';
 import { Icon } from '../components/Icon';
 import { FeldHinweise, FeldTeilenZusammenfuehren } from '../components/FeldWerkzeuge';
+import { Verlauf } from '../components/Verlauf';
 
 const schema = z.object({
   feldnummer: z.string().trim().min(1, 'Feldnummer fehlt').max(20),
@@ -294,6 +295,8 @@ export function FeldFormular() {
       )}
 
       {!neu && feld && <FeldHinweise feldId={feld.id} />}
+
+      {!neu && feld && <Verlauf art="feld" id={feld.id} titel="Arbeiten, Aufträge und Ernten" />}
 
       {!neu && (
         <section className="karte flex flex-col gap-2">

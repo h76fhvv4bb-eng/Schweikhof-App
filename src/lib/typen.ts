@@ -151,6 +151,8 @@ export interface Feldarbeit {
   maschine_km?: number | null;
   geraet_stunden?: number | null;
   beobachtung?: string | null;
+  mitarbeiter_id?: string | null;
+  vorgaenger_id?: string | null;
   version: number;
   feldarbeit_felder: { feld_id: string; flaeche_m2: number; anbau: { kulturen: { name: string } | null } | null }[];
   feldarbeit_mittel: { artikel_id: string; menge_je_ha: number; gesamtmenge: number; vom_lager: boolean; lagerartikel: { bezeichnung: string; einheit: string } | null }[];
@@ -335,6 +337,7 @@ export interface Auftrag {
   gesendet_am: string | null;
   erledigt_am: string | null;
   feldarbeit_id: string | null;
+  aufgabe_id?: string | null;
   eintrag_id: string | null;
   version: number;
   auftrag_felder: { feld_id: string }[];
@@ -437,6 +440,21 @@ export interface Aufgabe {
   erledigt_am: string | null;
   dauer_h: number | null;
   ergebnis: string | null;
+  mitarbeiter_id?: string | null;
   erstellt_von: string | null;
+  version: number;
+}
+
+// ---------------------------------------------------------------- Mitarbeitende
+export interface Mitarbeiter {
+  id: string;
+  name: string;
+  funktion: string | null;
+  telefon: string | null;
+  email: string | null;
+  stundenansatz_chf: number | null;
+  benutzer_id: string | null;
+  aktiv: boolean;
+  bemerkungen: string | null;
   version: number;
 }
