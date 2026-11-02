@@ -139,3 +139,9 @@ Kilometerzähler (werden bei der Maschine nur nach oben nachgeführt) und Beobac
 Punkt bei der Maschine gemeldet werden. Aus einer Maschinen-Aufgabe entsteht beim Erledigen ein Wartungs-/Reparatureintrag.
 Betriebsmittel werden in der Erfassung nur noch per Häkchen angegeben (Säen, Düngen, Pflanzenschutz, Andere);
 bei Bodenbearbeitung und Ernte entfällt die Auswahl.
+
+## 2026-11-02 · Schnellanlage und Sammelerfassung
+In Auswahlfeldern für Betriebsmittel und Partner gibt es «+ Neu …» (nur für Verwaltende, wie beim Lager und den Partnern).
+Der Dünger-Schnelldialog füllt Gehalte aus dem Katalog, wenn der Name passt. Mehrere Ernten werden über `ernten_speichern`
+in einer Transaktion gespeichert (alles oder nichts, Fehlermeldung nennt die Zeile). Beim gemeinsamen Bearbeiten bleiben
+bestehende Abgaben je Ernte erhalten; eine gemeinsame Abgabe gilt nur, wo für das Produkt noch nichts zugeteilt ist.

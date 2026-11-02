@@ -20,6 +20,7 @@ import { MaschineDetail } from './pages/MaschineDetail';
 import { PartnerFormular, PartnerListe } from './pages/Partner';
 import { AuftraegeListe, AuftragFormular } from './pages/Auftraege';
 import { ErnteFormular, ErnteListe } from './pages/Ernte';
+import { ErnteSammel } from './pages/ErnteSammel';
 import { Aufgaben } from './pages/Aufgaben';
 
 export function App() {
@@ -50,6 +51,7 @@ export function App() {
         <Route path="arbeiten/:id" element={<Erfassen />} />
         <Route path="ernte" element={<ErnteListe />} />
         <Route path="ernte/neu" element={<ErnteFormular />} />
+        <Route path="ernte/sammel" element={<ErnteSammel />} />
         <Route path="ernte/:id" element={<ErnteFormular />} />
         <Route path="kartei" element={<Kartei />} />
         <Route path="naehrstoffe" element={<Naehrstoffe />} />

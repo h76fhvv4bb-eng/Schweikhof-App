@@ -9,6 +9,7 @@ import { MIT_MOTOR } from '../lib/typen';
 import { ha, heuteIso, menge, zahlAus } from '../lib/format';
 import { ARBEITSARTEN, type Arbeitsart, type Lagerbestand } from '../lib/typen';
 import { Icon } from '../components/Icon';
+import { NEU, NeuerArtikelDialog } from '../components/Schnellanlage';
 
 const HAUPTARTEN: Arbeitsart[] = ['Pflügen', 'Grubbern', 'Säen', 'Düngen', 'Pflanzenschutz', 'Mähen', 'Pressen', 'Ernten'];
 const MITTEL_KATEGORIE: Partial<Record<Arbeitsart, Lagerbestand['kategorie']>> = {
@@ -42,6 +43,7 @@ export function Erfassen() {
   const [gewaehlt, setGewaehlt] = useState<Record<string, string>>({}); // feld_id → Teilfläche in ha ('' = ganzes Feld)
   const [mittel, setMittel] = useState<MittelZeile[]>([]);
   const [mitMittel, setMitMittel] = useState(true);
+  const [neuerArtikelFuer, setNeuerArtikelFuer] = useState<number | null>(null);
   const [mehr, setMehr] = useState(false);
   const [dauer, setDauer] = useState('');
   const [maschine, setMaschine] = useState('');
@@ -330,9 +332,14 @@ export function Erfassen() {
                       <select
                         className="eingabe"
                         value={m.artikel_id}
-                        onChange={(e) => setMittel(mittel.map((x, j) => (j === i ? { ...x, artikel_id: e.target.value } : x)))}
+                        onChange={(e) =>
+                          e.target.value === NEU
+                            ? setNeuerArtikelFuer(i)
+                            : setMittel(mittel.map((x, j) => (j === i ? { ...x, artikel_id: e.target.value } : x)))
+                        }
                       >
                         <option value="">– wählen –</option>
+                        {darfVerwalten && <option value={NEU}>+ Neu: {kategorie ?? 'Betriebsmittel'} anlegen …</option>}
                         {artikelAuswahl.map((a) => (
                           <option key={a.id} value={a.id}>
                             {a.bezeichnung}
@@ -393,7 +400,8 @@ export function Erfassen() {
               })}
               {artikelAuswahl.length === 0 && (
                 <p className="m-0 text-sm text-leise">
-                  Noch keine Artikel der Kategorie «{kategorie ?? 'Betriebsmittel'}». <Link to="/lager/neu">Im Lager anlegen</Link>
+                  Noch keine Artikel der Kategorie «{kategorie ?? 'Betriebsmittel'}».{' '}
+                  {darfVerwalten ? 'Im Auswahlfeld «+ Neu» wählen.' : <Link to="/lager">Zum Lager</Link>}
                 </p>
               )}
             </div>
@@ -486,6 +494,16 @@ export function Erfassen() {
           )}
         </section>
       </fieldset>
+
+      {neuerArtikelFuer != null && (
+        <NeuerArtikelDialog
+          kategorie={kategorie}
+          onFertig={(neuId) => {
+            if (neuId) setMittel(mittel.map((x, j) => (j === neuerArtikelFuer ? { ...x, artikel_id: neuId } : x)));
+            setNeuerArtikelFuer(null);
+          }}
+        />
+      )}
 
       {fehler && <p className="m-0 rounded-xl bg-fehler-hell p-3 text-sm font-semibold text-fehler">{fehler}</p>}
 

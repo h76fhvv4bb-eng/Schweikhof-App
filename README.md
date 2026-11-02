@@ -3,7 +3,7 @@
 Digitale Betriebsführung für einen Schweizer Acker- und Futterbaubetrieb (ca. 16 ha, Kanton Zürich, ÖLN).
 Läuft im Browser auf Mac, iPhone und iPad und lässt sich als App auf den Startbildschirm legen (PWA).
 
-## Was schon funktioniert (Stand 02.11.2026, Version 0.11)
+## Was schon funktioniert (Stand 02.11.2026, Version 0.12)
 
 | Bereich | Stand |
 | --- | --- |
@@ -32,6 +32,8 @@ Läuft im Browser auf Mac, iPhone und iPad und lässt sich als App auf den Start
 | Dünger-Katalog mit gängigen Mineraldüngern | fertig |
 | Aufträge an Partner: Lohnarbeit (Felder, Betriebsmittel, Bereitstellung, Feldhinweise) und Werkstatt (Maschine, Beobachtungen), PDF, Versand per Mail, Abschluss in Kartei bzw. als Reparatur | fertig |
 | Aufgaben: geplante Feldarbeiten, Maschinen-Aufgaben (Reparatur, Wartung, Kontrolle) und allgemeine To-dos; Erledigen mit Zeit, Zählerständen (Stunden, km), effektiven Mengen und Beobachtungen | fertig |
+| Neue Artikel (Saatgut, Dünger …) und Partner direkt aus der Auswahl anlegen | fertig |
+| Ernte mehrerer Felder auf einmal erfassen und mehrere Ernten gemeinsam bearbeiten | fertig |
 | Kalender | folgt, siehe [TODO.md](TODO.md) |
 
 ## Technik

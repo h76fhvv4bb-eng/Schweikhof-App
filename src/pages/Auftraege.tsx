@@ -11,6 +11,8 @@ import { datum, ha, heuteIso, menge, zahlAus } from '../lib/format';
 import { ARBEITSARTEN, LAGERKATEGORIEN, MIT_MOTOR, type Auftrag } from '../lib/typen';
 import { HinweisListe } from '../components/FeldWerkzeuge';
 import { Icon } from '../components/Icon';
+import { NEU, NeuerArtikelDialog } from '../components/Schnellanlage';
+import type { Lagerartikel } from '../lib/typen';
 
 const STATUSFARBE: Record<string, string> = {
   Entwurf: 'bg-[#E7E1D0] text-[#3E4C41]',
@@ -148,6 +150,7 @@ export function AuftragFormular() {
   const [mittel, setMittel] = useState<MittelZeile[]>([]);
   const [beobWahl, setBeobWahl] = useState<string[]>([]);
   const [fehler, setFehler] = useState<string | null>(null);
+  const [neuerArtikelFuer, setNeuerArtikelFuer] = useState<number | null>(null);
   const [meldung, setMeldung] = useState<string | null>(null);
   const [arbeitet, setArbeitet] = useState(false);
   const [abschluss, setAbschluss] = useState<{ datum: string; kosten: string; bemerkung: string } | null>(null);
@@ -542,6 +545,15 @@ export function AuftragFormular() {
               const n = zahlAus(m.menge_je_ha);
               return (
                 <div key={i} className="flex flex-col gap-2 rounded-2xl bg-grund p-3">
+                  {neuerArtikelFuer === i && (
+                    <NeuerArtikelDialog
+                      kategorie={m.kategorie as Lagerartikel['kategorie']}
+                      onFertig={(neuId) => {
+                        if (neuId) setz({ artikel_id: neuId });
+                        setNeuerArtikelFuer(null);
+                      }}
+                    />
+                  )}
                   <div className="grid grid-cols-2 gap-1 rounded-xl bg-[#E7E1D0] p-1">
                     {(['Betrieb', 'Dienstleister'] as const).map((b) => (
                       <button
@@ -577,8 +589,13 @@ export function AuftragFormular() {
                   {m.quelle === 'lager' ? (
                     <label className="feld-label">
                       Artikel
-                      <select className="eingabe" value={m.artikel_id} onChange={(e) => setz({ artikel_id: e.target.value })}>
+                      <select
+                        className="eingabe"
+                        value={m.artikel_id}
+                        onChange={(e) => (e.target.value === NEU ? setNeuerArtikelFuer(i) : setz({ artikel_id: e.target.value }))}
+                      >
                         <option value="">– wählen –</option>
+                        <option value={NEU}>+ Neu: {m.kategorie} anlegen …</option>
                         {artikelFuer(m.kategorie).map((a) => (
                           <option key={a.id} value={a.id}>
                             {a.bezeichnung}

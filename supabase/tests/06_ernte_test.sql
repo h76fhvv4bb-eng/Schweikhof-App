@@ -52,3 +52,20 @@ select count(*) = 1 as ok, 'Ungültige Ernten nicht gespeichert' as test from er
 select public.ernte_loeschen((select id from ids where name = 'e1'));
 select count(*) = 0 as ok, 'Ernte gelöscht' as test from ernte_abnehmer;
 select bestand = 0 as ok, 'Lagerbuchung entfernt' as test from lagerbestand;
+
+-- Sammelerfassung: alles oder nichts
+insert into felder (betrieb_id, feldnummer, name, flaeche_m2) values (mein_betrieb(), '10', 'Mittlere Suterweid', 11000);
+\set ON_ERROR_STOP 0
+select public.ernten_speichern(jsonb_build_object('ernten', jsonb_build_array(
+  jsonb_build_object('feld_id', (select id from felder where feldnummer = '9'), 'datum', current_date,
+    'produkte', jsonb_build_array(jsonb_build_object('produkt', 'Emd', 'ballen', 10))),
+  jsonb_build_object('feld_id', (select id from felder where feldnummer = '10'), 'datum', current_date,
+    'produkte', jsonb_build_array(jsonb_build_object('produkt', 'Emd'))))));
+\set ON_ERROR_STOP 1
+select count(*) = 0 as ok, 'Sammelerfassung: Fehler speichert nichts' as test from ernten;
+select cardinality(public.ernten_speichern(jsonb_build_object('ernten', jsonb_build_array(
+  jsonb_build_object('feld_id', (select id from felder where feldnummer = '9'), 'datum', current_date, 'schnitt', 2,
+    'produkte', jsonb_build_array(jsonb_build_object('produkt', 'Emd', 'ballen', 10, 'ballenart', 'Rundballen'))),
+  jsonb_build_object('feld_id', (select id from felder where feldnummer = '10'), 'datum', current_date, 'schnitt', 2,
+    'produkte', jsonb_build_array(jsonb_build_object('produkt', 'Emd', 'ballen', 14, 'ballenart', 'Rundballen'))))))) = 2 as ok,
+  'Sammelerfassung: zwei Ernten' as test;

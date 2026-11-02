@@ -8,6 +8,7 @@ import { chf, datum, ha, heuteIso, menge, zahlAus } from '../lib/format';
 import { csvHerunterladen, csvZahl } from '../lib/export';
 import { ABGABEARTEN, BALLENARTEN, ERNTEPRODUKTE, LEISTUNGEN, type ErnteAbnehmer, type ErnteProdukt } from '../lib/typen';
 import { Icon } from '../components/Icon';
+import { NEU, NeuerPartnerDialog } from '../components/Schnellanlage';
 
 const BALLENPRODUKTE = new Set(['Heu', 'Emd', 'Grassilage', 'Stroh']);
 const GRAS = new Set(['Heu', 'Emd', 'Grassilage', 'Gras frisch']);
@@ -36,6 +37,8 @@ export function ErnteListe() {
   const { profil } = useAuth();
   const aktuell = new Date().getFullYear();
   const [jahr, setJahr] = useState(aktuell);
+  const [auswahl, setAuswahl] = useState<string[]>([]);
+  const navigate = useNavigate();
   const ernten = useErnten(jahr);
   const felder = useFelder();
   const partner = usePartner();
@@ -114,12 +117,29 @@ export function ErnteListe() {
             </button>
           )}
           {profil?.rolle !== 'lesen' && (
+            <Link to="/ernte/sammel" className="knopf-leise no-underline">
+              <Icon name="plus" /> Mehrere Felder
+            </Link>
+          )}
+          {profil?.rolle !== 'lesen' && (
             <Link to="/ernte/neu" className="knopf no-underline">
               <Icon name="plus" /> Ernte
             </Link>
           )}
         </div>
       </header>
+
+      {auswahl.length > 0 && (
+        <div className="sticky top-2 z-10 flex flex-wrap items-center gap-2 rounded-2xl bg-hof p-3 text-white shadow-lg">
+          <span className="font-bold">{auswahl.length} ausgewählt</span>
+          <button className="ml-auto rounded-xl bg-white px-4 py-2 font-extrabold text-hof" onClick={() => navigate(`/ernte/sammel?ids=${auswahl.join(',')}`)}>
+            Gemeinsam bearbeiten
+          </button>
+          <button className="px-2 py-2 font-bold" onClick={() => setAuswahl([])}>
+            Aufheben
+          </button>
+        </div>
+      )}
 
       {ernten.isSuccess && liste.length === 0 && (
         <p className="karte m-0 text-leise">
@@ -175,7 +195,19 @@ export function ErnteListe() {
       )}
 
       {liste.map((e) => (
-        <Link key={e.id} to={`/ernte/${e.id}`} className="karte flex flex-col gap-1 p-3 text-text no-underline">
+        <div key={e.id} className="flex items-stretch gap-2">
+        {profil?.rolle !== 'lesen' && (
+          <label className="flex w-10 shrink-0 cursor-pointer items-center justify-center" title="Für gemeinsames Bearbeiten auswählen">
+            <input
+              type="checkbox"
+              className="h-5 w-5 accent-hof"
+              checked={auswahl.includes(e.id)}
+              onChange={(ev) => setAuswahl(ev.target.checked ? [...auswahl, e.id] : auswahl.filter((x) => x !== e.id))}
+              aria-label="Auswählen"
+            />
+          </label>
+        )}
+        <Link to={`/ernte/${e.id}`} className="karte flex min-w-0 flex-1 flex-col gap-1 p-3 text-text no-underline">
           <span className="flex flex-wrap items-baseline justify-between gap-2">
             <span className="font-extrabold">
               {e.ernte_produkte.map((p) => p.produkt).join(' + ')}
@@ -214,6 +246,7 @@ export function ErnteListe() {
             </span>
           )}
         </Link>
+        </div>
       ))}
     </div>
   );
@@ -291,6 +324,7 @@ export function ErnteFormular() {
   const [abnehmer, setAbnehmer] = useState<AbnehmerZeile[]>([]);
   const [fehler, setFehler] = useState<string | null>(null);
   const [speichert, setSpeichert] = useState(false);
+  const [neuerPartner, setNeuerPartner] = useState<{ ziel: 'dienst' | 'abgabe'; i: number } | null>(null);
 
   const jahr = Number(w.datum.slice(0, 4)) || new Date().getFullYear();
   const anbau = useAnbau(jahr, jahr);
@@ -586,8 +620,13 @@ export function ErnteFormular() {
             </label>
             <label className="feld-label sm:col-span-2">
               Partner
-              <select className="eingabe" value={d.partner_id} onChange={(e) => aendereDienst(i, { partner_id: e.target.value })}>
+              <select
+                className="eingabe"
+                value={d.partner_id}
+                onChange={(e) => (e.target.value === NEU ? setNeuerPartner({ ziel: 'dienst', i }) : aendereDienst(i, { partner_id: e.target.value }))}
+              >
                 <option value="">– wählen –</option>
+                {darfVerwalten && <option value={NEU}>+ Neuer Partner …</option>}
                 {dienstPartner.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.name} ({p.art})
@@ -670,8 +709,13 @@ export function ErnteFormular() {
             ) : (
               <label className="feld-label sm:col-span-4">
                 Partner {a.art === 'Eigenbedarf' ? '(optional)' : ''}
-                <select className="eingabe" value={a.partner_id} onChange={(e) => aendereAbgabe(i, { partner_id: e.target.value })}>
+                <select
+                  className="eingabe"
+                  value={a.partner_id}
+                  onChange={(e) => (e.target.value === NEU ? setNeuerPartner({ ziel: 'abgabe', i }) : aendereAbgabe(i, { partner_id: e.target.value }))}
+                >
                   <option value="">– wählen –</option>
+                  {darfVerwalten && <option value={NEU}>+ Neuer Partner …</option>}
                   {aktivePartner.map((p) => (
                     <option key={p.id} value={p.id}>
                       {p.name} ({p.art})
@@ -742,6 +786,18 @@ export function ErnteFormular() {
         <textarea className="eingabe min-h-20" value={w.bemerkungen} onChange={setKopf('bemerkungen')} />
       </label>
 
+      {neuerPartner && (
+        <NeuerPartnerDialog
+          art={neuerPartner.ziel === 'dienst' ? 'Lohnunternehmen' : 'Abnehmer/Käufer'}
+          onFertig={(neuId) => {
+            if (neuId) {
+              if (neuerPartner.ziel === 'dienst') aendereDienst(neuerPartner.i, { partner_id: neuId });
+              else aendereAbgabe(neuerPartner.i, { partner_id: neuId });
+            }
+            setNeuerPartner(null);
+          }}
+        />
+      )}
       {fehler && <p className="m-0 rounded-xl bg-fehler-hell p-3 text-sm font-semibold text-fehler">{fehler}</p>}
       <div className="flex flex-wrap gap-2">
         <button className="knopf" disabled={speichert}>
