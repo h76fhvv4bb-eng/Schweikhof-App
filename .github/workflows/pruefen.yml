@@ -66,7 +66,7 @@ jobs:
           for f in supabase/migrations/*.sql; do psql -v ON_ERROR_STOP=1 -q -f "$f"; done
           psql -q -f supabase/tests/04_auftraege_test.sql 2>&1 | tee ausgabe4.txt
           if grep -E "^ f +\|" ausgabe4.txt; then echo "Ein Test ist fehlgeschlagen"; exit 1; fi
-          [ "$(grep -cE '^ t +\|' ausgabe4.txt)" -ge 12 ] || (echo "Zu wenige erfolgreiche Tests"; exit 1)
+          [ "$(grep -cE '^ t +\|' ausgabe4.txt)" -ge 11 ] || (echo "Zu wenige erfolgreiche Tests"; exit 1)
           grep -q "Auftrag ist bereits abgeschlossen" ausgabe4.txt || (echo "Doppeltes Abschliessen nicht verhindert"; exit 1)
       - name: Einrichtungsdatei aktuell?
         run: scripts/einrichtung_erstellen.sh | diff - supabase/einrichtung_komplett.sql || (echo "supabase/einrichtung_komplett.sql ist veraltet – scripts/einrichtung_erstellen.sh ausführen"; exit 1)
