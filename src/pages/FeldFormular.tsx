@@ -20,7 +20,13 @@ const schema = z.object({
   hangneigung_prozent: z.number().min(0).max(100).nullable(),
   status: z.enum(FELDSTATUS),
   bemerkungen: z.string().trim().max(2000).nullable(),
+  korrektur_p2o5: z.number().min(0, 'Korrekturfaktor zwischen 0 und 3').max(3, 'Korrekturfaktor zwischen 0 und 3').nullable(),
+  korrektur_k2o: z.number().min(0, 'Korrekturfaktor zwischen 0 und 3').max(3, 'Korrekturfaktor zwischen 0 und 3').nullable(),
+  korrektur_mg: z.number().min(0, 'Korrekturfaktor zwischen 0 und 3').max(3, 'Korrekturfaktor zwischen 0 und 3').nullable(),
+  bodenprobe_jahr: z.number().int('Jahr der Bodenprobe ungültig').min(1990, 'Jahr der Bodenprobe ungültig').max(2100).nullable(),
 });
+
+const zahlOderNull = (s: string) => (s.trim() === '' ? null : Number(s.trim().replace(',', '.')));
 
 const leer = (s: string) => (s.trim() === '' ? null : s.trim());
 
@@ -43,6 +49,10 @@ export function FeldFormular() {
     hang: '',
     status: 'bewirtschaftet' as Feld['status'],
     bemerkungen: '',
+    kp: '',
+    kk: '',
+    kmg: '',
+    probe: '',
   });
   const [fehler, setFehler] = useState<string | null>(null);
 
@@ -58,6 +68,10 @@ export function FeldFormular() {
         hang: feld.hangneigung_prozent == null ? '' : String(feld.hangneigung_prozent),
         status: feld.status,
         bemerkungen: feld.bemerkungen ?? '',
+        kp: feld.korrektur_p2o5 == null ? '' : String(feld.korrektur_p2o5),
+        kk: feld.korrektur_k2o == null ? '' : String(feld.korrektur_k2o),
+        kmg: feld.korrektur_mg == null ? '' : String(feld.korrektur_mg),
+        probe: feld.bodenprobe_jahr == null ? '' : String(feld.bodenprobe_jahr),
       });
     else if (neu && felder.data) {
       const naechste = felder.data.reduce((m, f) => Math.max(m, Number(f.feldnummer) || 0), 0) + 1;
@@ -92,6 +106,10 @@ export function FeldFormular() {
         hangneigung_prozent: w.hang.trim() === '' ? null : Number(w.hang.replace(',', '.')),
         status: w.status,
         bemerkungen: leer(w.bemerkungen),
+        korrektur_p2o5: zahlOderNull(w.kp),
+        korrektur_k2o: zahlOderNull(w.kk),
+        korrektur_mg: zahlOderNull(w.kmg),
+        bodenprobe_jahr: zahlOderNull(w.probe),
       };
       const geprueft = schema.safeParse(roh);
       if (!geprueft.success) throw new Error(geprueft.error.issues[0].message);
@@ -182,6 +200,28 @@ export function FeldFormular() {
               <input className="eingabe" inputMode="decimal" value={w.hang} onChange={set('hang')} />
             </label>
           </div>
+          <div className="flex flex-col gap-2 rounded-2xl bg-grund p-3">
+            <span className="text-sm font-extrabold">Bodenprobe – Korrekturfaktoren</span>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <label className="feld-label">
+                P₂O₅
+                <input className="eingabe" inputMode="decimal" value={w.kp} onChange={set('kp')} placeholder="z. B. 0.8" />
+              </label>
+              <label className="feld-label">
+                K₂O
+                <input className="eingabe" inputMode="decimal" value={w.kk} onChange={set('kk')} placeholder="z. B. 1.0" />
+              </label>
+              <label className="feld-label">
+                Mg
+                <input className="eingabe" inputMode="decimal" value={w.kmg} onChange={set('kmg')} />
+              </label>
+              <label className="feld-label">
+                Jahr der Probe
+                <input className="eingabe" inputMode="numeric" value={w.probe} onChange={set('probe')} />
+              </label>
+            </div>
+            <span className="text-xs text-leise">Faktor gemäss Bodenanalyse (1.0 = Versorgung genügend). Dient nur als Notiz für die Düngungsplanung.</span>
+          </div>
           <label className="feld-label">
             Bemerkungen
             <textarea className="eingabe min-h-24 py-2" value={w.bemerkungen} onChange={set('bemerkungen')} />
@@ -233,9 +273,14 @@ export function FeldFormular() {
               </span>
             </div>
           ))}
-          <Link to="/fruchtfolge" className="text-sm font-bold text-hof">
-            In der Fruchtfolge bearbeiten
-          </Link>
+          <span className="flex flex-wrap gap-4">
+            <Link to="/fruchtfolge" className="text-sm font-bold text-hof">
+              In der Fruchtfolge bearbeiten
+            </Link>
+            <Link to={`/ernte/neu?feld=${id}`} className="text-sm font-bold text-hof">
+              Ernte erfassen
+            </Link>
+          </span>
         </section>
       )}
 

@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from './supabase';
 import type {
   Anbau, Feld, Feldarbeit, FeldHinweis, FlaecheJeKultur, Hofobjekt, Kultur, Lagerbestand, Maschine, MaschinenEintrag,
-  NaehrstoffeJeFeld, Partner, WartungFaellig, Wartungsplan, Auftrag,
+  NaehrstoffeJeFeld, Partner, WartungFaellig, Wartungsplan, Auftrag, Ernte,
 } from './typen';
 
 export function useFelder() {
@@ -16,7 +16,7 @@ export function useFelder() {
         .neq('status', 'zusammengeführt')
         .order('feldnummer', { ascending: true });
       if (error) throw error;
-      return data as Feld[];
+      return (data as Feld[]).sort((a, b) => a.feldnummer.localeCompare(b.feldnummer, 'de-CH', { numeric: true }));
     },
   });
 }
@@ -39,7 +39,7 @@ export function useAnbau(vonJahr: number, bisJahr: number) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('anbau')
-        .select('id, feld_id, kultur_id, jahr, art, status, version, kulturen(name, farbe)')
+        .select('id, feld_id, kultur_id, jahr, art, status, version, saatdatum, erntedatum, nur_monat, bemerkungen, kulturen(name, farbe)')
         .eq('art', 'Hauptkultur')
         .gte('jahr', vonJahr)
         .lte('jahr', bisJahr);
@@ -241,6 +241,35 @@ export function useAuftraege() {
       const { data, error } = await supabase.from('auftraege').select(AUFTRAG_SELECT).order('erstellt_am', { ascending: false }).limit(300);
       if (error) throw error;
       return data as unknown as Auftrag[];
+    },
+  });
+}
+
+/** Alle Anbau-Einträge (Haupt- und Zwischenkulturen) für die Zeitachse */
+export function useAnbauAlle(vonJahr: number, bisJahr: number) {
+  return useQuery({
+    queryKey: ['anbau', 'alle', vonJahr, bisJahr],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('anbau')
+        .select('id, feld_id, kultur_id, jahr, art, status, version, saatdatum, erntedatum, nur_monat, bemerkungen, kulturen(name, farbe)')
+        .gte('jahr', vonJahr)
+        .lte('jahr', bisJahr);
+      if (error) throw error;
+      return data as unknown as Anbau[];
+    },
+  });
+}
+
+export function useErnten(jahr?: number) {
+  return useQuery({
+    queryKey: ['ernten', jahr ?? 'alle'],
+    queryFn: async () => {
+      let q = supabase.from('ernten').select('*, ernte_abnehmer(*)').order('datum', { ascending: false }).limit(500);
+      if (jahr) q = q.gte('datum', `${jahr}-01-01`).lte('datum', `${jahr}-12-31`);
+      const { data, error } = await q;
+      if (error) throw error;
+      return data as unknown as Ernte[];
     },
   });
 }

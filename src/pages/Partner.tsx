@@ -3,9 +3,9 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase, fehlertext } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
-import { useAuftraege, usePartner } from '../lib/daten';
+import { useAuftraege, useErnten, useFelder, usePartner } from '../lib/daten';
 import { AuftragStatus } from './Auftraege';
-import { datum } from '../lib/format';
+import { chf, datum } from '../lib/format';
 import { PARTNERARTEN, type Partner } from '../lib/typen';
 import { Icon } from '../components/Icon';
 
@@ -187,6 +187,7 @@ export function PartnerFormular() {
         )}
       </form>
       {p && <PartnerAuftraege partnerId={p.id} art={p.art} />}
+      {p && <PartnerAbnahmen partnerId={p.id} />}
     </div>
   );
 }
@@ -219,6 +220,74 @@ function PartnerAuftraege({ partnerId, art }: { partnerId: string; art: Partner[
           <AuftragStatus status={a.status} />
         </Link>
       ))}
+    </section>
+  );
+}
+
+/** Was dieser Partner aus der Ernte übernommen hat (Verkauf/Abgabe) inkl. Zahlungsstatus */
+function PartnerAbnahmen({ partnerId }: { partnerId: string }) {
+  const { darfVerwalten } = useAuth();
+  const qc = useQueryClient();
+  const ernten = useErnten();
+  const felder = useFelder();
+  const [fehler, setFehler] = useState<string | null>(null);
+  const feldName = new Map((felder.data ?? []).map((f) => [f.id, f.name]));
+  const zeilen = (ernten.data ?? []).flatMap((e) => e.ernte_abnehmer.filter((a) => a.partner_id === partnerId).map((a) => ({ e, a })));
+  const lohn = (ernten.data ?? []).filter((e) => e.lohnunternehmen_id === partnerId);
+  if (!zeilen.length && !lohn.length) return null;
+  const summe = zeilen.reduce(
+    (s, { a }) => ({
+      ballen: s.ballen + (a.ballen ?? 0),
+      kg: s.kg + Number(a.menge_kg ?? 0),
+      chf: s.chf + Number(a.preis_chf ?? 0),
+      offen: s.offen + (a.bezahlt ? 0 : Number(a.preis_chf ?? 0)),
+    }),
+    { ballen: 0, kg: 0, chf: 0, offen: 0 },
+  );
+
+  async function bezahlt(id: string | undefined, wert: boolean) {
+    if (!id) return;
+    setFehler(null);
+    const { error } = await supabase.from('ernte_abnehmer').update({ bezahlt: wert }).eq('id', id);
+    if (error) return setFehler(fehlertext(error));
+    qc.invalidateQueries({ queryKey: ['ernten'] });
+  }
+
+  return (
+    <section className="karte flex flex-col gap-2">
+      <h2 className="m-0 text-lg font-extrabold">Abnahmen aus der Ernte</h2>
+      {zeilen.length > 0 && (
+        <p className="m-0 text-sm font-bold">
+          Total {summe.ballen ? `${summe.ballen} Ballen` : ''}
+          {summe.ballen && summe.kg ? ' · ' : ''}
+          {summe.kg ? `${summe.kg.toLocaleString('de-CH')} kg` : ''}
+          {summe.chf ? ` · ${chf(summe.chf)}` : ''}
+          {summe.offen ? <span className="text-fehler"> · offen {chf(summe.offen)}</span> : null}
+        </p>
+      )}
+      {zeilen.map(({ e, a }) => (
+        <div key={a.id} className="flex items-center justify-between gap-2 border-b border-rand py-2 text-sm last:border-0">
+          <Link to={`/ernte/${e.id}`} className="flex flex-col text-text no-underline">
+            <span className="font-bold">
+              {datum(e.datum)} · {e.produkt} · {feldName.get(e.feld_id) ?? ''}
+            </span>
+            <span className="text-xs text-leise">
+              {a.art}
+              {a.ballen ? ` · ${a.ballen} Ballen` : ''}
+              {a.menge_kg ? ` · ${Number(a.menge_kg).toLocaleString('de-CH')} kg` : ''}
+              {a.preis_chf ? ` · ${chf(Number(a.preis_chf))}` : ''}
+            </span>
+          </Link>
+          {a.art === 'Verkauf' && a.preis_chf ? (
+            <label className="flex shrink-0 items-center gap-2 text-xs font-bold">
+              <input type="checkbox" className="h-5 w-5 accent-hof" checked={a.bezahlt} disabled={!darfVerwalten} onChange={(ev) => bezahlt(a.id, ev.target.checked)} />
+              bezahlt
+            </label>
+          ) : null}
+        </div>
+      ))}
+      {lohn.length > 0 && <p className="m-0 text-xs text-leise">Als Lohnunternehmen bei {lohn.length} Ernte(n) im Einsatz.</p>}
+      {fehler && <p className="m-0 rounded-xl bg-fehler-hell p-3 text-sm font-semibold text-fehler">{fehler}</p>}
     </section>
   );
 }

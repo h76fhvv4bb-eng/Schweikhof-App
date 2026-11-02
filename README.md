@@ -3,7 +3,7 @@
 Digitale Betriebsführung für einen Schweizer Acker- und Futterbaubetrieb (ca. 16 ha, Kanton Zürich, ÖLN).
 Läuft im Browser auf Mac, iPhone und iPad und lässt sich als App auf den Startbildschirm legen (PWA).
 
-## Was schon funktioniert (Stand 02.11.2026, Version 0.6)
+## Was schon funktioniert (Stand 02.11.2026, Version 0.7)
 
 | Bereich | Stand |
 | --- | --- |
@@ -12,6 +12,9 @@ Läuft im Browser auf Mac, iPhone und iPad und lässt sich als App auf den Start
 | Änderungsprotokoll und Versionsschutz | fertig |
 | Felder anlegen, bearbeiten, suchen, Feldhistorie | fertig |
 | Fruchtfolge-Raster mit Kulturfarben, Flächensummen, Hinweisen, CSV-Export | fertig |
+| Fruchtfolge-Zeitachse: Saat und Ernte je Kultur (Monat oder Tag), Zwischenkulturen, Status geplant/ist | fertig |
+| Ernte & Erträge: Ballen, kg, Schnitt, Ertrag je ha; Abnehmer (Verkauf, Abgabe, Eigenbedarf, Lager) mit Preis und Zahlungsstatus | fertig |
+| Bodenprobe-Korrekturfaktoren je Feld | fertig |
 | Feldarbeiten erfassen (auch mehrere Felder, geplant/erledigt), Ackerschlagkartei mit Filtern, CSV-Export, Druck/PDF | fertig |
 | Lager: Artikel, Eingang, Verbrauch, Korrektur, Inventur, Mindestbestand, Lagerwert, Journal | fertig |
 | Düngung bucht automatisch vom Lager ab (ohne Doppelbuchung, Änderung/Löschung bucht zurück) | fertig |
@@ -25,7 +28,7 @@ Läuft im Browser auf Mac, iPhone und iPad und lässt sich als App auf den Start
 | Partner (Lohnunternehmen, Mechaniker, Händler …), verknüpft mit Arbeiten und Reparaturen | fertig |
 | Dünger-Katalog mit gängigen Mineraldüngern | fertig |
 | Aufträge an Partner: Lohnarbeit (Felder, Betriebsmittel, Bereitstellung, Feldhinweise) und Werkstatt (Maschine, Beobachtungen), PDF, Versand per Mail, Abschluss in Kartei bzw. als Reparatur | fertig |
-| Ernte, Verkauf, Aufgaben | folgt, siehe [TODO.md](TODO.md) |
+| Aufgaben, Kalender | folgt, siehe [TODO.md](TODO.md) |
 
 ## Technik
 

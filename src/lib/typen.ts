@@ -35,6 +35,10 @@ export interface Feld {
   status: (typeof FELDSTATUS)[number] | 'zusammengeführt';
   bemerkungen: string | null;
   vorgaenger: string[];
+  korrektur_p2o5: number | null;
+  korrektur_k2o: number | null;
+  korrektur_mg: number | null;
+  bodenprobe_jahr: number | null;
   zusammengefuehrt_in: string | null;
   geometrie: Polygon | MultiPolygon | null;
   flaeche_gezeichnet_m2: number | null;
@@ -49,6 +53,10 @@ export interface Anbau {
   art: 'Hauptkultur' | 'Zwischenkultur';
   status: 'geplant' | 'ist';
   version: number;
+  saatdatum?: string | null;
+  erntedatum?: string | null;
+  nur_monat?: boolean;
+  bemerkungen?: string | null;
   kulturen?: Pick<Kultur, 'name' | 'farbe'>;
 }
 
@@ -316,4 +324,41 @@ export interface Auftrag {
   auftrag_felder: { feld_id: string }[];
   auftrag_mittel: AuftragMittel[];
   auftrag_beobachtungen: { eintrag_id: string }[];
+}
+
+export const ERNTEPRODUKTE = [
+  'Heu', 'Emd', 'Grassilage', 'Gras frisch', 'Silomais', 'Körnermais', 'Getreide', 'Stroh', 'Raps', 'Eiweisserbsen', 'Kartoffeln', 'Zuckerrüben', 'Andere',
+] as const;
+export const BALLENARTEN = ['Rundballen', 'Quaderballen', 'Kleinballen', 'Siloballen'] as const;
+export const ABGABEARTEN = ['Verkauf', 'Abgabe', 'Eigenbedarf', 'Lager'] as const;
+
+export interface ErnteAbnehmer {
+  id?: string;
+  partner_id: string | null;
+  art: (typeof ABGABEARTEN)[number];
+  ballen: number | null;
+  menge_kg: number | null;
+  preis_chf: number | null;
+  preis_einheit: 'total' | 'je Ballen' | 'je 100 kg' | 'je t' | null;
+  bezahlt: boolean;
+  bemerkung: string | null;
+}
+
+export interface Ernte {
+  id: string;
+  feld_id: string;
+  datum: string;
+  produkt: (typeof ERNTEPRODUKTE)[number];
+  schnitt: number | null;
+  flaeche_m2: number;
+  ballen: number | null;
+  ballenart: (typeof BALLENARTEN)[number] | null;
+  menge_kg: number | null;
+  feuchte_prozent: number | null;
+  qualitaet: string | null;
+  lohnunternehmen_id: string | null;
+  bemerkungen: string | null;
+  erstellt_von: string | null;
+  version: number;
+  ernte_abnehmer: ErnteAbnehmer[];
 }

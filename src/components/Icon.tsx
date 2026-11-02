@@ -47,6 +47,14 @@ const pfade = {
       <path d="M15 4v16" />
     </>
   ),
+  ernte: (
+    <>
+      <circle cx="8" cy="15" r="5" />
+      <circle cx="8" cy="15" r="2" />
+      <path d="M13 15h8v-4l-3-1V6h-5" />
+      <path d="M13 6v9" />
+    </>
+  ),
   lager: (
     <>
       <path d="M3 9l9-5 9 5v11H3z" />

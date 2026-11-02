@@ -1,6 +1,6 @@
 # To-do-Liste
 
-Stand: 02.11.2026 (Version 0.6). Wird nach jedem Entwicklungsschritt aktualisiert.
+Stand: 02.11.2026 (Version 0.7). Wird nach jedem Entwicklungsschritt aktualisiert.
 
 ## Phase 1 – Planung
 - [x] Anforderungsanalyse, Architektur, Datenmodell, Kosten, Risiken
@@ -14,6 +14,8 @@ Stand: 02.11.2026 (Version 0.6). Wird nach jedem Entwicklungsschritt aktualisier
 - [x] Migration 4 einspielen (Maschinen, Partner, Hinweise, Teilen)
 - [ ] Migration 5 einspielen (Aufträge)
 - [ ] Migration 6 einspielen (Benutzerverwaltung)
+- [ ] Migration 7 einspielen (Ernte, Planung), danach Import Fruchtfolge 2023–2029
+- [ ] Feldgrenzen der 13 importierten Felder auf der Karte zeichnen
 - [ ] Supabase: eigenen Mailversand (SMTP) einrichten, Standard-Mails sind auf wenige pro Stunde begrenzt
 - [ ] Domain bei Jimdo klären (eigene DNS-Einträge möglich?)
 
@@ -31,7 +33,8 @@ Stand: 02.11.2026 (Version 0.6). Wird nach jedem Entwicklungsschritt aktualisier
 - [x] Felder anlegen, bearbeiten, Feldhistorie
 - [x] Kulturkatalog (Standardkulturen)
 - [x] Fruchtfolge-Raster mit Flächensummen, Hinweisen, CSV-Export
-- [ ] Import aus Excel (Fruchtkalender, Fruchtfolge) – Dateien vom Betrieb nötig
+- [x] Import Fruchtfolge 2023–2029 aus Excel (13 Felder, Saat/Ernte nach Monat)
+- [x] Zeitachse mit Saat- und Erntezeitpunkt, Zwischenkulturen
 - [ ] Parzellen zu Feldern zuordnen
 - [ ] Fotos zu Feldern
 - [x] Hof-Ansicht mit swisstopo-Luftbild, Feldgrenzen zeichnen/ändern, Gebäude mit Links, Schalter Hof-Ansicht/Liste
@@ -54,6 +57,7 @@ Stand: 02.11.2026 (Version 0.6). Wird nach jedem Entwicklungsschritt aktualisier
 - [x] Betriebsmittel «vom Dienstleister» dokumentiert ohne Lagerbuchung
 - [ ] Fotos und Dokumente (Anleitungen, Rechnungen) zu Maschinen und Feldern
 - [ ] Betriebsstunden automatisch aus Feldarbeiten
-- [ ] Ernte und Verkauf
+- [x] Ernte mit Erträgen und Abnehmern (Partner, Ballen, kg, Preis, bezahlt)
+- [ ] Ernte direkt ins Lager buchen (Heu/Stroh als Lagerbestand)
 - [ ] Aufgaben und Kalender
 - [ ] Pflanzenschutz, Backups ausserhalb Supabase, Sicherheitsprüfung, Subdomain

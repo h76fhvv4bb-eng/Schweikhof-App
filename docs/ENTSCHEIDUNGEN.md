@@ -89,3 +89,15 @@ Ohne eigenen Server darf die App keine Konten für andere anlegen (dafür bräuc
 Darum: Der Administrator erstellt eine Einladung (E-Mail, Rolle). Die Person registriert sich selbst; nach bestätigter
 E-Mail ordnet `einladung_annehmen` sie dem Betrieb zu. Rollen und Aktiv-Status ändert nur `benutzer_aendern`, das den
 letzten aktiven Administrator schützt. Deaktivierte Konten sehen keine Daten mehr (`mein_betrieb()` liefert nichts).
+
+## 2026-11-02 · Ernte und Abnehmer
+Jede Ernte (Schnitt, Drusch, Silage) ist ein Eintrag in `ernten` mit Ballen und/oder kg. Wer was übernommen hat, steht in
+`ernte_abnehmer` (Verkauf, Abgabe, Eigenbedarf, Lager), bei Verkauf und Abgabe immer mit Partner. Der Preis wird als
+Gesamtbetrag gespeichert; die App rechnet ihn aus Preis je Ballen, je 100 kg oder je t. Die Datenbank verhindert, dass mehr
+abgegeben als geerntet wird. Der Zahlungsstatus darf direkt geändert werden, alles andere nur über `ernte_speichern`.
+
+## 2026-11-02 · Fruchtfolge mit Saat und Ernte
+`anbau` hat Saat- und Erntedatum; `nur_monat` heisst, nur der Monat ist bekannt (aus der Excel-Planung). Das Anbaujahr ist
+das Jahr der Hauptnutzung (Winterweizen ab Oktober gesät zählt zum Folgejahr), mehrjährige Wiesen haben je Jahr einen Eintrag.
+Zwischenkulturen sind eigene Einträge mit Art «Zwischenkultur». Der Excel-Import (`scripts/fruchtfolge_import.py`)
+erzeugt eine wiederholbare SQL-Datei; erneutes Ausführen aktualisiert statt zu verdoppeln.

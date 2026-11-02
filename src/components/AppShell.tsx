@@ -7,6 +7,7 @@ export const NAVIGATION: { pfad: string; text: string; icon: IconName; gruppe: s
   { pfad: '/', text: 'Heute', icon: 'heute', gruppe: 'Übersicht' },
   { pfad: '/felder', text: 'Felder', icon: 'felder', gruppe: 'Pflanzenbau' },
   { pfad: '/fruchtfolge', text: 'Fruchtfolge', icon: 'fruchtfolge', gruppe: 'Pflanzenbau' },
+  { pfad: '/ernte', text: 'Ernte & Erträge', icon: 'ernte', gruppe: 'Pflanzenbau' },
   { pfad: '/kartei', text: 'Ackerschlagkartei', icon: 'kartei', gruppe: 'Pflanzenbau' },
   { pfad: '/naehrstoffe', text: 'Nährstoffe', icon: 'tropfen', gruppe: 'Pflanzenbau' },
   { pfad: '/lager', text: 'Lager', icon: 'lager', gruppe: 'Betrieb' },

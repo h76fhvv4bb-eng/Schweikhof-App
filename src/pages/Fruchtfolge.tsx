@@ -8,6 +8,8 @@ import { hinweiseFuerJahr } from '../lib/fruchtfolgeRegeln';
 import { datum, ha } from '../lib/format';
 import type { Anbau, Kultur } from '../lib/typen';
 import { Icon } from '../components/Icon';
+import { FruchtfolgeZeitachse } from '../components/FruchtfolgeZeitachse';
+import { AnbauDialog } from '../components/AnbauDialog';
 
 const JAHRE_ZURUECK = 2;
 const JAHRE_VOR = 2;
@@ -24,6 +26,22 @@ export function Fruchtfolge() {
   const anbau = useAnbau(start - 5, jahre[jahre.length - 1]);
   const [fehler, setFehler] = useState<string | null>(null);
   const [speichert, setSpeichert] = useState<string | null>(null);
+  const [ansicht, setAnsicht] = useState<'raster' | 'zeitachse'>(() => {
+    try {
+      return localStorage.getItem('fruchtfolge-ansicht') === 'zeitachse' ? 'zeitachse' : 'raster';
+    } catch {
+      return 'raster';
+    }
+  });
+  const [planen, setPlanen] = useState<{ feldId: string; feldName: string; jahr: number; eintrag: Anbau | null } | null>(null);
+  function waehleAnsicht(a: 'raster' | 'zeitachse') {
+    setAnsicht(a);
+    try {
+      localStorage.setItem('fruchtfolge-ansicht', a);
+    } catch {
+      /* ohne Speicher weiter */
+    }
+  }
 
   const kulturById = useMemo(() => new Map((kulturen.data ?? []).map((k) => [k.id, k])), [kulturen.data]);
   const zelle = useMemo(() => {
@@ -116,6 +134,18 @@ export function Fruchtfolge() {
           </h1>
         </div>
         <div className="flex flex-wrap gap-2">
+          <div className="flex rounded-full border-2 border-hof p-0.5" role="group" aria-label="Ansicht">
+            {(['raster', 'zeitachse'] as const).map((a) => (
+              <button
+                key={a}
+                onClick={() => waehleAnsicht(a)}
+                aria-pressed={ansicht === a}
+                className={`min-h-10 rounded-full px-4 text-sm font-extrabold ${ansicht === a ? 'bg-hof text-white' : 'text-hof'}`}
+              >
+                {a === 'raster' ? 'Raster' : 'Zeitachse'}
+              </button>
+            ))}
+          </div>
           <button className="knopf-leise h-11 w-11 px-0" aria-label="Frühere Jahre" onClick={() => setStart(start - 1)}>
             <Icon name="zurueck" />
           </button>
@@ -136,6 +166,9 @@ export function Fruchtfolge() {
         </p>
       )}
 
+      {ansicht === 'zeitachse' && <FruchtfolgeZeitachse start={jahre[0]} jahre={jahre.length} />}
+
+      {ansicht === 'raster' && (
       <div className="karte overflow-x-auto p-2">
         <table className="w-full min-w-[680px] border-separate border-spacing-1.5 text-sm">
           <thead>
@@ -168,6 +201,15 @@ export function Fruchtfolge() {
                   <th scope="row" className="whitespace-nowrap px-2 text-left">
                     <span className="block text-[15px] font-extrabold">{f.name}</span>
                     <span className="text-xs font-semibold text-leise">{ha(Number(f.flaeche_m2))}</span>
+                    {darfVerwalten && (
+                      <button
+                        type="button"
+                        className="block text-xs font-bold text-hof underline"
+                        onClick={() => setPlanen({ feldId: f.id, feldName: f.name, jahr: aktuell, eintrag: zelle.get(`${f.id}|${aktuell}`) ?? null })}
+                      >
+                        Details
+                      </button>
+                    )}
                   </th>
                   {jahre.map((j) => {
                     const a = zelle.get(`${f.id}|${j}`);
@@ -230,7 +272,15 @@ export function Fruchtfolge() {
             </tfoot>
           )}
         </table>
+        <p className="m-0 mt-2 px-2 text-xs text-leise">
+          Tipp: Kultur direkt wählen oder mit «Details» Saat- und Erntezeitpunkt, Status und Zwischenkulturen planen (auch in der Zeitachse).
+        </p>
       </div>
+      )}
+
+      {planen && (
+        <AnbauDialog eintrag={planen.eintrag} feldId={planen.feldId} feldName={planen.feldName} jahr={planen.jahr} onFertig={() => setPlanen(null)} />
+      )}
 
       <HinweisListe
         eintraege={sichtbareFelder.flatMap((f) => {

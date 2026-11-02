@@ -19,6 +19,7 @@ import { Maschinen } from './pages/Maschinen';
 import { MaschineDetail } from './pages/MaschineDetail';
 import { PartnerFormular, PartnerListe } from './pages/Partner';
 import { AuftraegeListe, AuftragFormular } from './pages/Auftraege';
+import { ErnteFormular, ErnteListe } from './pages/Ernte';
 
 export function App() {
   const { session, profil, laedt, passwortNeu } = useAuth();
@@ -45,6 +46,9 @@ export function App() {
         <Route path="fruchtfolge" element={<Fruchtfolge />} />
         <Route path="erfassen" element={<Erfassen />} />
         <Route path="arbeiten/:id" element={<Erfassen />} />
+        <Route path="ernte" element={<ErnteListe />} />
+        <Route path="ernte/neu" element={<ErnteFormular />} />
+        <Route path="ernte/:id" element={<ErnteFormular />} />
         <Route path="kartei" element={<Kartei />} />
         <Route path="naehrstoffe" element={<Naehrstoffe />} />
         <Route path="lager" element={<Lager />} />
