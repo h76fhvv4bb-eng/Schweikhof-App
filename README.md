@@ -32,7 +32,8 @@ Läuft im Browser auf Mac, iPhone und iPad und lässt sich als App auf den Start
 ### 1. Datenbank (einmalig)
 
 1. In Supabase das Projekt öffnen › **SQL Editor** › **New query**.
-2. Den Inhalt jeder Datei aus `supabase/migrations/` der Reihe nach einfügen und **Run** klicken.
+2. Neue, leere Datenbank: den Inhalt von `supabase/einrichtung_komplett.sql` einfügen und **Run** klicken.
+   Bestehende Datenbank: nur die neuen Dateien aus `supabase/migrations/` der Reihe nach einspielen.
 3. Unter **Authentication › Providers › Email** sicherstellen, dass E-Mail-Anmeldung aktiv ist.
 
 ### 2. App lokal starten (für Entwicklung)
