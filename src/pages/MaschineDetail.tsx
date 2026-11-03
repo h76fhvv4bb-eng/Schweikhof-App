@@ -12,7 +12,9 @@ import { Icon } from '../components/Icon';
 import { Verlauf } from '../components/Verlauf';
 import { FotoGalerie, FotoKnopf, FotoVorschau } from '../components/Fotos';
 import { fotosHochladen } from '../lib/fotos';
-import { useFotos } from '../lib/daten';
+import { useFotos, useMaschinenTeile } from '../lib/daten';
+import { NEU, NeuerArtikelDialog } from '../components/Schnellanlage';
+import { TEILEARTEN, type MaschinenTeil } from '../lib/typen';
 import { Marke, tageBis } from './Maschinen';
 
 type Werte = Record<string, string>;
@@ -108,6 +110,8 @@ export function MaschineDetail() {
       {m && <Faelligkeiten maschine={m} />}
 
       {m && <MaschinenFotos maschineId={m.id} />}
+
+      {m && <MaschinenTeileListe maschineId={m.id} />}
 
       {m && !offenDaten && (
         <button className="knopf-leise self-start" onClick={() => setOffenDaten(true)}>
@@ -307,6 +311,140 @@ function Wartungsplaene({ maschine }: { maschine: Maschine }) {
   );
 }
 
+/** Ersatz-, Verschleissteile und Betriebsstoffe dieser Maschine (Verweise auf Lagerartikel) */
+function MaschinenTeileListe({ maschineId }: { maschineId: string }) {
+  const { darfVerwalten, profil } = useAuth();
+  const qc = useQueryClient();
+  const teile = useMaschinenTeile({ maschine_id: maschineId });
+  const lager = useLager();
+  const [neu, setNeu] = useState<{ artikel_id: string; art: MaschinenTeil['art']; einbauort: string; vorrat: string } | null>(null);
+  const [neuerArtikel, setNeuerArtikel] = useState(false);
+  const [fehler, setFehler] = useState<string | null>(null);
+  const artikel = (id: string) => lager.data?.find((a) => a.id === id);
+  const auswahl = [...(lager.data ?? [])]
+    .filter((a) => !teile.data?.some((t) => t.artikel_id === a.id))
+    .sort(
+      (a, b) =>
+        Number(['Ersatzteile', 'Betriebsstoffe', 'Verbrauchsmaterial'].includes(b.kategorie)) -
+          Number(['Ersatzteile', 'Betriebsstoffe', 'Verbrauchsmaterial'].includes(a.kategorie)) || a.bezeichnung.localeCompare(b.bezeichnung, 'de-CH'),
+    );
+
+  async function hinzufuegen() {
+    if (!neu?.artikel_id) return setFehler('Bitte einen Artikel wählen.');
+    const v = zahlAus(neu.vorrat);
+    if (neu.vorrat.trim() && (v == null || v < 0)) return setFehler('Vorrat ungültig.');
+    const { error } = await supabase.from('maschine_teile').insert({
+      betrieb_id: profil!.betrieb_id, maschine_id: maschineId, artikel_id: neu.artikel_id, art: neu.art, einbauort: neu.einbauort.trim() || null, vorrat: v,
+    });
+    if (error) return setFehler(fehlertext(error));
+    setNeu(null);
+    setFehler(null);
+    qc.invalidateQueries({ queryKey: ['maschine_teile'] });
+  }
+  async function entfernen(t: MaschinenTeil) {
+    if (!confirm(`«${artikel(t.artikel_id)?.bezeichnung}» von dieser Maschine entfernen? Der Lagerartikel bleibt.`)) return;
+    const { error } = await supabase.from('maschine_teile').delete().eq('id', t.id);
+    if (error) return setFehler(fehlertext(error));
+    qc.invalidateQueries({ queryKey: ['maschine_teile'] });
+  }
+
+  return (
+    <section className="karte flex flex-col gap-2">
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="m-0 text-lg font-extrabold">Ersatz- und Verschleissteile</h2>
+        {darfVerwalten && !neu && (
+          <button className="knopf-leise" onClick={() => setNeu({ artikel_id: '', art: 'Verschleissteil', einbauort: '', vorrat: '' })}>
+            <Icon name="plus" /> Teil
+          </button>
+        )}
+      </div>
+      {teile.data?.length === 0 && !neu && (
+        <p className="m-0 text-sm text-leise">Noch keine Teile hinterlegt, z. B. Filter, Messer, Zinken, Keilriemen, Öl. Sie kommen aus dem Lager und werden dort mitgezählt.</p>
+      )}
+      {(teile.data ?? []).map((t) => {
+        const a = artikel(t.artikel_id);
+        const knapp = a && a.lagerfuehrung && t.vorrat != null && Number(a.bestand) < Number(t.vorrat);
+        return (
+          <div key={t.id} className="flex flex-wrap items-center gap-2 border-t border-rand pt-2 text-sm">
+            <span className={`rounded-lg px-2 py-0.5 text-xs font-extrabold ${t.art === 'Verschleissteil' ? 'bg-warn-hell text-warn' : t.art === 'Betriebsstoff' ? 'bg-[#E6F0F8] text-[#2D5F86]' : 'bg-hof-hell text-hof'}`}>
+              {t.art}
+            </span>
+            <Link to={`/lager/${t.artikel_id}`} className="min-w-0 flex-1 font-bold text-text no-underline">
+              {a?.bezeichnung ?? '…'}
+              {a?.artikelnummer && <span className="font-normal text-leise"> · Nr. {a.artikelnummer}</span>}
+              {t.einbauort && <span className="font-normal text-leise"> · {t.einbauort}</span>}
+            </Link>
+            <span className={`font-bold ${knapp ? 'text-fehler' : 'text-leise'}`}>
+              {a?.lagerfuehrung ? `${menge(Number(a.bestand), a.einheit)} an Lager` : 'ohne Bestand'}
+              {t.vorrat != null && ` · Vorrat ${menge(Number(t.vorrat))}`}
+            </span>
+            {darfVerwalten && (
+              <button className="text-xs font-bold text-fehler" onClick={() => entfernen(t)} aria-label="Teil entfernen">
+                ✕
+              </button>
+            )}
+          </div>
+        );
+      })}
+      {neu && (
+        <div className="grid gap-2 rounded-2xl bg-grund p-3 sm:grid-cols-2">
+          <label className="feld-label sm:col-span-2">
+            Artikel aus dem Lager
+            <select
+              className="eingabe"
+              value={neu.artikel_id}
+              onChange={(e) => (e.target.value === NEU ? setNeuerArtikel(true) : setNeu({ ...neu, artikel_id: e.target.value }))}
+            >
+              <option value="">– wählen –</option>
+              <option value={NEU}>+ Neuer Artikel (Ersatzteil) …</option>
+              {auswahl.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.bezeichnung} ({a.kategorie}
+                  {a.lagerfuehrung ? `, ${menge(Number(a.bestand), a.einheit)}` : ''})
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="feld-label">
+            Art
+            <select className="eingabe" value={neu.art} onChange={(e) => setNeu({ ...neu, art: e.target.value as MaschinenTeil['art'] })}>
+              {TEILEARTEN.map((a) => (
+                <option key={a}>{a}</option>
+              ))}
+            </select>
+          </label>
+          <label className="feld-label">
+            Gewünschter Vorrat
+            <input className="eingabe" inputMode="decimal" value={neu.vorrat} onChange={(e) => setNeu({ ...neu, vorrat: e.target.value })} placeholder="z. B. 2" />
+          </label>
+          <label className="feld-label sm:col-span-2">
+            Einbauort (optional)
+            <input className="eingabe" value={neu.einbauort} onChange={(e) => setNeu({ ...neu, einbauort: e.target.value })} placeholder="z. B. Hydraulikfilter, Messerbalken links" />
+          </label>
+          <div className="flex gap-2">
+            <button className="knopf" onClick={hinzufuegen}>
+              Hinzufügen
+            </button>
+            <button className="knopf-leise" onClick={() => setNeu(null)}>
+              Abbrechen
+            </button>
+          </div>
+        </div>
+      )}
+      {fehler && <p className="m-0 rounded-xl bg-fehler-hell p-3 text-sm font-semibold text-fehler">{fehler}</p>}
+      {neuerArtikel && (
+        <NeuerArtikelDialog
+          kategorie="Ersatzteile"
+          onFertig={(id) => {
+            if (id && neu) setNeu({ ...neu, artikel_id: id });
+            setNeuerArtikel(false);
+          }}
+        />
+      )}
+    </section>
+  );
+}
+
 function MaschinenFotos({ maschineId }: { maschineId: string }) {
   const fotos = useFotos({ maschine_id: maschineId });
   return (
@@ -421,7 +559,11 @@ function EintragFormular({ maschine, eintrag, onFertig }: { maschine: Maschine; 
   const [neueFotos, setNeueFotos] = useState<File[]>([]);
   const fotos = useFotos({ maschine_id: maschine.id });
   const darfAendern = !eintrag || darfVerwalten || eintrag.erstellt_von === profil?.id;
-  const artikel = (lager.data ?? []).filter((a) => ['Ersatzteile', 'Betriebsstoffe', 'Verbrauchsmaterial'].includes(a.kategorie));
+  const maschinenTeile = useMaschinenTeile({ maschine_id: maschine.id });
+  const eigene = new Set((maschinenTeile.data ?? []).map((t) => t.artikel_id));
+  const artikel = (lager.data ?? [])
+    .filter((a) => eigene.has(a.id) || ['Ersatzteile', 'Betriebsstoffe', 'Verbrauchsmaterial'].includes(a.kategorie))
+    .sort((a, b) => Number(eigene.has(b.id)) - Number(eigene.has(a.id)) || a.bezeichnung.localeCompare(b.bezeichnung, 'de-CH'));
 
   async function speichern(e: FormEvent) {
     e.preventDefault();
@@ -555,6 +697,7 @@ function EintragFormular({ maschine, eintrag, onFertig }: { maschine: Maschine; 
                   <option value="">– wählen –</option>
                   {artikel.map((a) => (
                     <option key={a.id} value={a.id}>
+                      {eigene.has(a.id) ? '★ ' : ''}
                       {a.bezeichnung} ({menge(Number(a.bestand), a.einheit)})
                     </option>
                   ))}

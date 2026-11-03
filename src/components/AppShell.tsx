@@ -11,6 +11,7 @@ export const NAVIGATION: { pfad: string; text: string; icon: IconName; gruppe: s
   { pfad: '/ernte', text: 'Ernte & Erträge', icon: 'ernte', gruppe: 'Pflanzenbau' },
   { pfad: '/kartei', text: 'Ackerschlagkartei', icon: 'kartei', gruppe: 'Pflanzenbau' },
   { pfad: '/naehrstoffe', text: 'Nährstoffe', icon: 'tropfen', gruppe: 'Pflanzenbau' },
+  { pfad: '/kontrolle', text: 'Kontrolle', icon: 'kontrolle', gruppe: 'Pflanzenbau' },
   { pfad: '/lager', text: 'Lager', icon: 'lager', gruppe: 'Betrieb' },
   { pfad: '/verkauf', text: 'Verkauf', icon: 'verkauf', gruppe: 'Betrieb' },
   { pfad: '/maschinen', text: 'Maschinen', icon: 'traktor', gruppe: 'Betrieb' },

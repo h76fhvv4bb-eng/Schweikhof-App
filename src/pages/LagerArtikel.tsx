@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase, fehlertext } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
-import { ABHAENGIGE_DATEN, useLager } from '../lib/daten';
+import { ABHAENGIGE_DATEN, useLager, useMaschinen, useMaschinenTeile } from '../lib/daten';
 import { chf, datum, heuteIso, menge, zahlAus } from '../lib/format';
 import { EINHEITEN, LAGERKATEGORIEN, type Lagerartikel, type Lagerbewegung } from '../lib/typen';
 import { Icon } from '../components/Icon';
@@ -30,7 +30,7 @@ export function LagerArtikel() {
   const artikel = lager.data?.find((a) => a.id === id);
 
   const [w, setW] = useState({
-    bezeichnung: '', artikelnummer: '', kategorie: 'Dünger' as Lagerartikel['kategorie'], einheit: 'kg' as Lagerartikel['einheit'],
+    warengruppe: '', bezeichnung: '', artikelnummer: '', kategorie: 'Dünger' as Lagerartikel['kategorie'], einheit: 'kg' as Lagerartikel['einheit'],
     hersteller: '', lieferant: '', lagerort: '', mindestbestand: '', einkaufspreis: '', lagerfuehrung: true,
     naehrstoffquelle: 'Deklaration', bemerkungen: '',
     n_je_einheit: '', p2o5_je_einheit: '', k2o_je_einheit: '', mg_je_einheit: '', s_je_einheit: '',
@@ -42,7 +42,7 @@ export function LagerArtikel() {
     const f = alsProzent(artikel.einheit) ? 100 : 1;
     const nz = (v: number | null) => (v == null ? '' : String(Math.round(Number(v) * f * 10000) / 10000));
     setW({
-      bezeichnung: artikel.bezeichnung, artikelnummer: artikel.artikelnummer ?? '', kategorie: artikel.kategorie, einheit: artikel.einheit,
+      warengruppe: artikel.warengruppe ?? '', bezeichnung: artikel.bezeichnung, artikelnummer: artikel.artikelnummer ?? '', kategorie: artikel.kategorie, einheit: artikel.einheit,
       hersteller: artikel.hersteller ?? '', lieferant: artikel.lieferant ?? '', lagerort: artikel.lagerort ?? '',
       mindestbestand: String(artikel.mindestbestand ?? ''), einkaufspreis: artikel.einkaufspreis == null ? '' : String(artikel.einkaufspreis),
       lagerfuehrung: artikel.lagerfuehrung, naehrstoffquelle: artikel.naehrstoffquelle ?? 'Deklaration', bemerkungen: artikel.bemerkungen ?? '',
@@ -59,6 +59,7 @@ export function LagerArtikel() {
     const daten: Record<string, unknown> = {
       bezeichnung: w.bezeichnung.trim(),
       artikelnummer: w.artikelnummer.trim() || null,
+      warengruppe: w.warengruppe.trim() || null,
       kategorie: w.kategorie,
       einheit: w.einheit,
       hersteller: w.hersteller.trim() || null,
@@ -125,6 +126,21 @@ export function LagerArtikel() {
                   <option key={k}>{k}</option>
                 ))}
               </select>
+            </label>
+            <label className="feld-label">
+              Warengruppe
+              <input
+                className="eingabe"
+                value={w.warengruppe}
+                onChange={set('warengruppe')}
+                list="warengruppen"
+                placeholder={w.kategorie === 'Dünger' ? 'z. B. Stickstoff' : w.kategorie === 'Ersatzteile' ? 'z. B. Filter' : ''}
+              />
+              <datalist id="warengruppen">
+                {[...new Set((lager.data ?? []).filter((a) => a.kategorie === w.kategorie && a.warengruppe).map((a) => a.warengruppe!))].map((g) => (
+                  <option key={g} value={g} />
+                ))}
+              </datalist>
             </label>
             <label className="feld-label">
               Einheit
@@ -196,6 +212,7 @@ export function LagerArtikel() {
         {darfVerwalten && <button className="knopf">Speichern</button>}
       </form>
 
+      {artikel && <ArtikelMaschinen artikelId={artikel.id} />}
       {artikel && artikel.lagerfuehrung && <Journal artikelId={artikel.id} einheit={artikel.einheit} />}
     </div>
   );
@@ -323,6 +340,27 @@ function Journal({ artikelId, einheit }: { artikelId: string; einheit: string })
             {menge(Number(b.menge), einheit)}
           </span>
         </div>
+      ))}
+    </section>
+  );
+}
+
+/** Zeigt, bei welchen Maschinen dieser Artikel als Ersatz- oder Verschleissteil hinterlegt ist */
+function ArtikelMaschinen({ artikelId }: { artikelId: string }) {
+  const teile = useMaschinenTeile({ artikel_id: artikelId });
+  const maschinen = useMaschinen();
+  if (!teile.data?.length) return null;
+  return (
+    <section className="karte flex flex-col gap-2">
+      <h2 className="m-0 text-lg font-extrabold">Passt zu</h2>
+      {teile.data.map((t) => (
+        <Link key={t.id} to={`/maschinen/${t.maschine_id}`} className="flex justify-between gap-2 text-sm text-text no-underline">
+          <span className="font-bold">{maschinen.data?.find((m) => m.id === t.maschine_id)?.name}</span>
+          <span className="text-leise">
+            {t.art}
+            {t.einbauort ? ` · ${t.einbauort}` : ''}
+          </span>
+        </Link>
       ))}
     </section>
   );

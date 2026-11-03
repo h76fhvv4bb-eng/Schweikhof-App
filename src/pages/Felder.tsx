@@ -35,9 +35,37 @@ export function Felder() {
   };
 
   const kulturJeFeld = new Map((anbau.data ?? []).map((a) => [a.feld_id, a.kulturen]));
-  const liste = (felder.data ?? []).filter((f) =>
-    `${f.feldnummer} ${f.name} ${f.gemeinde ?? ''}`.toLowerCase().includes(suche.toLowerCase()),
-  );
+  const [sortierung, setSortierungState] = useState<'nr' | 'name' | 'flaeche' | 'kultur' | 'nutzung'>(() => {
+    try {
+      return (localStorage.getItem('felder-sortierung') as 'nr') || 'nr';
+    } catch {
+      return 'nr';
+    }
+  });
+  const setSortierung = (v: typeof sortierung) => {
+    setSortierungState(v);
+    try {
+      localStorage.setItem('felder-sortierung', v);
+    } catch {
+      /* ohne Speicher */
+    }
+  };
+  const nrVergleich = (a: { feldnummer: string }, b: { feldnummer: string }) => a.feldnummer.localeCompare(b.feldnummer, 'de-CH', { numeric: true });
+  const liste = (felder.data ?? [])
+    .filter((f) => `${f.feldnummer} ${f.name} ${f.gemeinde ?? ''} ${kulturJeFeld.get(f.id)?.name ?? ''}`.toLowerCase().includes(suche.toLowerCase()))
+    .sort((a, b) =>
+      sortierung === 'name'
+        ? a.name.localeCompare(b.name, 'de-CH')
+        : sortierung === 'flaeche'
+          ? Number(b.flaeche_m2) - Number(a.flaeche_m2)
+          : sortierung === 'kultur'
+            ? (kulturJeFeld.get(a.id)?.name ?? '~').localeCompare(kulturJeFeld.get(b.id)?.name ?? '~', 'de-CH') || nrVergleich(a, b)
+            : sortierung === 'nutzung'
+              ? a.nutzungsart.localeCompare(b.nutzungsart, 'de-CH') || nrVergleich(a, b)
+              : nrVergleich(a, b),
+    );
+  const gruppeVon = (f: (typeof liste)[number]) =>
+    sortierung === 'kultur' ? (kulturJeFeld.get(f.id)?.name ?? `Keine Kultur ${jahr}`) : sortierung === 'nutzung' ? f.nutzungsart : '';
   const gesamt = (felder.data ?? []).reduce((s, f) => s + Number(f.flaeche_m2), 0);
 
   return (
@@ -93,12 +121,36 @@ export function Felder() {
         />
       </label>
 
+      <label className="flex items-center gap-2 self-end text-sm font-bold">
+        Sortieren
+        <select className="eingabe h-11 py-0" value={sortierung} onChange={(e) => setSortierung(e.target.value as typeof sortierung)}>
+          <option value="nr">nach Nummer</option>
+          <option value="name">nach Name</option>
+          <option value="flaeche">nach Fläche</option>
+          <option value="kultur">nach Kultur {jahr} (gruppiert)</option>
+          <option value="nutzung">nach Nutzungsart (gruppiert)</option>
+        </select>
+      </label>
+
       {felder.isLoading && <p className="text-leise">Lade Felder …</p>}
       {felder.error && <p className="text-fehler">Felder konnten nicht geladen werden.</p>}
 
-      {liste.map((f) => {
+      {liste.map((f, i) => {
         const k = kulturJeFeld.get(f.id);
+        const gruppe = gruppeVon(f);
+        const neueGruppe = gruppe && (i === 0 || gruppeVon(liste[i - 1]) !== gruppe);
+        const gruppenFlaeche = neueGruppe ? liste.filter((x) => gruppeVon(x) === gruppe).reduce((t, x) => t + Number(x.flaeche_m2), 0) : 0;
         return (
+          <div key={f.id} className="flex flex-col gap-2">
+          {neueGruppe && (
+            <h2 className="m-0 mt-2 flex items-center justify-between text-sm font-extrabold tracking-wide text-[#3E4C41]">
+              <span className="flex items-center gap-2">
+                {sortierung === 'kultur' && <span className="inline-block h-3 w-3 rounded" style={{ background: k?.farbe ?? '#E7E1D0' }} />}
+                {gruppe.toUpperCase()}
+              </span>
+              <span className="text-xs text-leise">{ha(gruppenFlaeche)}</span>
+            </h2>
+          )}
           <Link key={f.id} to={`/felder/${f.id}`} className="karte flex items-center gap-3 p-3 text-text no-underline">
             <span
               className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-[15px] font-extrabold"
@@ -115,6 +167,7 @@ export function Felder() {
             </span>
             <Icon name="weiter" groesse={18} className="text-[#9AA59C]" />
           </Link>
+          </div>
         );
       })}
         </>

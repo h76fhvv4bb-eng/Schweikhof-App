@@ -45,14 +45,14 @@ const monatText = (iso: string | null | undefined, nurMonat?: boolean) => {
 };
 
 /** Fruchtfolge als Zeitachse: Saat bis Ernte je Kultur, Hauptkulturen oben, Zwischenkulturen darunter */
-export function FruchtfolgeZeitachse({ start, jahre }: { start: number; jahre: number }) {
+export function FruchtfolgeZeitachse({ start, jahre, mitDauergruenland = false }: { start: number; jahre: number; mitDauergruenland?: boolean }) {
   const felder = useFelder();
   const anbau = useAnbauAlle(start - 1, start + jahre);
   const [dialog, setDialog] = useState<{ eintrag: Anbau | null; feldId: string; feldName: string; feldM2: number; jahr: number; art?: Anbau['art'] } | null>(null);
   const monate = jahre * 12;
   const heute = new Date().toISOString().slice(0, 10);
   const heuteX = index(heute, start) * BREITE;
-  const sichtbar = (felder.data ?? []).filter((f) => f.status !== 'aufgegeben');
+  const sichtbar = (felder.data ?? []).filter((f) => f.status !== 'aufgegeben' && (mitDauergruenland || f.nutzungsart !== 'Dauergrünland'));
 
   function leerKlick(e: MouseEvent<HTMLDivElement>, feldId: string, feldName: string, feldM2: number, grenzeY: number) {
     const r = e.currentTarget.getBoundingClientRect();

@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from './supabase';
 import type {
   Anbau, Feld, Feldarbeit, FeldHinweis, FlaecheJeKultur, Hofobjekt, Kultur, Lagerbestand, Maschine, MaschinenEintrag,
-  NaehrstoffeJeFeld, Partner, WartungFaellig, Wartungsplan, Auftrag, Ernte, Kartenobjekt, Aufgabe, Mitarbeiter, Betrieb, Verkauf, Foto,
+  NaehrstoffeJeFeld, Partner, WartungFaellig, Wartungsplan, Auftrag, Ernte, Kartenobjekt, Aufgabe, Mitarbeiter, Betrieb, Verkauf, Foto, MaschinenTeil,
 } from './typen';
 
 export function useFelder() {
@@ -39,7 +39,7 @@ export function useAnbau(vonJahr: number, bisJahr: number) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('anbau')
-        .select('id, feld_id, kultur_id, jahr, art, status, version, saatdatum, erntedatum, nur_monat, bemerkungen, kulturen(name, farbe)')
+        .select('id, feld_id, kultur_id, jahr, art, status, version, saatdatum, erntedatum, nur_monat, bemerkungen, sorte, kulturen(name, farbe)')
         .eq('art', 'Hauptkultur')
         .gte('jahr', vonJahr)
         .lte('jahr', bisJahr);
@@ -252,7 +252,7 @@ export function useAnbauAlle(vonJahr: number, bisJahr: number) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('anbau')
-        .select('id, feld_id, kultur_id, jahr, art, status, version, saatdatum, erntedatum, nur_monat, bemerkungen, flaeche_m2, kulturen(name, farbe)')
+        .select('id, feld_id, kultur_id, jahr, art, status, version, saatdatum, erntedatum, nur_monat, bemerkungen, sorte, flaeche_m2, kulturen(name, farbe)')
         .gte('jahr', vonJahr)
         .lte('jahr', bisJahr)
         .order('saatdatum', { ascending: true, nullsFirst: true });
@@ -450,5 +450,20 @@ export function useFotos(ziel: { maschine_id?: string; feld_id?: string }) {
       return (data as Foto[]).map((f) => ({ ...f, url: map.get(f.pfad) ?? '' }));
     },
     staleTime: 30 * 60 * 1000,
+  });
+}
+
+/** Ersatz- und Verschleissteile: je Maschine oder je Lagerartikel */
+export function useMaschinenTeile(filter: { maschine_id?: string; artikel_id?: string } = {}) {
+  return useQuery({
+    queryKey: ['maschine_teile', filter.maschine_id ?? '', filter.artikel_id ?? ''],
+    queryFn: async () => {
+      let q = supabase.from('maschine_teile').select('*').order('art').order('erstellt_am');
+      if (filter.maschine_id) q = q.eq('maschine_id', filter.maschine_id);
+      if (filter.artikel_id) q = q.eq('artikel_id', filter.artikel_id);
+      const { data, error } = await q;
+      if (error) return [] as MaschinenTeil[];
+      return data as MaschinenTeil[];
+    },
   });
 }

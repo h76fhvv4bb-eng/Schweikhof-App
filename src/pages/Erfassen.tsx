@@ -13,7 +13,7 @@ import { Icon } from '../components/Icon';
 import { ZaehlerFelder, pruefeZaehler } from '../components/Zaehler';
 import { NEU, NeuerArtikelDialog } from '../components/Schnellanlage';
 
-const HAUPTARTEN: Arbeitsart[] = ['Pflügen', 'Grubbern', 'Säen', 'Düngen', 'Pflanzenschutz', 'Mähen', 'Pressen', 'Ernten'];
+const HAUPTARTEN: Arbeitsart[] = ['Pflügen', 'Grubbern', 'Eggen', 'Säen', 'Düngen', 'Pflanzenschutz', 'Mähen', 'Wenden', 'Schwaden', 'Pressen', 'Ernten', 'Mulchen'];
 const MITTEL_KATEGORIE: Partial<Record<Arbeitsart, Lagerbestand['kategorie']>> = {
   Düngen: 'Dünger',
   Säen: 'Saatgut',

@@ -67,6 +67,7 @@ export interface Anbau {
   erntedatum?: string | null;
   nur_monat?: boolean;
   bemerkungen?: string | null;
+  sorte?: string | null;
   kulturen?: Pick<Kultur, 'name' | 'farbe'>;
 }
 
@@ -90,6 +91,7 @@ export interface Lagerartikel {
   artikelnummer: string | null;
   bezeichnung: string;
   kategorie: (typeof LAGERKATEGORIEN)[number];
+  warengruppe?: string | null;
   einheit: (typeof EINHEITEN)[number];
   hersteller: string | null;
   lieferant: string | null;
@@ -128,7 +130,7 @@ export interface Lagerbewegung {
 
 export const ARBEITSARTEN = [
   'Pflügen', 'Grubbern', 'Eggen', 'Säen', 'Walzen', 'Düngen', 'Pflanzenschutz',
-  'Mähen', 'Zetten', 'Schwaden', 'Pressen', 'Ernten', 'Mulchen', 'Hacken', 'Striegeln', 'Andere',
+  'Mähen', 'Zetten', 'Wenden', 'Schwaden', 'Pressen', 'Ernten', 'Mulchen', 'Hacken', 'Striegeln', 'Andere',
 ] as const;
 export type Arbeitsart = (typeof ARBEITSARTEN)[number];
 
@@ -352,7 +354,7 @@ export const ERNTEPRODUKTE = [
 export const BALLENARTEN = ['Rundballen', 'Quaderballen', 'Kleinballen', 'Siloballen'] as const;
 export const ABGABEARTEN = ['Verkauf', 'Abgabe', 'Eigenbedarf', 'Lager'] as const;
 
-export const LEISTUNGEN = ['Mähen', 'Zetten', 'Schwaden', 'Pressen', 'Wickeln', 'Dreschen', 'Häckseln', 'Roden', 'Transport', 'Ernte', 'Andere'] as const;
+export const LEISTUNGEN = ['Mähen', 'Zetten', 'Wenden', 'Schwaden', 'Pressen', 'Wickeln', 'Dreschen', 'Häckseln', 'Roden', 'Transport', 'Ernte', 'Andere'] as const;
 
 export interface ErnteProdukt {
   id: string;
@@ -475,6 +477,7 @@ export interface Betrieb {
   iban?: string | null;
   mwst_nr?: string | null;
   zahlungsfrist_tage?: number;
+  betriebsnummer?: string | null;
   version: number;
 }
 
@@ -521,4 +524,15 @@ export interface Foto {
   beschreibung: string | null;
   erstellt_von: string | null;
   erstellt_am: string;
+}
+
+export const TEILEARTEN = ['Ersatzteil', 'Verschleissteil', 'Betriebsstoff'] as const;
+export interface MaschinenTeil {
+  id: string;
+  maschine_id: string;
+  artikel_id: string;
+  art: (typeof TEILEARTEN)[number];
+  einbauort: string | null;
+  vorrat: number | null;
+  bemerkung: string | null;
 }

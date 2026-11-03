@@ -24,6 +24,7 @@ import { ErnteSammel } from './pages/ErnteSammel';
 import { Aufgaben } from './pages/Aufgaben';
 import { MitarbeiterSeite } from './pages/Mitarbeiter';
 import { VerkaufFormular, VerkaufListe } from './pages/Verkauf';
+import { Kontrolle } from './pages/Kontrolle';
 
 export function App() {
   const { session, profil, laedt, passwortNeu } = useAuth();
@@ -56,6 +57,7 @@ export function App() {
         <Route path="ernte/sammel" element={<ErnteSammel />} />
         <Route path="ernte/:id" element={<ErnteFormular />} />
         <Route path="kartei" element={<Kartei />} />
+        <Route path="kontrolle" element={<Kontrolle />} />
         <Route path="naehrstoffe" element={<Naehrstoffe />} />
         <Route path="lager" element={<Lager />} />
         <Route path="lager/neu" element={<LagerArtikel />} />

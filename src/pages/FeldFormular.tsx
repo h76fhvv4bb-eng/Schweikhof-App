@@ -10,6 +10,10 @@ import { FELDSTATUS, NUTZUNGSARTEN, type Anbau, type Feld } from '../lib/typen';
 import { Icon } from '../components/Icon';
 import { FeldHinweise, FeldTeilenZusammenfuehren } from '../components/FeldWerkzeuge';
 import { Verlauf } from '../components/Verlauf';
+import { parzellenblaetterLaden } from '../lib/kontrolle';
+import { parzellenblaetterPdf } from '../lib/kontrollePdf';
+import { pdfHerunterladen } from '../lib/auftragPdf';
+import { csvHerunterladen, csvZahl } from '../lib/export';
 
 const schema = z.object({
   feldnummer: z.string().trim().min(1, 'Feldnummer fehlt').max(20),
@@ -298,6 +302,8 @@ export function FeldFormular() {
 
       {!neu && feld && <Verlauf art="feld" id={feld.id} titel="Arbeiten, Aufträge und Ernten" />}
 
+      {!neu && feld && <FeldExport feldId={feld.id} name={`${feld.feldnummer}_${feld.name}`} />}
+
       {!neu && (
         <section className="karte flex flex-col gap-2">
           <h2 className="m-0 text-lg font-extrabold">Feldhistorie</h2>
@@ -341,5 +347,86 @@ export function FeldFormular() {
         </section>
       )}
     </div>
+  );
+}
+
+/** Export eines Feldes: Parzellenblatt (PDF) und alle Einträge eines Jahres (CSV) */
+function FeldExport({ feldId, name }: { feldId: string; name: string }) {
+  const aktuell = new Date().getFullYear();
+  const [jahr, setJahr] = useState(aktuell);
+  const [laeuft, setLaeuft] = useState(false);
+  const [fehler, setFehler] = useState<string | null>(null);
+  const datei = name.replace(/[^A-Za-z0-9ÄÖÜäöüéèà_-]+/g, '_');
+
+  async function pdf() {
+    setFehler(null);
+    setLaeuft(true);
+    try {
+      const d = await parzellenblaetterLaden(jahr, feldId);
+      pdfHerunterladen(await parzellenblaetterPdf(d), `Parzellenblatt_${datei}_${jahr}.pdf`);
+    } catch (e) {
+      setFehler(fehlertext(e));
+    } finally {
+      setLaeuft(false);
+    }
+  }
+
+  async function csv() {
+    setFehler(null);
+    setLaeuft(true);
+    try {
+      const d = await parzellenblaetterLaden(jahr, feldId);
+      const b = d.blaetter[0];
+      if (!b) throw new Error('Feld nicht gefunden.');
+      const zeilen: (string | number | null)[][] = [];
+      for (const a of b.arbeiten) {
+        const basis = [a.datum.split('-').reverse().join('.'), a.arbeitsart, csvZahl(a.teil_ha), a.dauer_h != null ? csvZahl(a.dauer_h) : '', a.geraet ?? '', a.person ?? '', a.partner ?? ''];
+        if (!a.mittel.length) zeilen.push([...basis, '', '', '', '', '', '', [a.bemerkungen, a.beobachtung].filter(Boolean).join(' · ')]);
+        for (const m of a.mittel)
+          zeilen.push([...basis, m.bezeichnung, csvZahl(m.menge_je_ha), m.einheit, csvZahl(m.gesamt), csvZahl(m.n, 1), csvZahl(m.p2o5, 1), [a.bemerkungen, a.beobachtung].filter(Boolean).join(' · ')]);
+      }
+      for (const e of b.ernten)
+        for (const p of e.produkte)
+          zeilen.push([e.datum.split('-').reverse().join('.'), `Ernte ${p.produkt}${e.schnitt ? ` ${e.schnitt}. Schnitt` : ''}`, csvZahl(e.teil_ha), '', '', '', '', '', p.ballen ?? '', p.ballenart ?? '', p.kg != null ? csvZahl(p.kg, 0) : '', '', '', '']);
+      zeilen.sort((x, y) => String(x[0]).split('.').reverse().join('').localeCompare(String(y[0]).split('.').reverse().join('')));
+      csvHerunterladen(
+        `Feld_${datei}_${jahr}.csv`,
+        `${name.replace(/_/g, ' ')} – ${jahr}: ${[b.hauptkultur, b.sorte].filter(Boolean).join(' ') || 'keine Kultur'} (Vorkultur ${b.vorkultur ?? '–'})`,
+        ['Datum', 'Arbeit', 'Fläche ha', 'Dauer h', 'Gerät', 'Person', 'Partner', 'Mittel / Ballen', 'Menge je ha / Ballenart', 'Einheit / kg', 'Gesamt', 'N kg/ha', 'P2O5 kg/ha', 'Bemerkungen'],
+        zeilen,
+      );
+    } catch (e) {
+      setFehler(fehlertext(e));
+    } finally {
+      setLaeuft(false);
+    }
+  }
+
+  return (
+    <section className="karte flex flex-col gap-2">
+      <h2 className="m-0 text-lg font-extrabold">Export</h2>
+      <div className="flex flex-wrap items-end gap-2">
+        <label className="feld-label w-28">
+          Jahr
+          <select className="eingabe" value={jahr} onChange={(e) => setJahr(Number(e.target.value))}>
+            {Array.from({ length: 8 }, (_, i) => aktuell + 1 - i).map((j) => (
+              <option key={j} value={j}>
+                {j}
+              </option>
+            ))}
+          </select>
+        </label>
+        <button type="button" className="knopf" onClick={pdf} disabled={laeuft}>
+          Parzellenblatt (PDF)
+        </button>
+        <button type="button" className="knopf-leise" onClick={csv} disabled={laeuft}>
+          Alle Einträge (Excel/CSV)
+        </button>
+      </div>
+      <Link to="/kontrolle" className="text-sm font-bold">
+        Alle Felder und Fruchtfolge: Kontrolle
+      </Link>
+      {fehler && <p className="m-0 rounded-xl bg-fehler-hell p-3 text-sm font-semibold text-fehler">{fehler}</p>}
+    </section>
   );
 }

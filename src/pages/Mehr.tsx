@@ -49,7 +49,7 @@ export function Mehr() {
 function Betriebsangaben() {
   const betrieb = useBetrieb();
   const qc = useQueryClient();
-  const [w, setW] = useState({ name: '', strasse: '', hausnummer: '', plz: '', ort: '', telefon: '', email: '', iban: '', mwst_nr: '', frist: '30' });
+  const [w, setW] = useState({ betriebsnummer: '', name: '', strasse: '', hausnummer: '', plz: '', ort: '', telefon: '', email: '', iban: '', mwst_nr: '', frist: '30' });
   const [meldung, setMeldung] = useState<{ text: string; fehler: boolean } | null>(null);
   useEffect(() => {
     const b = betrieb.data;
@@ -59,6 +59,7 @@ function Betriebsangaben() {
     const s1 = zeilen[0]?.match(/^(.*?)\s+(\d+\w*)$/);
     const s2 = zeilen[1]?.match(/^(\d{4})\s+(.+)$/);
     setW({
+      betriebsnummer: b.betriebsnummer ?? '',
       name: b.name,
       strasse: b.strasse ?? s1?.[1] ?? zeilen[0] ?? '',
       hausnummer: b.hausnummer ?? s1?.[2] ?? '',
@@ -85,6 +86,7 @@ function Betriebsangaben() {
     const { error } = await supabase
       .from('betriebe')
       .update({
+        betriebsnummer: w.betriebsnummer.trim() || null,
         name: w.name.trim(), adresse: adresse || null, strasse: w.strasse.trim() || null, hausnummer: w.hausnummer.trim() || null,
         plz: w.plz.trim() || null, ort: w.ort.trim() || null, telefon: w.telefon.trim() || null, email: w.email.trim() || null,
         iban: iban || null, mwst_nr: w.mwst_nr.trim() || null, zahlungsfrist_tage: frist, version: betrieb.data.version,
@@ -98,10 +100,16 @@ function Betriebsangaben() {
     <form onSubmit={speichern} className="karte flex flex-col gap-3">
       <h2 className="m-0 text-lg font-extrabold">Betriebsangaben</h2>
       <span className="text-sm text-leise">Erscheinen im Briefkopf von Aufträgen, Rechnungen und Quittungen. Adresse und IBAN braucht es für die QR-Rechnung.</span>
-      <label className="feld-label">
-        Name
-        <input className="eingabe" value={w.name} onChange={set('name')} />
-      </label>
+      <div className="grid grid-cols-[1fr_150px] gap-3">
+        <label className="feld-label">
+          Name
+          <input className="eingabe" value={w.name} onChange={set('name')} />
+        </label>
+        <label className="feld-label">
+          Betriebsnummer
+          <input className="eingabe" value={w.betriebsnummer} onChange={set('betriebsnummer')} placeholder="z. B. 0004/1/71" />
+        </label>
+      </div>
       <div className="grid grid-cols-[1fr_90px] gap-3">
         <label className="feld-label">
           Strasse

@@ -37,6 +37,7 @@ export function AnbauDialog({
     saat: eintrag?.saatdatum ?? '',
     ernte: eintrag?.erntedatum ?? '',
     bemerkungen: eintrag?.bemerkungen ?? '',
+    sorte: eintrag?.sorte ?? '',
     teil_ha: eintrag?.flaeche_m2 ? String(Number(eintrag.flaeche_m2) / 10000) : '',
   });
   const [fehler, setFehler] = useState<string | null>(null);
@@ -61,6 +62,7 @@ export function AnbauDialog({
       saatdatum: w.saat || null,
       erntedatum: w.ernte || null,
       bemerkungen: w.bemerkungen.trim() || null,
+      sorte: w.sorte.trim() || null,
       flaeche_m2: teil != null ? Math.round(teil * 10000) : null,
     };
     const { error } = eintrag
@@ -166,8 +168,12 @@ export function AnbauDialog({
             <input className="eingabe" inputMode="decimal" value={w.teil_ha} onChange={set('teil_ha')} placeholder="z. B. 0.4" />
           </label>
           <label className="feld-label">
+            Sorte
+            <input className="eingabe" value={w.sorte} onChange={set('sorte')} placeholder="z. B. Arina, Fabio" />
+          </label>
+          <label className="feld-label">
             Bemerkungen
-            <input className="eingabe" value={w.bemerkungen} onChange={set('bemerkungen')} placeholder="z. B. Sorte, Saatmenge" />
+            <input className="eingabe" value={w.bemerkungen} onChange={set('bemerkungen')} placeholder="z. B. Saatmenge, Besonderheiten" />
           </label>
         </fieldset>
         <p className="m-0 text-xs text-leise">

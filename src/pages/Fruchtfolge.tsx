@@ -60,7 +60,11 @@ export function Fruchtfolge() {
     return m;
   }, [anbau.data]);
 
-  const sichtbareFelder = (felder.data ?? []).filter((f) => f.status !== 'aufgegeben');
+  // Dauergrünland gehört nicht in die Fruchtfolge (auf Wunsch einblendbar)
+  const [mitDauergruenland, setMitDauergruenland] = useState(false);
+  const aktiveFelder = (felder.data ?? []).filter((f) => f.status !== 'aufgegeben');
+  const dauergruenland = aktiveFelder.filter((f) => f.nutzungsart === 'Dauergrünland');
+  const sichtbareFelder = aktiveFelder.filter((f) => mitDauergruenland || f.nutzungsart !== 'Dauergrünland');
 
   async function setzeKultur(feldId: string, jahr: number, kulturId: string) {
     setFehler(null);
@@ -183,7 +187,14 @@ export function Fruchtfolge() {
         </p>
       )}
 
-      {ansicht === 'zeitachse' && <FruchtfolgeZeitachse start={jahre[0]} jahre={jahre.length} />}
+      {dauergruenland.length > 0 && (
+        <label className="flex min-h-10 items-center gap-2 text-sm font-bold text-leise">
+          <input type="checkbox" className="h-5 w-5 accent-hof" checked={mitDauergruenland} onChange={(e) => setMitDauergruenland(e.target.checked)} />
+          {dauergruenland.length} Dauergrünland-Flächen ({ha(dauergruenland.reduce((t, f) => t + Number(f.flaeche_m2), 0))}) {mitDauergruenland ? 'werden angezeigt' : 'sind ausgeblendet'}
+        </label>
+      )}
+
+      {ansicht === 'zeitachse' && <FruchtfolgeZeitachse start={jahre[0]} jahre={jahre.length} mitDauergruenland={mitDauergruenland} />}
 
       {ansicht === 'raster' && (
       <div className="karte overflow-x-auto p-2">
