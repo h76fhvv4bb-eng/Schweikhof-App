@@ -20,6 +20,10 @@ export interface Kultur {
 }
 
 export const NUTZUNGSARTEN = ['Ackerland', 'Kunstwiese', 'Dauergrünland', 'Weide', 'Spezialkultur', 'Andere'] as const;
+/** Nur Ackerfläche (offenes Ackerland und Kunstwiesen) gehört in die Fruchtfolge */
+export const FRUCHTFOLGE_NUTZUNGEN: readonly string[] = ['Ackerland', 'Kunstwiese'];
+export const inFruchtfolge = (f: { nutzungsart: string }) => FRUCHTFOLGE_NUTZUNGEN.includes(f.nutzungsart);
+
 export const FELDSTATUS = ['bewirtschaftet', 'verpachtet', 'nicht bewirtschaftet', 'aufgegeben'] as const;
 
 export interface Feld {

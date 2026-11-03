@@ -129,7 +129,7 @@ export function duengerbilanzSeiten(doc: jsPDF, d: KontrollDaten, neueSeite: boo
     ['MgO kg/ha', 12, true], ['N kg', 12, true], ['P2O5 kg', 12, true], ['K2O kg', 12, true], ['MgO kg', 12, true],
   ]);
   const liste = zeilen.map((z) => [
-    `${z.blatt.feld.feldnummer} ${z.blatt.feld.name}`, z.blatt.hauptkultur ?? (z.blatt.feld.nutzungsart === 'Dauergrünland' ? 'Dauergrünland' : ''), zahl(z.ha),
+    `${z.blatt.feld.feldnummer} ${z.blatt.feld.name}`, z.blatt.hauptkultur ?? (z.blatt.feld.nutzungsart !== 'Ackerland' ? z.blatt.feld.nutzungsart : ''), zahl(z.ha),
     String(z.gaben), zahl(z.je_ha.n, 0), zahl(z.je_ha.p2o5, 0), zahl(z.je_ha.k2o, 0), zahl(z.je_ha.mgo, 0),
     zahl(z.kg.n, 0), zahl(z.kg.p2o5, 0), zahl(z.kg.k2o, 0), zahl(z.kg.mgo, 0),
   ]);

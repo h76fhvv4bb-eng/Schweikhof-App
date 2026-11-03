@@ -1,3 +1,4 @@
+import { inFruchtfolge } from '../lib/typen';
 import { useState, type MouseEvent } from 'react';
 import { useAnbauAlle, useFelder } from '../lib/daten';
 import { ha } from '../lib/format';
@@ -52,7 +53,7 @@ export function FruchtfolgeZeitachse({ start, jahre, mitDauergruenland = false }
   const monate = jahre * 12;
   const heute = new Date().toISOString().slice(0, 10);
   const heuteX = index(heute, start) * BREITE;
-  const sichtbar = (felder.data ?? []).filter((f) => f.status !== 'aufgegeben' && (mitDauergruenland || f.nutzungsart !== 'Dauergrünland'));
+  const sichtbar = (felder.data ?? []).filter((f) => f.status !== 'aufgegeben' && (mitDauergruenland || inFruchtfolge(f)));
 
   function leerKlick(e: MouseEvent<HTMLDivElement>, feldId: string, feldName: string, feldM2: number, grenzeY: number) {
     const r = e.currentTarget.getBoundingClientRect();

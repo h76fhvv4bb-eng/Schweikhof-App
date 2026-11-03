@@ -1,6 +1,7 @@
 import { supabase } from './supabase';
 import { hinweiseFuerJahr } from './fruchtfolgeRegeln';
 import type { Betrieb, Feld, Kultur } from './typen';
+import { inFruchtfolge } from './typen';
 
 /** Abschnitte des Parzellenblatts und welche Arbeitsarten dorthin gehören */
 export const ABSCHNITT_VON: Record<string, 'boden' | 'saat' | 'duengung' | 'pflege' | 'nutzung'> = {
@@ -219,7 +220,7 @@ export async function aufzeichnungenPruefen(jahr: number, kulturen: Kultur[]): P
     const f = b.feld;
     const titel = `${f.feldnummer} ${f.name}`;
     const link = `/felder/${f.id}`;
-    const dauer = f.nutzungsart === 'Dauergrünland';
+    const dauer = !inFruchtfolge(f);
     if (!b.hauptkultur && !dauer) punkte.push({ stufe: 'fehlt', text: `${titel}: keine Hauptkultur ${jahr} erfasst`, link: '/fruchtfolge' });
     const k = b.hauptkultur ? kulturByName.get(b.hauptkultur) : undefined;
     const ackerkultur = k && !k.ist_grasland && k.kulturgruppe !== 'Brache';
@@ -244,7 +245,7 @@ export async function aufzeichnungenPruefen(jahr: number, kulturen: Kultur[]): P
   const { data: anbau } = await supabase.from('anbau').select('feld_id, jahr, kultur_id').eq('art', 'Hauptkultur').gte('jahr', jahr - 6).lte('jahr', jahr);
   const kById = new Map(kulturen.map((k) => [k.id, k]));
   for (const b of relevant) {
-    if (b.feld.nutzungsart === 'Dauergrünland') continue;
+    if (!inFruchtfolge(b.feld)) continue;
     const folge = new Map<number, Kultur>();
     for (const a of (anbau ?? []).filter((x) => x.feld_id === b.feld.id)) {
       const k = kById.get(a.kultur_id as string);

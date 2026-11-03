@@ -2,6 +2,7 @@ import type { jsPDF } from 'jspdf';
 import { supabase } from './supabase';
 import { APP_NAME } from './marke';
 import type { Betrieb, Feld } from './typen';
+import { inFruchtfolge } from './typen';
 import type { KontrollDaten, Parzellenblatt } from './kontrolle';
 import { ABSCHNITT_VON } from './kontrolle';
 
@@ -337,8 +338,8 @@ export function fruchtfolgeSeiten(doc: jsPDF, daten: FruchtfolgeDaten, neueSeite
   const { von, bis, betrieb } = daten;
   if (neueSeite) doc.addPage('a4', 'landscape');
   const alle = [...daten.felder].sort((a, b) => a.feldnummer.localeCompare(b.feldnummer, 'de-CH', { numeric: true }));
-  const felder = alle.filter((f) => f.nutzungsart !== 'Dauergrünland');
-  const dauer = alle.filter((f) => f.nutzungsart === 'Dauergrünland');
+  const felder = alle.filter((f) => inFruchtfolge(f));
+  const dauer = alle.filter((f) => !inFruchtfolge(f));
   const anbau = daten.anbau;
   const jahre = Array.from({ length: bis - von + 1 }, (_, i) => von + i);
 
@@ -492,7 +493,7 @@ export function fruchtfolgeSeiten(doc: jsPDF, daten: FruchtfolgeDaten, neueSeite
   if (dauer.length) {
     y += 4;
     doc.text(
-      pdfText(`Dauergrünland (nicht in der Fruchtfolge): ${dauer.map((f) => `${f.feldnummer} ${f.name} ${zahl(Number(f.flaeche_m2) / 10000)} ha`).join(', ')}`),
+      pdfText(`Nicht in der Fruchtfolge (keine Ackerfläche): ${dauer.map((f) => `${f.feldnummer} ${f.name} (${f.nutzungsart}) ${zahl(Number(f.flaeche_m2) / 10000)} ha`).join(', ')}`),
       links,
       y,
     );

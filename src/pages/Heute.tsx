@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { UmtriebDialog } from './Weide';
-import type { Beweidung } from '../lib/typen';
+import { inFruchtfolge, type Beweidung } from '../lib/typen';
 import { useAuth } from '../lib/auth';
-import { useAufgaben, useBeweidungen, usePartner, useFeldarbeiten, useFelder, useFlaecheJeKultur, useGeplanteArbeiten, useLager, useMaschinen, useMaschinenEintraege, useWartungFaellig } from '../lib/daten';
+import { useAnbau, useAufgaben, useBeweidungen, usePartner, useFeldarbeiten, useFelder, useFlaecheJeKultur, useGeplanteArbeiten, useLager, useMaschinen, useMaschinenEintraege, useWartungFaellig } from '../lib/daten';
 import { tageBis } from './Maschinen';
 import { datum, ha, menge, wochentagDatum } from '../lib/format';
 import { Icon } from '../components/Icon';
@@ -14,6 +14,7 @@ export function Heute() {
   const jahr = new Date().getFullYear();
   const felder = useFelder();
   const kulturen = useFlaecheJeKultur(jahr);
+  const anbauJahr = useAnbau(jahr, jahr);
   const lager = useLager();
   const arbeiten = useFeldarbeiten(jahr);
   const knapp = (lager.data ?? []).filter((a) => a.unter_mindestbestand);
@@ -49,9 +50,11 @@ export function Heute() {
 
   const aktive = (felder.data ?? []).filter((f) => f.status === 'bewirtschaftet');
   const gesamtM2 = aktive.reduce((s, f) => s + Number(f.flaeche_m2), 0);
-  // Dauergrünland gehört nicht in die Fruchtfolge und braucht darum keine Kultur
-  const fruchtfolgeM2 = aktive.filter((f) => f.nutzungsart !== 'Dauergrünland').reduce((s, f) => s + Number(f.flaeche_m2), 0);
-  const zugeordnetM2 = (kulturen.data ?? []).reduce((s, k) => s + Number(k.flaeche_m2), 0);
+  // Nur Ackerfläche gehört in die Fruchtfolge und braucht eine Kultur
+  const ackerfelder = aktive.filter((f) => inFruchtfolge(f));
+  const fruchtfolgeM2 = ackerfelder.reduce((s, f) => s + Number(f.flaeche_m2), 0);
+  const mitKultur = new Set((anbauJahr.data ?? []).filter((a) => a.art === 'Hauptkultur').map((a) => a.feld_id));
+  const zugeordnetM2 = ackerfelder.filter((f) => mitKultur.has(f.id)).reduce((s, f) => s + Number(f.flaeche_m2), 0);
 
   return (
     <div className="flex flex-col gap-4">

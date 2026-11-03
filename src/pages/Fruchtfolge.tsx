@@ -1,3 +1,4 @@
+import { inFruchtfolge } from '../lib/typen';
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
@@ -60,11 +61,11 @@ export function Fruchtfolge() {
     return m;
   }, [anbau.data]);
 
-  // Dauergrünland gehört nicht in die Fruchtfolge (auf Wunsch einblendbar)
+  // Nur Ackerfläche (Ackerland, Kunstwiese) gehört in die Fruchtfolge; übrige Flächen auf Wunsch einblendbar
   const [mitDauergruenland, setMitDauergruenland] = useState(false);
   const aktiveFelder = (felder.data ?? []).filter((f) => f.status !== 'aufgegeben');
-  const dauergruenland = aktiveFelder.filter((f) => f.nutzungsart === 'Dauergrünland');
-  const sichtbareFelder = aktiveFelder.filter((f) => mitDauergruenland || f.nutzungsart !== 'Dauergrünland');
+  const dauergruenland = aktiveFelder.filter((f) => !inFruchtfolge(f));
+  const sichtbareFelder = aktiveFelder.filter((f) => mitDauergruenland || inFruchtfolge(f));
 
   async function setzeKultur(feldId: string, jahr: number, kulturId: string) {
     setFehler(null);
@@ -190,7 +191,8 @@ export function Fruchtfolge() {
       {dauergruenland.length > 0 && (
         <label className="flex min-h-10 items-center gap-2 text-sm font-bold text-leise">
           <input type="checkbox" className="h-5 w-5 accent-hof" checked={mitDauergruenland} onChange={(e) => setMitDauergruenland(e.target.checked)} />
-          {dauergruenland.length} Dauergrünland-Flächen ({ha(dauergruenland.reduce((t, f) => t + Number(f.flaeche_m2), 0))}) {mitDauergruenland ? 'werden angezeigt' : 'sind ausgeblendet'}
+          {dauergruenland.length} Flächen ohne Ackerfläche ({[...new Set(dauergruenland.map((f) => f.nutzungsart))].join(', ')} · {ha(dauergruenland.reduce((t, f) => t + Number(f.flaeche_m2), 0))}){' '}
+          {mitDauergruenland ? 'werden angezeigt' : 'sind ausgeblendet'}
         </label>
       )}
 

@@ -92,7 +92,7 @@ export function Kontrolle() {
         <h2 className="m-0 text-lg font-extrabold">Einzelne Unterlagen</h2>
         <div className="flex flex-col gap-2 rounded-2xl bg-grund p-3">
           <span className="font-extrabold">Fruchtfolge (farbig)</span>
-          <span className="text-sm text-leise">Alle Felder ohne Dauergrünland, Hauptkultur farbig, Saat/Ernte, Zwischenkulturen, Flächen je Kultur.</span>
+          <span className="text-sm text-leise">Nur Ackerfläche (Ackerland und Kunstwiese), Hauptkultur farbig, Saat/Ernte, Zwischenkulturen, Flächen je Kultur.</span>
           <div className="flex flex-wrap items-end gap-2">
             <label className="feld-label w-24">
               von
