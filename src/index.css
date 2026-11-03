@@ -80,3 +80,22 @@ body {
 .hof-baum { filter: drop-shadow(0 1px 2px rgb(0 0 0 / 0.35)); cursor: pointer; }
 .hof-flaeche-label { background: rgb(255 255 255 / 0.85); border: 0; border-radius: 8px; padding: 1px 6px; font-weight: 800; font-size: 11px; box-shadow: none; }
 .hof-flaeche-label::before { display: none; }
+
+/* Anzeige-Auswahl der Hof-Ansicht */
+.hof-ohne-feldnamen .hof-feld-label { display: none; }
+.hof-ohne-feldinfo .hof-feld-info { display: none; }
+.hof-ohne-gebaeudenamen .hof-gebaeude-name { display: none; }
+
+/* Weidetiere und Maschinen */
+.hof-tiere {
+  display: inline-flex; align-items: center; gap: 3px; padding: 2px 6px 2px 4px; border-radius: 999px; white-space: nowrap;
+  background: rgb(255 255 255 / 0.92); box-shadow: 0 2px 0 rgba(30, 42, 32, 0.3); cursor: pointer; width: max-content;
+}
+.hof-tiere-symbol { font-size: 17px; line-height: 1; letter-spacing: -3px; }
+.hof-tiere-zahl { font-size: 11px; font-weight: 800; color: var(--color-hof); margin-left: 3px; }
+.hof-maschinen { display: flex; justify-content: center; gap: 2px; cursor: pointer; }
+.hof-maschine {
+  display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%;
+  background: #FFFFFF; border: 2px solid var(--color-hof); font-size: 13px; line-height: 1; box-shadow: 0 2px 3px rgb(0 0 0 / 0.25);
+}
+.hof-maschine-mehr { font-size: 10px; font-weight: 800; color: var(--color-hof); }

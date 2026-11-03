@@ -8,11 +8,12 @@ import '@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css';
 import type { MultiPolygon, Point, Polygon } from 'geojson';
 import { supabase, fehlertext } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
-import { useAnbau, useFelder, useHinweise, useHofobjekte, useKartenobjekte, useMaschinen } from '../lib/daten';
+import { useAnbau, useBeweidungen, useFelder, useHinweise, useHofobjekte, useKartenobjekte, useMaschinen, usePartner } from '../lib/daten';
+import { aktiv, aktuelleFelder } from '../lib/weide';
 import { ha } from '../lib/format';
 import {
   FLAECHE_FARBE, GEBAEUDE, KARTEN, QUELLE, SCHWEIZ, baumHtml, feldLabelHtml, feldTeilen, felderVereinigen, flaecheM2, gebaeudeHtml, hinweisHtml,
-  ortHtml, ortSuchen,
+  maschinenHtml, ortHtml, ortSuchen, tiereHtml,
 } from '../lib/karte';
 import { HinweisListe } from '../components/FeldWerkzeuge';
 import {
@@ -60,6 +61,31 @@ function merken(schluessel: string, wert: string) {
 
 type Geometrie = Polygon | MultiPolygon;
 
+/** Was auf der Hof-Ansicht angezeigt wird (wird im Browser gemerkt) */
+const ANZEIGE_VORGABE = {
+  feldNamen: true, feldInfo: true, kulturfarben: true, gebaeude: true, gebaeudeNamen: true, flaechen: true, hinweise: true, tiere: true, maschinen: true,
+};
+type Anzeige = typeof ANZEIGE_VORGABE;
+const ANZEIGE_TEXT: [keyof Anzeige, string][] = [
+  ['feldNamen', 'Feldbeschriftung'],
+  ['feldInfo', 'Kultur und Fläche in der Beschriftung'],
+  ['kulturfarben', 'Felder in Kulturfarbe'],
+  ['gebaeude', 'Gebäude'],
+  ['gebaeudeNamen', 'Namen der Gebäude'],
+  ['maschinen', 'Traktoren und Maschinen'],
+  ['tiere', 'Weidetiere'],
+  ['hinweise', 'Feldhinweise (Gefahren)'],
+  ['flaechen', 'Flächen und Orte ohne Fruchtfolge'],
+];
+function anzeigeLaden(): Anzeige {
+  try {
+    const w = JSON.parse(localStorage.getItem('hofkarte-anzeige') ?? '{}') as Partial<Anzeige>;
+    return { ...ANZEIGE_VORGABE, ...Object.fromEntries(Object.entries(w).filter(([k, v]) => k in ANZEIGE_VORGABE && typeof v === 'boolean')) };
+  } catch {
+    return { ...ANZEIGE_VORGABE };
+  }
+}
+
 /** Hof-Ansicht: Luftbild mit Feldern und Gebäuden. Wird nur geladen, wenn sie gebraucht wird. */
 export default function Hofkarte() {
   const { darfVerwalten, profil } = useAuth();
@@ -77,7 +103,7 @@ export default function Hofkarte() {
   const mapRef = useRef<L.Map | null>(null);
   const ebenen = useRef<{
     luftbild: L.TileLayer; karte: L.TileLayer; parzellen: L.TileLayer; felder: L.LayerGroup; gebaeude: L.LayerGroup; hinweise: L.LayerGroup;
-    flaechen: L.LayerGroup; orte: L.LayerGroup; baeume: L.LayerGroup;
+    flaechen: L.LayerGroup; orte: L.LayerGroup; baeume: L.LayerGroup; tiere: L.LayerGroup; maschinen: L.LayerGroup;
   } | null>(null);
   const objektLayer = useRef(new Map<string, L.Layer>());
   const feldLayer = useRef(new Map<string, L.Polygon>());
@@ -118,6 +144,14 @@ export default function Hofkarte() {
   const [teilSkizze, setTeilSkizze] = useState<{ feldId: string; geometrie: Geometrie } | null>(null);
   const [neuerHinweis, setNeuerHinweis] = useState<{ feldId: string; breite: number; laenge: number } | null>(null);
   const maschinen = useMaschinen();
+  const weiden = useBeweidungen();
+  const partner = usePartner();
+  const [anzeige, setAnzeigeState] = useState<Anzeige>(anzeigeLaden);
+  const [anzeigeOffen, setAnzeigeOffen] = useState(false);
+  const setAnzeige = (a: Anzeige) => {
+    setAnzeigeState(a);
+    merken('hofkarte-anzeige', JSON.stringify(a));
+  };
 
   const kulturJeFeld = useMemo(() => new Map((anbau.data ?? []).map((a) => [a.feld_id, a.kulturen])), [anbau.data]);
 
@@ -154,9 +188,11 @@ export default function Hofkarte() {
     const flaechenGruppe = L.layerGroup().addTo(map);
     const orteGruppe = L.layerGroup().addTo(map);
     const baumGruppe = L.layerGroup();
+    const tierGruppe = L.layerGroup().addTo(map);
+    const maschinenGruppe = L.layerGroup().addTo(map);
     ebenen.current = {
       luftbild, karte, parzellen: parz, felder: felderGruppe, gebaeude: gebaeudeGruppe, hinweise: hinweisGruppe,
-      flaechen: flaechenGruppe, orte: orteGruppe, baeume: baumGruppe,
+      flaechen: flaechenGruppe, orte: orteGruppe, baeume: baumGruppe, tiere: tierGruppe, maschinen: maschinenGruppe,
     };
 
     map.pm.setLang('de');
@@ -233,8 +269,8 @@ export default function Hofkarte() {
         style: {
           color: istGewaehlt ? '#1F4D2E' : '#FFFFFF',
           weight: istGewaehlt ? 4 : baumAnsicht ? 2 : 3,
-          fillColor: k?.farbe ?? '#C9C2B0',
-          fillOpacity: baumAnsicht ? 0.12 : 0.6,
+          fillColor: anzeige.kulturfarben ? (k?.farbe ?? '#C9C2B0') : '#FFFFFF',
+          fillOpacity: baumAnsicht ? 0.12 : anzeige.kulturfarben ? 0.6 : 0.15,
         },
       });
       const polygon = gruppe.getLayers()[0] as L.Polygon;
@@ -258,7 +294,7 @@ export default function Hofkarte() {
       polygon.addTo(e.felder);
       feldLayer.current.set(f.id, polygon);
     }
-  }, [felder.data, kulturJeFeld, gewaehlt, modus, ebene]);
+  }, [felder.data, kulturJeFeld, gewaehlt, modus, ebene, anzeige.kulturfarben]);
 
   // ---------- Flächen, Orte und Bäume ohne Fruchtfolge ----------
   useEffect(() => {
@@ -329,13 +365,67 @@ export default function Hofkarte() {
     const e = ebenen.current;
     if (!map || !e) return;
     const hof = ebene === 'hof';
-    for (const g of [e.gebaeude, e.hinweise, e.orte]) {
-      if (hof) g.addTo(map);
+    const sichtbar: [L.LayerGroup, boolean][] = [
+      [e.gebaeude, hof && anzeige.gebaeude],
+      [e.hinweise, hof && anzeige.hinweise],
+      [e.orte, hof && anzeige.flaechen],
+      [e.flaechen, anzeige.flaechen],
+      [e.tiere, hof && anzeige.tiere],
+      [e.maschinen, hof && anzeige.maschinen && anzeige.gebaeude],
+      [e.baeume, !hof],
+    ];
+    for (const [g, an] of sichtbar) {
+      if (an) g.addTo(map);
       else map.removeLayer(g);
     }
-    if (hof) map.removeLayer(e.baeume);
-    else e.baeume.addTo(map);
-  }, [ebene]);
+  }, [ebene, anzeige]);
+
+  // ---------- Weidetiere auf ihrem aktuellen Feld ----------
+  useEffect(() => {
+    const e = ebenen.current;
+    if (!e) return;
+    e.tiere.clearLayers();
+    // mehrere Herden auf demselben Feld nebeneinander
+    const proFeld = new Map<string, number>();
+    for (const b of (weiden.data ?? []).filter(aktiv)) {
+      for (const a of aktuelleFelder(b)) {
+        const poly = feldLayer.current.get(a.feld_id);
+        if (!poly) continue;
+        const n = proFeld.get(a.feld_id) ?? 0;
+        proFeld.set(a.feld_id, n + 1);
+        const halter = partner.data?.find((p) => p.id === b.partner_id)?.name ?? '';
+        const titel = `${b.anzahl} ${b.tierart}${halter ? ` von ${halter}` : ''}`;
+        L.marker(poly.getCenter(), {
+          icon: L.divIcon({ html: tiereHtml(b.tierart, b.anzahl), className: '', iconSize: [80, 30], iconAnchor: [40 - n * 70, -22] }),
+          title: titel,
+          keyboard: true,
+        })
+          .bindTooltip(`${titel.replace(/</g, '&lt;')}<br>seit ${a.von.split('-').reverse().join('.')}`, { direction: 'top', offset: [0, -4] })
+          .on('click', () => navigate(`/weide/${b.id}`))
+          .addTo(e.tiere);
+      }
+    }
+  }, [weiden.data, partner.data, felder.data, kulturJeFeld, ebene, navigate]);
+
+  // ---------- Traktoren und Maschinen an ihrem Standplatz ----------
+  useEffect(() => {
+    const e = ebenen.current;
+    if (!e) return;
+    e.maschinen.clearLayers();
+    for (const o of objekte.data ?? []) {
+      const hier = (maschinen.data ?? []).filter((m) => m.standort_id === o.id && m.status === 'in Betrieb');
+      if (!hier.length) continue;
+      L.marker([o.breite, o.laenge], {
+        icon: L.divIcon({ html: maschinenHtml(hier.map((m) => m.kategorie)), className: '', iconSize: [120, 24], iconAnchor: [60, -48] }),
+        title: hier.map((m) => m.name).join(', '),
+        keyboard: true,
+        zIndexOffset: 500,
+      })
+        .bindTooltip(hier.map((m) => `${m.name.replace(/</g, '&lt;')} (${m.kategorie})`).join('<br>'), { direction: 'top', offset: [0, 40] })
+        .on('click', () => navigate(hier.length === 1 ? `/maschinen/${hier[0].id}` : `/maschinen?standort=${o.id}`))
+        .addTo(e.maschinen);
+    }
+  }, [objekte.data, maschinen.data, navigate]);
 
   // ---------- Einrasten an Punkten anderer Flächen ----------
   useEffect(() => {
@@ -508,9 +598,15 @@ export default function Hofkarte() {
   const feld = gewaehlt?.art === 'feld' ? felder.data?.find((f) => f.id === gewaehlt.id) : undefined;
   const objekt = gewaehlt?.art === 'gebaeude' ? objekte.data?.find((o) => o.id === gewaehlt.id) : undefined;
   const ohneGrenze = (felder.data ?? []).filter((f) => !f.geometrie).length;
+  const aufWeide = (weiden.data ?? []).filter(aktiv).length;
+  const ohneStandplatz = (maschinen.data ?? []).filter((m) => m.status === 'in Betrieb' && !m.standort_id).length;
 
   return (
-    <div className="relative -mx-4 overflow-hidden md:mx-0 md:rounded-[22px] md:shadow-[0_2px_0_var(--color-rand)]">
+    <div
+      className={`relative -mx-4 overflow-hidden md:mx-0 md:rounded-[22px] md:shadow-[0_2px_0_var(--color-rand)] ${anzeige.feldNamen ? '' : 'hof-ohne-feldnamen'} ${
+        anzeige.feldInfo ? '' : 'hof-ohne-feldinfo'
+      } ${anzeige.gebaeudeNamen ? '' : 'hof-ohne-gebaeudenamen'}`}
+    >
       <div ref={divRef} className="h-[calc(100dvh-230px)] min-h-[420px] w-full bg-[#CFE3B8] md:h-[70vh]" />
 
       {/* Oben: Suche und Ebenen */}
@@ -547,6 +643,38 @@ export default function Hofkarte() {
                 {k === 'hof' ? 'Hof & Felder' : `Bäume${baumZahl.length ? ` (${baumZahl.length})` : ''}`}
               </button>
             ))}
+          </div>
+          <div className="relative">
+            <button
+              onClick={() => setAnzeigeOffen(!anzeigeOffen)}
+              aria-expanded={anzeigeOffen}
+              className={`min-h-11 rounded-full px-3 text-xs font-extrabold shadow ${anzeigeOffen ? 'bg-hof text-white' : 'bg-white text-text'}`}
+            >
+              Anzeigen ▾
+            </button>
+            {anzeigeOffen && (
+              <div className="absolute left-0 top-12 flex w-72 flex-col gap-0.5 rounded-2xl bg-white p-3 shadow-lg">
+                {ANZEIGE_TEXT.map(([k, text]) => (
+                  <label key={k} className="flex min-h-10 items-center gap-2 text-sm font-bold">
+                    <input type="checkbox" className="h-5 w-5 accent-hof" checked={anzeige[k]} onChange={(ev) => setAnzeige({ ...anzeige, [k]: ev.target.checked })} />
+                    {text}
+                    {k === 'tiere' && aufWeide > 0 && <span className="text-xs font-semibold text-leise">({aufWeide})</span>}
+                    {k === 'maschinen' && ohneStandplatz > 0 && <span className="text-xs font-semibold text-leise">({ohneStandplatz} ohne Standplatz)</span>}
+                  </label>
+                ))}
+                <div className="mt-1 flex gap-2">
+                  <button className="knopf-leise min-h-9 flex-1 text-xs" onClick={() => setAnzeige({ ...ANZEIGE_VORGABE })}>
+                    Alles zeigen
+                  </button>
+                  <button
+                    className="knopf-leise min-h-9 flex-1 text-xs"
+                    onClick={() => setAnzeige({ ...ANZEIGE_VORGABE, feldNamen: false, gebaeudeNamen: false, hinweise: false, flaechen: false, maschinen: false, tiere: false })}
+                  >
+                    Nur Felder
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

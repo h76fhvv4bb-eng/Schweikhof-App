@@ -96,6 +96,34 @@ export function gebaeudeHtml(typ: HofobjektTyp, name: string, gewaehlt = false):
   </div>`;
 }
 
+/** Symbol je Tierart */
+export function tierSymbol(tierart: string): string {
+  const t = tierart.toLowerCase();
+  if (t.includes('schaf')) return '🐑';
+  if (t.includes('ziege')) return '🐐';
+  if (t.includes('pferd') || t.includes('pony')) return '🐎';
+  if (t.includes('esel')) return '🐴';
+  if (t.includes('alpaka') || t.includes('lama')) return '🦙';
+  if (t.includes('schwein')) return '🐖';
+  if (/(rind|kuh|kühe|kalb|kälber|vieh|stier|ochs)/.test(t)) return '🐄';
+  return '🐾';
+}
+
+/** Kleine Herde auf dem Feld: 1–3 Symbole und die Anzahl */
+export function tiereHtml(tierart: string, anzahl: number): string {
+  const s = tierSymbol(tierart);
+  const zahl = Math.min(3, Math.max(1, Math.ceil(anzahl / 10)));
+  return `<div class="hof-tiere"><span class="hof-tiere-symbol">${s.repeat(zahl)}</span><span class="hof-tiere-zahl">${anzahl}</span></div>`;
+}
+
+/** Kleine Symbole der Maschinen an einem Standplatz */
+export function maschinenHtml(kategorien: string[]): string {
+  const symbol = (k: string) => (k === 'Traktor' ? '🚜' : k === 'Hoflader/Teleskoplader' ? '🏗️' : k === 'Anhänger' ? '🛻' : '⚙️');
+  const sichtbar = kategorien.slice(0, 4).map((k) => `<span class="hof-maschine" title="${html(k)}">${symbol(k)}</span>`).join('');
+  const mehr = kategorien.length > 4 ? `<span class="hof-maschine hof-maschine-mehr">+${kategorien.length - 4}</span>` : '';
+  return `<div class="hof-maschinen">${sichtbar}${mehr}</div>`;
+}
+
 export function feldLabelHtml(name: string, kultur: string | null, flaeche: string): string {
   return `<span class="hof-feld-name">${html(name)}</span><span class="hof-feld-info">${html(kultur ?? 'keine Kultur')} · ${html(flaeche)}</span>`;
 }

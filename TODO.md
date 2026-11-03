@@ -1,6 +1,6 @@
 # To-do-Liste
 
-Stand: 03.11.2026 (Version 0.19). Wird nach jedem Entwicklungsschritt aktualisiert.
+Stand: 03.11.2026 (Version 0.20). Wird nach jedem Entwicklungsschritt aktualisiert.
 
 ## Phase 1 – Planung
 - [x] Anforderungsanalyse, Architektur, Datenmodell, Kosten, Risiken
