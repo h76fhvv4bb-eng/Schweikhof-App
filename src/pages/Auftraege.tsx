@@ -8,7 +8,7 @@ import {
   ABHAENGIGE_DATEN, useAnbau, useAuftraege, useBetrieb, useFelder, useHinweise, useHofobjekte, useLager, useMaschinen, useMaschinenEintraege, usePartner, useAufgaben, useGeplanteArbeiten,
 } from '../lib/daten';
 import { datum, ha, heuteIso, menge, zahlAus } from '../lib/format';
-import { ARBEITSARTEN, LAGERKATEGORIEN, MIT_MOTOR, type Auftrag } from '../lib/typen';
+import { ARBEITSARTEN, LAGERKATEGORIEN, MIT_MOTOR, type Auftrag, rollenText, hatRolle } from '../lib/typen';
 import { HinweisListe } from '../components/FeldWerkzeuge';
 import { Icon } from '../components/Icon';
 import { NEU, NeuerArtikelDialog } from '../components/Schnellanlage';
@@ -244,8 +244,8 @@ export function AuftragFormular() {
   const abgeschlossen = vorhanden && ['Erledigt', 'Abgebrochen'].includes(vorhanden.status);
   const sortiertePartner = [...(partner.data ?? []).filter((p) => p.aktiv)].sort(
     (a, b) =>
-      Number(b.art === (art === 'Lohnarbeit' ? 'Lohnunternehmen' : 'Mechaniker/Werkstatt')) -
-      Number(a.art === (art === 'Lohnarbeit' ? 'Lohnunternehmen' : 'Mechaniker/Werkstatt')),
+      Number(hatRolle(b, art === 'Lohnarbeit' ? 'Lohnunternehmen' : 'Mechaniker/Werkstatt')) -
+      Number(hatRolle(a, art === 'Lohnarbeit' ? 'Lohnunternehmen' : 'Mechaniker/Werkstatt')),
   );
   const gewaehlterPartner = partner.data?.find((p) => p.id === partnerId);
 
@@ -488,7 +488,7 @@ export function AuftragFormular() {
                 <option value="">– wählen –</option>
                 {sortiertePartner.map((p) => (
                   <option key={p.id} value={p.id}>
-                    {p.name} ({p.art})
+                    {p.name} ({rollenText(p)})
                   </option>
                 ))}
               </select>

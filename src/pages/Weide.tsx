@@ -5,7 +5,7 @@ import { supabase, fehlertext } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
 import { useBeweidungen, useFelder, usePartner, useVerkaeufe } from '../lib/daten';
 import { chf, datum, ha, haZuM2, heuteIso, menge, zahlAus } from '../lib/format';
-import { ENTGELTARTEN, TIERARTEN, type Beweidung, type Feld } from '../lib/typen';
+import { ENTGELTARTEN, TIERARTEN, hatRolle, type Beweidung, type Feld } from '../lib/typen';
 import { abschnitte, aktiv, aktuelleFelder, tagVerschieben, weideHa, weidetage, weidezins } from '../lib/weide';
 import { csvHerunterladen, csvZahl } from '../lib/export';
 import { pdfHerunterladen } from '../lib/auftragPdf';
@@ -342,8 +342,8 @@ export function WeideFormular() {
     );
   }, [vorhanden, felder.data, geladen]);
 
-  const tierhalter = (partner.data ?? []).filter((p) => p.aktiv && (p.art === 'Tierhalter' || p.id === w.partner_id));
-  const andere = (partner.data ?? []).filter((p) => p.aktiv && p.art !== 'Tierhalter' && p.id !== w.partner_id);
+  const tierhalter = (partner.data ?? []).filter((p) => p.aktiv && (hatRolle(p, 'Tierhalter') || p.id === w.partner_id));
+  const andere = (partner.data ?? []).filter((p) => p.aktiv && !hatRolle(p, 'Tierhalter') && p.id !== w.partner_id);
   const auswaehlbar = (felder.data ?? []).filter((f) => f.status !== 'aufgegeben');
   const set = (k: keyof typeof w) => (e: { target: { value: string } }) => setW({ ...w, [k]: e.target.value });
   const aendere = (i: number, teil: Partial<Zeile>) => setZeilen(zeilen.map((z, j) => (j === i ? { ...z, ...teil } : z)));
@@ -402,6 +402,12 @@ export function WeideFormular() {
     if (error) {
       const m = fehlertext(error);
       return setFehler(/beweidung_speichern/.test(m) ? 'Bitte zuerst die Migrationen 18 und 19 in Supabase einspielen.' : m);
+    }
+    // Partner bekommt die Rolle «Tierhalter» dazu, falls er sie noch nicht hat
+    const halter = partner.data?.find((p) => p.id === w.partner_id);
+    if (halter && !hatRolle(halter, 'Tierhalter') && halter.rollen) {
+      await supabase.from('partner').update({ rollen: [...halter.rollen, 'Tierhalter'], version: halter.version }).eq('id', halter.id);
+      qc.invalidateQueries({ queryKey: ['partner'] });
     }
     await qc.invalidateQueries({ queryKey: ['beweidungen'] });
     navigate(neu ? `/weide/${data as string}` : '/weide');

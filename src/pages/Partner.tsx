@@ -7,7 +7,7 @@ import { useAuftraege, useBeweidungen, useErnten, useFelder, usePartner, useVerr
 import { aktiv, umtriebText, weidetage, weidezins } from '../lib/weide';
 import { AuftragStatus } from './Auftraege';
 import { chf, datum } from '../lib/format';
-import { PARTNERARTEN, type Partner } from '../lib/typen';
+import { PARTNERARTEN, hatRolle, rollenText, type Partner } from '../lib/typen';
 import { Icon } from '../components/Icon';
 import { Verlauf } from '../components/Verlauf';
 
@@ -15,8 +15,8 @@ export function PartnerListe() {
   const { darfVerwalten } = useAuth();
   const partner = usePartner();
   const [art, setArt] = useState('');
-  const liste = (partner.data ?? []).filter((p) => p.aktiv && (!art || p.art === art));
-  const arten = [...new Set((partner.data ?? []).map((p) => p.art))];
+  const liste = (partner.data ?? []).filter((p) => p.aktiv && (!art || hatRolle(p, art as Partner['art'])));
+  const arten = PARTNERARTEN.filter((a) => (partner.data ?? []).some((p) => p.aktiv && hatRolle(p, a)));
 
   return (
     <div className="flex flex-col gap-3">
@@ -53,7 +53,7 @@ export function PartnerListe() {
           <Link to={`/partner/${p.id}`} className="flex min-w-0 flex-1 flex-col text-text no-underline">
             <span className="truncate font-extrabold">{p.name}</span>
             <span className="text-xs text-leise">
-              {p.art}
+              {rollenText(p)}
               {p.kontaktperson && ` · ${p.kontaktperson}`}
               {p.leistungen && ` · ${p.leistungen}`}
             </span>
@@ -87,14 +87,14 @@ export function PartnerFormular() {
   const partner = usePartner();
   const p = partner.data?.find((x) => x.id === id);
   const [w, setW] = useState({
-    name: '', art: 'Lohnunternehmen' as Partner['art'], kontaktperson: '', telefon: '', mobile: '', email: '', adresse: '', leistungen: '', bemerkungen: '',
+    name: '', rollen: ['Lohnunternehmen'] as Partner['art'][], kontaktperson: '', telefon: '', mobile: '', email: '', adresse: '', leistungen: '', bemerkungen: '',
   });
   const [fehler, setFehler] = useState<string | null>(null);
 
   useEffect(() => {
     if (p)
       setW({
-        name: p.name, art: p.art, kontaktperson: p.kontaktperson ?? '', telefon: p.telefon ?? '', mobile: p.mobile ?? '',
+        name: p.name, rollen: p.rollen?.length ? [...p.rollen] : [p.art], kontaktperson: p.kontaktperson ?? '', telefon: p.telefon ?? '', mobile: p.mobile ?? '',
         email: p.email ?? '', adresse: p.adresse ?? '', leistungen: p.leistungen ?? '', bemerkungen: p.bemerkungen ?? '',
       });
   }, [p]);
@@ -104,14 +104,18 @@ export function PartnerFormular() {
     setFehler(null);
     if (!w.name.trim()) return setFehler('Name fehlt.');
     if (w.email.trim() && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(w.email.trim())) return setFehler('E-Mail-Adresse ungültig.');
+    if (!w.rollen.length) return setFehler('Bitte mindestens eine Rolle wählen.');
     const daten = {
-      name: w.name.trim(), art: w.art, kontaktperson: leer(w.kontaktperson), telefon: leer(w.telefon), mobile: leer(w.mobile),
+      name: w.name.trim(), art: w.rollen[0], rollen: w.rollen, kontaktperson: leer(w.kontaktperson), telefon: leer(w.telefon), mobile: leer(w.mobile),
       email: leer(w.email), adresse: leer(w.adresse), leistungen: leer(w.leistungen), bemerkungen: leer(w.bemerkungen),
     };
     const { error } = neu
       ? await supabase.from('partner').insert({ ...daten, betrieb_id: profil!.betrieb_id })
       : await supabase.from('partner').update({ ...daten, version: p!.version }).eq('id', id!);
-    if (error) return setFehler(fehlertext(error));
+    if (error) {
+      const m = fehlertext(error);
+      return setFehler(/rollen/.test(m) ? 'Für mehrere Rollen bitte zuerst Migration 20 in Supabase einspielen.' : m);
+    }
     qc.invalidateQueries({ queryKey: ['partner'] });
     navigate('/partner');
   }
@@ -124,7 +128,8 @@ export function PartnerFormular() {
     navigate('/partner');
   }
 
-  const set = (k: keyof typeof w) => (e: { target: { value: string } }) => setW({ ...w, [k]: e.target.value });
+  const set = (k: Exclude<keyof typeof w, 'rollen'>) => (e: { target: { value: string } }) => setW({ ...w, [k]: e.target.value });
+  const rolleUmschalten = (a: Partner['art']) => setW({ ...w, rollen: w.rollen.includes(a) ? w.rollen.filter((x) => x !== a) : [...w.rollen, a] });
   if (!neu && partner.isSuccess && !p) return <p>Partner nicht gefunden.</p>;
 
   return (
@@ -141,15 +146,28 @@ export function PartnerFormular() {
             Name / Firma
             <input className="eingabe" required value={w.name} onChange={set('name')} />
           </label>
+          <fieldset className="m-0 flex flex-col gap-1 border-0 p-0">
+            <legend className="mb-1 text-sm font-bold">Rollen (mehrere möglich, die erste ist die Hauptrolle)</legend>
+            <div className="flex flex-wrap gap-2">
+              {PARTNERARTEN.map((a) => {
+                const an = w.rollen.includes(a);
+                const nr = w.rollen.indexOf(a);
+                return (
+                  <button
+                    key={a}
+                    type="button"
+                    onClick={() => rolleUmschalten(a)}
+                    aria-pressed={an}
+                    className={`min-h-10 rounded-full border-2 px-3 text-sm font-bold ${an ? 'border-hof bg-hof text-white' : 'border-linie bg-white'}`}
+                  >
+                    {an && nr === 0 ? '★ ' : an ? '✓ ' : ''}
+                    {a}
+                  </button>
+                );
+              })}
+            </div>
+          </fieldset>
           <div className="grid grid-cols-2 gap-3">
-            <label className="feld-label">
-              Art
-              <select className="eingabe" value={w.art} onChange={set('art')}>
-                {PARTNERARTEN.map((a) => (
-                  <option key={a}>{a}</option>
-                ))}
-              </select>
-            </label>
             <label className="feld-label">
               Kontaktperson
               <input className="eingabe" value={w.kontaktperson} onChange={set('kontaktperson')} />
@@ -188,27 +206,38 @@ export function PartnerFormular() {
           </button>
         )}
       </form>
-      {p && <PartnerAuftraege partnerId={p.id} art={p.art} />}
-      {p && <PartnerWeide partnerId={p.id} art={p.art} />}
+      {p && <PartnerAuftraege partner={p} />}
+      {p && <PartnerWeide partnerId={p.id} tierhalter={hatRolle(p, 'Tierhalter')} />}
       {p && <PartnerAbnahmen partnerId={p.id} />}
       {p && <Verlauf art="partner" id={p.id} titel="Arbeiten durch diesen Partner" />}
     </div>
   );
 }
 
-function PartnerAuftraege({ partnerId, art }: { partnerId: string; art: Partner['art'] }) {
+function PartnerAuftraege({ partner }: { partner: Partner }) {
   const { darfVerwalten } = useAuth();
   const auftraege = useAuftraege();
+  const partnerId = partner.id;
   const liste = (auftraege.data ?? []).filter((a) => a.partner_id === partnerId);
-  const neueArt = art === 'Mechaniker/Werkstatt' ? 'Werkstatt' : 'Lohnarbeit';
+  const werkstatt = hatRolle(partner, 'Mechaniker/Werkstatt');
+  const lohn = hatRolle(partner, 'Lohnunternehmen') || !werkstatt;
   return (
     <section className="karte flex flex-col gap-2">
       <div className="flex items-center justify-between gap-2">
         <h2 className="m-0 text-lg font-extrabold">Aufträge</h2>
         {darfVerwalten && (
-          <Link to={`/auftraege/neu?art=${neueArt}&partner=${partnerId}`} className="knopf no-underline">
-            <Icon name="plus" /> {neueArt === 'Werkstatt' ? 'Werkstattauftrag' : 'Lohnauftrag'}
-          </Link>
+          <div className="flex flex-wrap gap-2">
+            {lohn && (
+              <Link to={`/auftraege/neu?art=Lohnarbeit&partner=${partnerId}`} className="knopf no-underline">
+                <Icon name="plus" /> Lohnauftrag
+              </Link>
+            )}
+            {werkstatt && (
+              <Link to={`/auftraege/neu?art=Werkstatt&partner=${partnerId}`} className={`${lohn ? 'knopf-leise' : 'knopf'} no-underline`}>
+                <Icon name="plus" /> Werkstattauftrag
+              </Link>
+            )}
+          </div>
         )}
       </div>
       {liste.length === 0 && <p className="m-0 text-sm text-leise">Noch keine Aufträge an diesen Partner.</p>}
@@ -230,12 +259,12 @@ function PartnerAuftraege({ partnerId, art }: { partnerId: string; art: Partner[
 
 /** Was dieser Partner aus der Ernte übernommen hat (Verkauf/Abgabe) inkl. Zahlungsstatus */
 /** Tiere dieses Partners auf unseren Feldern */
-function PartnerWeide({ partnerId, art }: { partnerId: string; art: Partner['art'] }) {
+function PartnerWeide({ partnerId, tierhalter }: { partnerId: string; tierhalter: boolean }) {
   const { darfVerwalten } = useAuth();
   const weiden = useBeweidungen({ partner_id: partnerId });
   const felder = useFelder();
   const liste = weiden.data ?? [];
-  if (art !== 'Tierhalter' && !liste.length) return null;
+  if (!tierhalter && !liste.length) return null;
   const fName = (id: string) => felder.data?.find((f) => f.id === id)?.name ?? '?';
   return (
     <section className="karte flex flex-col gap-2">

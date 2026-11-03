@@ -9,6 +9,7 @@ import {
 } from '../lib/daten';
 import { datum, heuteIso, menge, zahlAus } from '../lib/format';
 import type { Aufgabe, Feldarbeit, Maschine } from '../lib/typen';
+import { rollenText } from '../lib/typen';
 import { Icon } from '../components/Icon';
 import { PersonAuswahl } from './Mitarbeiter';
 import { ZaehlerFelder, pruefeZaehler } from '../components/Zaehler';
@@ -483,7 +484,7 @@ function AufgabeFormular({ vorlage, maschinen, onFertig }: { vorlage: Vorlage | 
               .filter((p) => p.aktiv)
               .map((p) => (
                 <option key={p.id} value={p.id}>
-                  {p.name} ({p.art})
+                  {p.name} ({rollenText(p)})
                 </option>
               ))}
           </select>

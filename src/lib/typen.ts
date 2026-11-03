@@ -194,11 +194,18 @@ export const PARTNERARTEN = [
   'Lohnunternehmen', 'Mechaniker/Werkstatt', 'Händler/Lieferant', 'Berater', 'Abnehmer/Käufer', 'Tierhalter', 'Behörde/Kontrolle', 'Andere',
 ] as const;
 
+/** Hat der Partner diese Rolle (Haupt- oder weitere Rolle)? */
+export const hatRolle = (p: Pick<Partner, 'art' | 'rollen'>, rolle: Partner['art']) => (p.rollen?.length ? p.rollen : [p.art]).includes(rolle);
+export const rollenText = (p: Pick<Partner, 'art' | 'rollen'>) => (p.rollen?.length ? p.rollen : [p.art]).join(', ');
+
 export interface Partner {
   id: string;
   betrieb_id: string;
   name: string;
+  /** Hauptrolle (erste der Rollen) */
   art: (typeof PARTNERARTEN)[number];
+  /** alle Rollen; ältere Datenbanken ohne Migration 20 liefern keine */
+  rollen?: (typeof PARTNERARTEN)[number][];
   kontaktperson: string | null;
   telefon: string | null;
   mobile: string | null;

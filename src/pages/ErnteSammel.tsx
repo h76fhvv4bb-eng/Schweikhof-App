@@ -5,7 +5,7 @@ import { supabase, fehlertext } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
 import { useAnbau, useErnten, useFelder, useHofobjekte, usePartner } from '../lib/daten';
 import { chf, ha, heuteIso, zahlAus } from '../lib/format';
-import { ABGABEARTEN, BALLENARTEN, ERNTEPRODUKTE, LEISTUNGEN, type Ernte, type ErnteProdukt } from '../lib/typen';
+import { ABGABEARTEN, BALLENARTEN, ERNTEPRODUKTE, LEISTUNGEN, type Ernte, type ErnteProdukt, rollenText } from '../lib/typen';
 import { Icon } from '../components/Icon';
 import { NEU, NeuerPartnerDialog } from '../components/Schnellanlage';
 import { produktAusKultur } from './Ernte';
@@ -400,7 +400,7 @@ export function ErnteSammel() {
                     {darfVerwalten && <option value={NEU}>+ Neuer Partner …</option>}
                     {aktivePartner.map((p) => (
                       <option key={p.id} value={p.id}>
-                        {p.name} ({p.art})
+                        {p.name} ({rollenText(p)})
                       </option>
                     ))}
                   </select>
@@ -557,7 +557,7 @@ export function ErnteSammel() {
                     .sort((a, b) => Number(b.art === 'Lohnunternehmen') - Number(a.art === 'Lohnunternehmen'))
                     .map((p) => (
                       <option key={p.id} value={p.id}>
-                        {p.name} ({p.art})
+                        {p.name} ({rollenText(p)})
                       </option>
                     ))}
                 </select>

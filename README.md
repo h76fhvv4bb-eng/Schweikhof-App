@@ -3,7 +3,7 @@
 Digitale Betriebsführung für einen Schweizer Acker- und Futterbaubetrieb (ca. 16 ha, Kanton Zürich, ÖLN).
 Läuft im Browser auf Mac, iPhone und iPad und lässt sich als App auf den Startbildschirm legen (PWA).
 
-## Was schon funktioniert (Stand 03.11.2026, Version 0.20)
+## Was schon funktioniert (Stand 03.11.2026, Version 0.21)
 
 | Bereich | Stand |
 | --- | --- |
@@ -48,6 +48,7 @@ Läuft im Browser auf Mac, iPhone und iPad und lässt sich als App auf den Start
 | Umtrieb: Weidegäste mit einem Klick auf das nächste Feld weiterziehen oder als abgeholt melden; Feldwechsel nachträglich erfassen | fertig |
 | Exporte: Verkäufe (PDF/CSV), Düngerbilanz (PDF/CSV); Kontrolle: alle Unterlagen in einem PDF mit Deckblatt und Inhalt | fertig |
 | Hof-Ansicht: Auswahl, was angezeigt wird (Beschriftungen, Kulturfarben, Gebäude, Maschinen, Weidetiere, Hinweise, Flächen); Weidetiere auf ihrem aktuellen Feld, Traktoren und Maschinen am Standplatz | fertig |
+| Partner mit mehreren Rollen (z. B. Lohnunternehmen und Abnehmer); Filter und Auswahl berücksichtigen alle Rollen | fertig |
 | Kalender | folgt, siehe [TODO.md](TODO.md) |
 
 ## Technik

@@ -6,7 +6,7 @@ import { useAuth } from '../lib/auth';
 import { useAnbau, useErnten, useFelder, useHofobjekte, useLager, usePartner, useVerrechneteAbgaben } from '../lib/daten';
 import { chf, datum, ha, heuteIso, menge, zahlAus } from '../lib/format';
 import { csvHerunterladen, csvZahl } from '../lib/export';
-import { ABGABEARTEN, BALLENARTEN, ERNTEPRODUKTE, LEISTUNGEN, type ErnteAbnehmer, type ErnteProdukt } from '../lib/typen';
+import { ABGABEARTEN, BALLENARTEN, ERNTEPRODUKTE, LEISTUNGEN, type ErnteAbnehmer, type ErnteProdukt, rollenText } from '../lib/typen';
 import { Icon } from '../components/Icon';
 import { NEU, NeuerPartnerDialog } from '../components/Schnellanlage';
 
@@ -662,7 +662,7 @@ export function ErnteFormular() {
                 {darfVerwalten && <option value={NEU}>+ Neuer Partner …</option>}
                 {dienstPartner.map((p) => (
                   <option key={p.id} value={p.id}>
-                    {p.name} ({p.art})
+                    {p.name} ({rollenText(p)})
                   </option>
                 ))}
               </select>
@@ -751,7 +751,7 @@ export function ErnteFormular() {
                   {darfVerwalten && <option value={NEU}>+ Neuer Partner …</option>}
                   {aktivePartner.map((p) => (
                     <option key={p.id} value={p.id}>
-                      {p.name} ({p.art})
+                      {p.name} ({rollenText(p)})
                     </option>
                   ))}
                 </select>

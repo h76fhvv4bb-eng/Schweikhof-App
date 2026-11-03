@@ -215,3 +215,8 @@ Jedes Feld einer Weide ist ein Abschnitt mit eigenem Zeitraum (`beweidung_felder
 aktuellen Felder am Vortag und beginnt die neuen am gewählten Tag; ein Wechsel am selben Tag ersetzt den vorherigen
 (Korrektur). Liegen nach dem Datum schon Wechsel vor, wird im Formular nachgetragen. «Abgeholt» beendet Weide und Felder.
 Weidetage je Feld zählen nur den eigenen Abschnitt; die beweidete Fläche zählt jedes Feld einmal.
+
+## 2026-11-03 · Mehrere Rollen je Partner (Migration 20)
+`partner.rollen` (Liste) ergänzt `art`. `art` bleibt die Hauptrolle (erste Rolle) und wird per Trigger nachgeführt, damit
+ältere Abfragen und die Schnellanlage weiter funktionieren. Wird ein Partner als Tierhalter einer Weide gewählt, bekommt er
+die Rolle «Tierhalter» dazu.
