@@ -5,7 +5,7 @@ import { supabase, fehlertext } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
 import {
   ABHAENGIGE_DATEN, useAufgaben, useAuftraege, useFelder, useGeplanteArbeiten, useMaschinen, useMaschinenEintraege, useMitarbeiter, usePartner,
-  useWartungFaellig,
+  useWartungFaellig, useFeldarbeitGeraete
 } from '../lib/daten';
 import { datum, heuteIso, menge, zahlAus } from '../lib/format';
 import type { Aufgabe, Feldarbeit, Maschine } from '../lib/typen';
@@ -67,6 +67,7 @@ export function Aufgaben() {
   }, [params, setParams]);
 
   const feldName = useMemo(() => new Map((felder.data ?? []).map((f) => [f.id, f.name])), [felder.data]);
+  const geraeteListe = useFeldarbeitGeraete();
   const maschName = useMemo(() => new Map((maschinen.data ?? []).map((m) => [m.id, m.name])), [maschinen.data]);
   const personName = useMemo(() => new Map((mitarbeiter.data ?? []).map((m) => [m.id, m.name.split(' ')[0]])), [mitarbeiter.data]);
   const geplantNach = useMemo(() => new Map((geplant.data ?? []).map((a) => [a.id, a])), [geplant.data]);
@@ -79,7 +80,7 @@ export function Aufgaben() {
       titel: `${a.arbeitsart} · ${a.feldarbeit_felder.map((f) => feldName.get(f.feld_id) ?? '?').join(', ')}`,
       details: [
         a.maschine_id && maschName.get(a.maschine_id),
-        a.geraet_id && maschName.get(a.geraet_id),
+        ...(geraeteListe.data?.get(a.id) ?? (a.geraet_id ? [a.geraet_id] : [])).map((g) => maschName.get(g)),
         ...a.feldarbeit_mittel.map((m) => `${m.lagerartikel?.bezeichnung} ${menge(Number(m.menge_je_ha))} ${m.lagerartikel?.einheit}/ha`),
       ]
         .filter(Boolean)

@@ -3,12 +3,12 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase, fehlertext } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
-import { ABHAENGIGE_DATEN, useFeldarbeit, useFelder, useGeplanteArbeiten, useHinweise, useLager, useMaschinen, useMitarbeiter, usePartner } from '../lib/daten';
+import { ABHAENGIGE_DATEN, useFeldarbeit, useFeldarbeitGeraete, useFelder, useGeplanteArbeiten, useHinweise, useLager, useMaschinen, useMitarbeiter, usePartner } from '../lib/daten';
 import { PersonAuswahl } from './Mitarbeiter';
 import { HinweisListe } from '../components/FeldWerkzeuge';
 import { MIT_MOTOR } from '../lib/typen';
 import { ha, heuteIso, menge, zahlAus } from '../lib/format';
-import { ARBEITSARTEN, type Arbeitsart, type Lagerbestand } from '../lib/typen';
+import { ARBEITSARTEN, rollenText, type Arbeitsart, type Lagerbestand, type Maschine } from '../lib/typen';
 import { Icon } from '../components/Icon';
 import { ZaehlerFelder, pruefeZaehler } from '../components/Zaehler';
 import { NEU, NeuerArtikelDialog } from '../components/Schnellanlage';
@@ -61,7 +61,9 @@ export function Erfassen() {
   const [maschine, setMaschine] = useState('');
   const [geraet, setGeraet] = useState('');
   const [maschineId, setMaschineId] = useState('');
-  const [geraetId, setGeraetId] = useState('');
+  const [geraetIds, setGeraetIds] = useState<string[]>([]); // mehrere Geräte am Traktor, das erste zählt als Hauptgerät
+  const geraetId = geraetIds[0] ?? '';
+  const geraeteListe = useFeldarbeitGeraete();
   const [partnerId, setPartnerId] = useState('');
   const maschinen = useMaschinen();
   const partner = usePartner();
@@ -93,7 +95,7 @@ export function Erfassen() {
     setMaschine(a.maschine ?? '');
     setGeraet(a.geraet ?? '');
     setMaschineId(a.maschine_id ?? '');
-    setGeraetId(a.geraet_id ?? '');
+    setGeraetIds(geraeteListe.data?.get(a.id) ?? (a.geraet_id ? [a.geraet_id] : []));
     setPartnerId(a.partner_id ?? '');
     setPerson(a.mitarbeiter_id ?? mitarbeiter.data?.find((m) => m.benutzer_id === a.ausgefuehrt_von)?.id ?? '');
     setVorgaengerId(a.vorgaenger_id ?? '');
@@ -107,7 +109,7 @@ export function Erfassen() {
     setAusbringung(a.ausbringung ?? '');
     setBemerkungen(a.bemerkungen ?? '');
     setMehr(!!(a.dauer_h || a.maschine || a.geraet || a.bemerkungen || a.ausbringung || a.maschine_id || a.geraet_id || a.partner_id));
-  }, [vorhanden.data, felder.data, mitarbeiter.data]);
+  }, [vorhanden.data, felder.data, mitarbeiter.data, geraeteListe.data]);
 
   useEffect(() => {
     const ich = mitarbeiter.data?.find((m) => m.benutzer_id === profil?.id);
@@ -216,8 +218,7 @@ export function Erfassen() {
     }
 
     setSpeichert(true);
-    const { data: arbeitId, error } = await supabase.rpc('feldarbeit_speichern', {
-      p: {
+    const nutzlast = {
         id: id ?? null,
         version: vorhanden.data?.version,
         datum,
@@ -236,8 +237,14 @@ export function Erfassen() {
         bemerkungen,
         felder: felderListe,
         mittel: mittelListe,
-      },
-    });
+        geraete: geraetIds,
+    };
+    let { data: arbeitId, error } = await supabase.rpc('feldarbeit_speichern_geraete', { p: nutzlast });
+    // Datenbank ohne Migration 21: wie bisher mit einem Gerät speichern
+    if (error && /feldarbeit_speichern_geraete/.test(error.message)) {
+      ({ data: arbeitId, error } = await supabase.rpc('feldarbeit_speichern', { p: nutzlast }));
+      if (!error && geraetIds.length > 1) alert('Gespeichert, aber nur mit dem ersten Gerät. Für mehrere Geräte bitte Migration 21 in Supabase einspielen.');
+    }
     if (error) {
       setSpeichert(false);
       return setFehler(fehlertext(error));
@@ -556,21 +563,14 @@ export function Erfassen() {
                     <input className="eingabe" value={maschine} onChange={(e) => setMaschine(e.target.value)} placeholder="z. B. Traktor" />
                   )}
                 </label>
-                <label className="feld-label">
-                  Gerät
-                  {geraete.length > 0 ? (
-                    <select className="eingabe" value={geraetId} onChange={(e) => setGeraetId(e.target.value)}>
-                      <option value="">–</option>
-                      {geraete.map((m) => (
-                        <option key={m.id} value={m.id}>
-                          {m.name}
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
+                {geraete.length > 0 ? (
+                  <GeraeteWahl geraete={geraete} wahl={geraetIds} onWahl={setGeraetIds} />
+                ) : (
+                  <label className="feld-label">
+                    Gerät
                     <input className="eingabe" value={geraet} onChange={(e) => setGeraet(e.target.value)} placeholder="z. B. Düngerstreuer" />
-                  )}
-                </label>
+                  </label>
+                )}
                 </>
                 )}
                 <label className="feld-label col-span-2">
@@ -579,7 +579,7 @@ export function Erfassen() {
                     <option value="">– eigener Betrieb –</option>
                     {(partner.data ?? []).filter((p) => p.aktiv).map((p) => (
                       <option key={p.id} value={p.id}>
-                        {p.name} ({p.art})
+                        {p.name} ({rollenText(p)})
                       </option>
                     ))}
                   </select>
@@ -626,21 +626,14 @@ export function Erfassen() {
                   <input className="eingabe" value={maschine} onChange={(e) => setMaschine(e.target.value)} placeholder="z. B. Traktor" />
                 )}
               </label>
-              <label className="feld-label">
-                Gerät
-                {geraete.length > 0 ? (
-                  <select className="eingabe" value={geraetId} onChange={(e) => setGeraetId(e.target.value)}>
-                    <option value="">–</option>
-                    {geraete.map((m) => (
-                      <option key={m.id} value={m.id}>
-                        {m.name}
-                      </option>
-                    ))}
-                  </select>
-                ) : (
+              {geraete.length > 0 ? (
+                <GeraeteWahl geraete={geraete} wahl={geraetIds} onWahl={setGeraetIds} />
+              ) : (
+                <label className="feld-label">
+                  Gerät
                   <input className="eingabe" value={geraet} onChange={(e) => setGeraet(e.target.value)} placeholder="z. B. Düngerstreuer" />
-                )}
-              </label>
+                </label>
+              )}
             </div>
             {(() => {
               const zm = maschinen.data?.find((m) => m.id === maschineId);
@@ -718,4 +711,44 @@ export function Erfassen() {
 function gesamtAlt(a: { status: string; feldarbeit_mittel: { artikel_id: string; gesamtmenge: number }[] } | undefined, artikelId: string) {
   if (!a || a.status !== 'erledigt') return 0;
   return a.feldarbeit_mittel.filter((m) => m.artikel_id === artikelId).reduce((s, m) => s + Number(m.gesamtmenge), 0);
+}
+
+/** Mehrere Geräte am Traktor (z. B. Kreiselegge + Sämaschine, Front- und Heckmähwerk) */
+function GeraeteWahl({ geraete, wahl, onWahl }: { geraete: Maschine[]; wahl: string[]; onWahl: (ids: string[]) => void }) {
+  const name = (id: string) => geraete.find((m) => m.id === id)?.name ?? 'Gerät';
+  const frei = geraete.filter((m) => !wahl.includes(m.id));
+  return (
+    <div className="col-span-2 flex flex-col gap-1.5">
+      <span className="feld-label">Geräte{wahl.length > 1 ? ` (${wahl.length})` : ''}</span>
+      {wahl.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {wahl.map((id, i) => (
+            <span key={id} className="flex min-h-10 items-center gap-1 rounded-full bg-hof-hell pl-3 pr-1 text-sm font-bold text-hof">
+              {name(id)}
+              {i === 0 && wahl.length > 1 && <span className="text-xs font-semibold">(Zähler)</span>}
+              <button type="button" className="flex h-8 w-8 items-center justify-center rounded-full text-lg" aria-label={`${name(id)} entfernen`} onClick={() => onWahl(wahl.filter((x) => x !== id))}>
+                ×
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+      {frei.length > 0 && (
+        <select
+          className="eingabe"
+          value=""
+          onChange={(e) => {
+            if (e.target.value) onWahl([...wahl, e.target.value]);
+          }}
+        >
+          <option value="">{wahl.length ? '+ weiteres Gerät anhängen …' : '– Gerät wählen –'}</option>
+          {frei.map((m) => (
+            <option key={m.id} value={m.id}>
+              {m.name} ({m.kategorie})
+            </option>
+          ))}
+        </select>
+      )}
+    </div>
+  );
 }

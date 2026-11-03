@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useMitarbeiter, useBetrieb, useFeldarbeiten, useFelder, useMaschinen, usePartner } from '../lib/daten';
+import { useMitarbeiter, useBetrieb, useFeldarbeiten, useFeldarbeitGeraete, useFelder, useMaschinen, usePartner } from '../lib/daten';
 import { datum, ha, menge } from '../lib/format';
 import { csvHerunterladen, csvZahl } from '../lib/export';
 import { ARBEITSARTEN } from '../lib/typen';
@@ -19,6 +19,12 @@ export function Kartei() {
   const maschinen = useMaschinen();
   const partner = usePartner();
   const maschinenName = (id: string | null, text: string | null) => (id ? (maschinen.data?.find((m) => m.id === id)?.name ?? text) : text);
+  const geraeteListe = useFeldarbeitGeraete();
+  // alle Geräte einer Arbeit (mehrere am Traktor), sonst das eine Gerät
+  const geraeteName = (a: { id: string; geraet_id: string | null; geraet: string | null }) => {
+    const ids = geraeteListe.data?.get(a.id);
+    return ids?.length ? ids.map((g) => maschinenName(g, null)).filter(Boolean).join(' + ') : maschinenName(a.geraet_id, a.geraet);
+  };
   const partnerName = (id: string | null) => (id ? partner.data?.find((p) => p.id === id)?.name : undefined);
 
   const feldName = useMemo(() => new Map((felder.data ?? []).map((f) => [f.id, f.name])), [felder.data]);
@@ -59,7 +65,7 @@ export function Kartei() {
             m?.lagerartikel?.einheit ?? '',
             a.ausbringung ?? '',
             maschinenName(a.maschine_id, a.maschine) ?? '',
-            maschinenName(a.geraet_id, a.geraet) ?? '',
+            geraeteName(a) ?? '',
             partnerName(a.partner_id) ?? '',
             wer(a) ? (personName.get(wer(a)!) ?? '') : '',
             csvZahl(a.dauer_h),
@@ -176,7 +182,7 @@ export function Kartei() {
           ))}
           {(a.maschine || a.geraet || a.maschine_id || a.geraet_id || a.partner_id || wer(a) || a.dauer_h) && (
             <span className="text-xs text-leise">
-              {[wer(a) && personName.get(wer(a)!), partnerName(a.partner_id), maschinenName(a.maschine_id, a.maschine), maschinenName(a.geraet_id, a.geraet), a.dauer_h && `${menge(a.dauer_h)} h`]
+              {[wer(a) && personName.get(wer(a)!), partnerName(a.partner_id), maschinenName(a.maschine_id, a.maschine), geraeteName(a), a.dauer_h && `${menge(a.dauer_h)} h`]
                 .filter(Boolean)
                 .join(' · ')}
             </span>

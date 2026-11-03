@@ -220,3 +220,8 @@ Weidetage je Feld zählen nur den eigenen Abschnitt; die beweidete Fläche zähl
 `partner.rollen` (Liste) ergänzt `art`. `art` bleibt die Hauptrolle (erste Rolle) und wird per Trigger nachgeführt, damit
 ältere Abfragen und die Schnellanlage weiter funktionieren. Wird ein Partner als Tierhalter einer Weide gewählt, bekommt er
 die Rolle «Tierhalter» dazu.
+
+## 2026-11-03 · Mehrere Geräte pro Arbeit (Migration 21)
+`feldarbeit_geraete` hält alle Geräte einer Arbeit in Reihenfolge; `geraet_id` bleibt das erste (für Zähler, ältere
+Abfragen) und wird per Trigger abgeglichen. Gespeichert wird über `feldarbeit_speichern_geraete`, die `feldarbeit_speichern`
+aufruft und danach die Liste setzt (eine Transaktion). Betriebsstunden werden nur beim ersten Gerät erfasst.

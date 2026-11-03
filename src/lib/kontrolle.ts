@@ -84,7 +84,7 @@ export async function parzellenblaetterLaden(jahr: number, feldId?: string): Pro
   const bis = `${jahr}-12-31`;
   let felderQ = supabase.from('felder').select('*').is('geloescht_am', null).neq('status', 'zusammengeführt');
   if (feldId) felderQ = felderQ.eq('id', feldId);
-  const [betrieb, felder, anbau, arbeiten, ernten, maschinen, mitarbeiter, partner, weiden] = await Promise.all([
+  const [betrieb, felder, anbau, arbeiten, ernten, maschinen, mitarbeiter, partner, geraete, weiden] = await Promise.all([
     supabase.from('betriebe').select('*').maybeSingle(),
     felderQ,
     supabase.from('anbau').select('feld_id, jahr, art, sorte, saatdatum, erntedatum, nur_monat, kulturen(name)').gte('jahr', jahr - 1).lte('jahr', jahr),
@@ -104,6 +104,7 @@ export async function parzellenblaetterLaden(jahr: number, feldId?: string): Pro
     supabase.from('maschinen').select('id, name'),
     supabase.from('mitarbeiter').select('id, name'),
     supabase.from('partner').select('id, name'),
+    supabase.from('feldarbeit_geraete').select('feldarbeit_id, maschine_id, position').order('position'),
     supabase.from('beweidungen').select('partner_id, tierart, anzahl, gve, von, bis, beweidung_felder(feld_id, flaeche_m2, von, bis)').lte('von', bis).or(`bis.is.null,bis.gte.${von}`).order('von'),
   ]);
   for (const r of [felder, anbau, arbeiten, ernten]) if (r.error) throw r.error;
@@ -123,6 +124,10 @@ export async function parzellenblaetterLaden(jahr: number, feldId?: string): Pro
   type WeideRoh = { partner_id: string; tierart: string; anzahl: number; gve: number | null; von: string; bis: string | null; beweidung_felder: { feld_id: string; flaeche_m2: number; von: string | null; bis: string | null }[] };
   // Fehlt die Tabelle noch (Migration 18 nicht eingespielt), bleiben die Weiden einfach leer
   const weidenListe = (weiden.error ? [] : (weiden.data ?? [])) as unknown as WeideRoh[];
+  // mehrere Geräte je Arbeit (fehlt die Tabelle, gilt das eine Gerät)
+  const geraeteJe = new Map<string, string[]>();
+  for (const g of (geraete.error ? [] : (geraete.data ?? [])) as { feldarbeit_id: string; maschine_id: string }[])
+    geraeteJe.set(g.feldarbeit_id, [...(geraeteJe.get(g.feldarbeit_id) ?? []), g.maschine_id]);
   const sortiert = ((felder.data ?? []) as Feld[]).sort((a, b) => a.feldnummer.localeCompare(b.feldnummer, 'de-CH', { numeric: true }));
   const blaetter: Parzellenblatt[] = sortiert.map((feld) => {
     const haupt = anbauListe.find((a) => a.feld_id === feld.id && a.jahr === jahr && a.art === 'Hauptkultur');
@@ -151,7 +156,9 @@ export async function parzellenblaetterLaden(jahr: number, feldId?: string): Pro
             status: a.status,
             teil_ha: teilM2 / 10000,
             dauer_h: a.dauer_h,
-            geraet: name(maschinen.data, a.geraet_id) ?? a.geraet ?? name(maschinen.data, a.maschine_id) ?? a.maschine,
+            geraet:
+              (geraeteJe.get(a.id)?.map((g) => name(maschinen.data, g)).filter(Boolean).join(' + ') || null) ??
+              name(maschinen.data, a.geraet_id) ?? a.geraet ?? name(maschinen.data, a.maschine_id) ?? a.maschine,
             person: kuerzel(name(mitarbeiter.data, a.mitarbeiter_id)),
             partner: name(partner.data, a.partner_id),
             bemerkungen: a.bemerkungen,

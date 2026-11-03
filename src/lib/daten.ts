@@ -135,7 +135,7 @@ export function useBenutzer() {
 }
 
 /** Nach jeder Buchung: alles neu laden, was vom Lager oder den Arbeiten abhängt. */
-export const ABHAENGIGE_DATEN = [['lager'], ['feldarbeiten'], ['feldarbeit'], ['naehrstoffe'], ['lagerjournal'], ['maschinen'], ['maschineneintraege'], ['wartung'], ['aufgaben'], ['mitarbeiter_stunden'], ['auftraege'], ['fotos'], ['flaeche_je_kultur'], ['maschine_teile'], ['beweidungen']];
+export const ABHAENGIGE_DATEN = [['lager'], ['feldarbeiten'], ['feldarbeit'], ['naehrstoffe'], ['lagerjournal'], ['maschinen'], ['maschineneintraege'], ['wartung'], ['aufgaben'], ['mitarbeiter_stunden'], ['auftraege'], ['fotos'], ['flaeche_je_kultur'], ['maschine_teile'], ['beweidungen'], ['feldarbeit_geraete']];
 
 export function useBetrieb() {
   return useQuery({
@@ -171,6 +171,20 @@ export function useBeweidungen(filter: { partner_id?: string; feld_id?: string }
       return (data as Beweidung[]).filter(
         (b) => (!filter.partner_id || b.partner_id === filter.partner_id) && (!filter.feld_id || b.beweidung_felder.some((f) => f.feld_id === filter.feld_id)),
       );
+    },
+  });
+}
+
+/** Geräte je Arbeit (mehrere am Traktor), in Reihenfolge; leer, solange Migration 21 fehlt */
+export function useFeldarbeitGeraete() {
+  return useQuery({
+    queryKey: ['feldarbeit_geraete'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('feldarbeit_geraete').select('feldarbeit_id, maschine_id, position').order('position');
+      const m = new Map<string, string[]>();
+      if (error) return m;
+      for (const r of data as { feldarbeit_id: string; maschine_id: string }[]) m.set(r.feldarbeit_id, [...(m.get(r.feldarbeit_id) ?? []), r.maschine_id]);
+      return m;
     },
   });
 }
@@ -393,7 +407,12 @@ export function useArbeitenVon(art: 'feld' | 'maschine' | 'partner' | 'mitarbeit
         .order('datum', { ascending: false })
         .limit(30);
       if (art === 'feld') q = q.eq('feldarbeit_felder.feld_id', id!);
-      else if (art === 'maschine') q = q.or(`maschine_id.eq.${id},geraet_id.eq.${id}`);
+      else if (art === 'maschine') {
+        // auch Arbeiten, bei denen die Maschine als weiteres Gerät dabei war
+        const { data: weitere } = await supabase.from('feldarbeit_geraete').select('feldarbeit_id').eq('maschine_id', id!);
+        const ids = (weitere ?? []).map((w) => w.feldarbeit_id as string);
+        q = q.or([`maschine_id.eq.${id}`, `geraet_id.eq.${id}`, ...(ids.length ? [`id.in.(${ids.join(',')})`] : [])].join(','));
+      }
       else if (art === 'partner') q = q.eq('partner_id', id!);
       else q = q.eq('mitarbeiter_id', id!);
       const { data, error } = await q;
