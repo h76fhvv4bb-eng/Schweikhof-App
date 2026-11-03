@@ -103,7 +103,7 @@ export async function parzellenblaetterLaden(jahr: number, feldId?: string): Pro
     supabase.from('maschinen').select('id, name'),
     supabase.from('mitarbeiter').select('id, name'),
     supabase.from('partner').select('id, name'),
-    supabase.from('beweidungen').select('partner_id, tierart, anzahl, gve, von, bis, beweidung_felder(feld_id, flaeche_m2)').lte('von', bis).or(`bis.is.null,bis.gte.${von}`).order('von'),
+    supabase.from('beweidungen').select('partner_id, tierart, anzahl, gve, von, bis, beweidung_felder(feld_id, flaeche_m2, von, bis)').lte('von', bis).or(`bis.is.null,bis.gte.${von}`).order('von'),
   ]);
   for (const r of [felder, anbau, arbeiten, ernten]) if (r.error) throw r.error;
 
@@ -119,7 +119,7 @@ export async function parzellenblaetterLaden(jahr: number, feldId?: string): Pro
   type ErnteRoh = { id: string; feld_id: string; datum: string; schnitt: number | null; flaeche_m2: number; ernte_produkte: { produkt: string; ballen: number | null; ballenart: string | null; menge_kg: number | null; position: number }[] };
   const erntenListe = (ernten.data ?? []) as unknown as ErnteRoh[];
 
-  type WeideRoh = { partner_id: string; tierart: string; anzahl: number; gve: number | null; von: string; bis: string | null; beweidung_felder: { feld_id: string; flaeche_m2: number }[] };
+  type WeideRoh = { partner_id: string; tierart: string; anzahl: number; gve: number | null; von: string; bis: string | null; beweidung_felder: { feld_id: string; flaeche_m2: number; von: string | null; bis: string | null }[] };
   // Fehlt die Tabelle noch (Migration 18 nicht eingespielt), bleiben die Weiden einfach leer
   const weidenListe = (weiden.error ? [] : (weiden.data ?? [])) as unknown as WeideRoh[];
   const sortiert = ((felder.data ?? []) as Feld[]).sort((a, b) => a.feldnummer.localeCompare(b.feldnummer, 'de-CH', { numeric: true }));
@@ -187,10 +187,11 @@ export async function parzellenblaetterLaden(jahr: number, feldId?: string): Pro
         })),
       weiden: weidenListe.flatMap((w) =>
         w.beweidung_felder
-          .filter((f) => f.feld_id === feld.id)
+          // Aufenthalt auf diesem Feld, der ins Jahr fällt
+          .filter((f) => f.feld_id === feld.id && (f.von ?? w.von) <= bis && ((f.bis ?? w.bis) == null || (f.bis ?? w.bis)! >= von))
           .map((f) => ({
             partner: name(partner.data, w.partner_id) ?? '', tierart: w.tierart, anzahl: w.anzahl, gve: w.gve != null ? Number(w.gve) : null,
-            von: w.von, bis: w.bis, ha: Number(f.flaeche_m2) / 10000,
+            von: f.von ?? w.von, bis: f.bis ?? w.bis, ha: Number(f.flaeche_m2) / 10000,
           })),
       ),
     };

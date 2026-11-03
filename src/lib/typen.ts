@@ -504,7 +504,16 @@ export interface Beweidung {
   verkauf_id: string | null;
   bemerkungen: string | null;
   version: number;
-  beweidung_felder: { feld_id: string; flaeche_m2: number }[];
+  /** Aufenthalte auf den Feldern (Umtrieb): jedes Feld mit eigenem Zeitraum */
+  beweidung_felder: WeideAbschnitt[];
+}
+
+export interface WeideAbschnitt {
+  id?: string;
+  feld_id: string;
+  flaeche_m2: number;
+  von: string;
+  bis: string | null;
 }
 
 export interface VerkaufPosition {

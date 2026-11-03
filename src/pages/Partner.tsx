@@ -4,7 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { supabase, fehlertext } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
 import { useAuftraege, useBeweidungen, useErnten, useFelder, usePartner, useVerrechneteAbgaben } from '../lib/daten';
-import { aktiv, weidetage, weidezins } from '../lib/weide';
+import { aktiv, umtriebText, weidetage, weidezins } from '../lib/weide';
 import { AuftragStatus } from './Auftraege';
 import { chf, datum } from '../lib/format';
 import { PARTNERARTEN, type Partner } from '../lib/typen';
@@ -263,7 +263,7 @@ function PartnerWeide({ partnerId, art }: { partnerId: string; art: Partner['art
               {b.anzahl} {b.tierart} · {datum(b.von)} – {b.bis ? datum(b.bis) : 'offen'} ({weidetage(b)} Tage){aktiv(b) && ' · auf der Weide'}
             </span>
             <span className="text-leise">
-              {b.beweidung_felder.map((f) => fName(f.feld_id)).join(', ')}
+              {umtriebText(b, fName)}
               {z && ` · Weidezins ${chf(z.betrag)}${b.verkauf_id ? ' (verrechnet)' : ' (offen)'}`}
             </span>
           </Link>

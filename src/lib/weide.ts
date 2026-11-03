@@ -1,8 +1,13 @@
-import type { Beweidung } from './typen';
+import type { Beweidung, WeideAbschnitt } from './typen';
 
 const tagMs = 24 * 3600 * 1000;
 const alsZeit = (iso: string) => Date.UTC(Number(iso.slice(0, 4)), Number(iso.slice(5, 7)) - 1, Number(iso.slice(8, 10)));
-const heuteIso = () => new Date().toISOString().slice(0, 10);
+const heuteIso = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+/** Tag davor / danach als ISO-Datum */
+export const tagVerschieben = (iso: string, tage: number) => new Date(alsZeit(iso) + tage * tagMs).toISOString().slice(0, 10);
 
 /** Weidetage (Beginn und Ende zählen mit), optional auf einen Zeitraum begrenzt. Offenes Ende = bis heute. */
 export function weidetage(b: Pick<Beweidung, 'von' | 'bis'>, von?: string, bis?: string): number {
@@ -18,7 +23,34 @@ export const imZeitraum = (b: Pick<Beweidung, 'von' | 'bis'>, von: string, bis: 
 /** Läuft die Weide heute? */
 export const aktiv = (b: Pick<Beweidung, 'von' | 'bis'>) => b.von <= heuteIso() && (b.bis == null || b.bis >= heuteIso());
 
-export const weideHa = (b: Pick<Beweidung, 'beweidung_felder'>) => b.beweidung_felder.reduce((s, f) => s + Number(f.flaeche_m2), 0) / 10000;
+/** Beweidete Fläche: jedes Feld einmal (grösste erfasste Fläche), auch wenn die Tiere mehrmals darauf waren */
+export const weideHa = (b: Pick<Beweidung, 'beweidung_felder'>) => {
+  const je = new Map<string, number>();
+  for (const f of b.beweidung_felder) je.set(f.feld_id, Math.max(je.get(f.feld_id) ?? 0, Number(f.flaeche_m2)));
+  return [...je.values()].reduce((s, m) => s + m, 0) / 10000;
+};
+
+/** Abschnitte in zeitlicher Reihenfolge */
+export const abschnitte = (b: Pick<Beweidung, 'beweidung_felder'>): WeideAbschnitt[] =>
+  [...b.beweidung_felder].sort((x, y) => (x.von ?? '').localeCompare(y.von ?? ''));
+
+/** Felder, auf denen die Tiere heute stehen (bei beendeter Weide: die letzten) */
+export function aktuelleFelder(b: Beweidung): WeideAbschnitt[] {
+  const h = heuteIso();
+  const jetzt = b.beweidung_felder.filter((f) => f.von <= h && (f.bis == null || f.bis >= h));
+  if (jetzt.length) return jetzt;
+  const liste = abschnitte(b).filter((f) => f.von <= h);
+  const letzte = liste[liste.length - 1];
+  return letzte ? liste.filter((f) => f.von === letzte.von) : [];
+}
+
+/** Umtrieb als Text, z. B. «A 01.05.–09.05. → B 10.05.–offen» */
+export function umtriebText(b: Beweidung, feldName: (id: string) => string): string {
+  const tm = (iso: string) => `${iso.slice(8, 10)}.${iso.slice(5, 7)}.`;
+  return abschnitte(b)
+    .map((f) => `${feldName(f.feld_id)} ${tm(f.von)}–${f.bis ? tm(f.bis) : 'offen'}`)
+    .join(' → ');
+}
 
 /** Weidezins nach Art: Menge, Einheit, Betrag (null, wenn kein Entgelt oder Angaben fehlen) */
 export function weidezins(b: Beweidung, von?: string, bis?: string): { menge: number; einheit: string; preis: number; betrag: number } | null {

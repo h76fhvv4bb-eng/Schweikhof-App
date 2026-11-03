@@ -72,7 +72,11 @@ async function main() {
   const weideEintrag: Beweidung = {
     id: 'w1', betrieb_id: 'b', partner_id: 'p1', tierart: 'Rinder', anzahl: 12, gve: 8.4, von: '2026-05-01', bis: '2026-06-30',
     entgelt_art: 'je Tier und Tag', entgelt_satz: 0.5, verkauf_id: null, bemerkungen: null, version: 1,
-    beweidung_felder: [{ feld_id: 'f3', flaeche_m2: 5000 }, { feld_id: 'f2', flaeche_m2: 4000 }],
+    beweidung_felder: [
+      { feld_id: 'f3', flaeche_m2: 5000, von: '2026-05-01', bis: '2026-05-31' },
+      { feld_id: 'f2', flaeche_m2: 4000, von: '2026-06-01', bis: '2026-06-20' },
+      { feld_id: 'f3', flaeche_m2: 5000, von: '2026-06-21', bis: '2026-06-30' },
+    ],
   };
   const weide: WeideDaten = { von: '2026-01-01', bis: '2026-12-31', betrieb, felder, partner: [{ id: 'p1', name: 'Hof Nachbar', adresse: null }], eintraege: [weideEintrag] };
   writeFileSync('probe_weide.pdf', Buffer.from(await (await weidePdf(weide)).arrayBuffer()));

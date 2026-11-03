@@ -2,7 +2,7 @@ import type { jsPDF } from 'jspdf';
 import type { Beweidung, Betrieb, Feld, Verkauf } from './typen';
 import type { KontrollDaten, Pruefpunkt } from './kontrolle';
 import { betriebZeile, fruchtfolgeSeiten, fusszeilen, GRUEN, heute, LINIE, parzellenblaetterSeiten, pdfText, tabelle, zahl, type FruchtfolgeDaten, type Spalte } from './kontrollePdf';
-import { weidetage, weidezins, weideHa } from './weide';
+import { umtriebText, weidetage, weidezins, weideHa } from './weide';
 
 const datum = (iso: string | null | undefined) => (iso ? `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.slice(0, 4)}` : '');
 const chf = (n: number | null | undefined) => (n == null ? '' : new Intl.NumberFormat('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n).replace(/’/g, "'"));
@@ -247,13 +247,13 @@ export function weideSeiten(doc: jsPDF, d: WeideDaten, neueSeite: boolean) {
     return [
       partner(b.partner_id)?.name ?? '', b.tierart, String(b.anzahl), b.gve != null ? zahl(b.gve, 1) : '', datum(b.von), b.bis ? datum(b.bis) : 'offen', String(tage),
       zahl(b.anzahl * tage, 0), b.gve != null ? zahl(Number(b.gve) * tage, 1) : '',
-      b.beweidung_felder.map((f) => `${feld(f.feld_id)?.name ?? '?'} ${zahl(Number(f.flaeche_m2) / 10000)} ha`).join(', '),
+      umtriebText(b, (id) => feld(id)?.name ?? '?'),
       zins ? `${chf(zins.betrag)} (${zahl(zins.menge)} ${zins.einheit} à ${chf(zins.preis)})` : b.entgelt_art === 'keins' ? '-' : '',
     ];
   });
   s.y = tabelle(
     doc, s.y, 'Tierhalter',
-    spalten(s, [['Tierhalter', 34], ['Tierart', 22], ['Anzahl', 12, true], ['GVE', 10, true], ['von', 18], ['bis', 18], ['Tage', 10, true], ['Tiertage', 14, true], ['GVE-Tage', 14, true], ['Felder', 60], ['Weidezins CHF', 44]]),
+    spalten(s, [['Tierhalter', 34], ['Tierart', 22], ['Anzahl', 12, true], ['GVE', 10, true], ['von', 18], ['bis', 18], ['Tage', 10, true], ['Tiertage', 14, true], ['GVE-Tage', 14, true], ['Felder (Umtrieb)', 70], ['Weidezins CHF', 34]]),
     zeilen,
     { links: s.links, unten: s.unten, leer: 0, neueSeite: weiter },
   );
@@ -264,7 +264,8 @@ export function weideSeiten(doc: jsPDF, d: WeideDaten, neueSeite: boolean) {
   for (const b of d.eintraege)
     for (const f of b.beweidung_felder) {
       const x = jeFeld.get(f.feld_id) ?? { tage: 0, tiertage: 0, gveTage: 0, halter: new Set<string>() };
-      const t = weidetage(b, d.von, d.bis);
+      // Tage auf diesem Feld (eigener Zeitraum des Abschnitts), im gewählten Zeitraum
+      const t = weidetage({ von: f.von ?? b.von, bis: f.bis ?? b.bis }, d.von, d.bis);
       x.tage += t;
       x.tiertage += t * b.anzahl;
       x.gveTage += b.gve != null ? t * Number(b.gve) : 0;

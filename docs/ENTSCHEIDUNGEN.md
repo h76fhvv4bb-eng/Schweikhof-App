@@ -209,3 +209,9 @@ Eine unabhängige Durchsicht hat die Verbindungen zwischen den Modulen geprüft.
 - Die Düngerbilanz zeigt ausgebrachte Nährstoffe aus den erfassten Arbeiten; sie ist ausdrücklich keine Suisse-Bilanz.
 - «Alle Unterlagen» erstellt ein PDF: Deckblatt mit Betriebsangaben und Inhaltsverzeichnis, Hinweise, Fruchtfolge (Jahr −4
   bis +2), Parzellenblätter, Düngerbilanz, Verkäufe, Weidegäste. Hoch- und Querformat gemischt.
+
+## 2026-11-03 · Umtrieb der Weidegäste (Migration 19)
+Jedes Feld einer Weide ist ein Abschnitt mit eigenem Zeitraum (`beweidung_felder.von/bis`). «Weiterziehen» beendet die
+aktuellen Felder am Vortag und beginnt die neuen am gewählten Tag; ein Wechsel am selben Tag ersetzt den vorherigen
+(Korrektur). Liegen nach dem Datum schon Wechsel vor, wird im Formular nachgetragen. «Abgeholt» beendet Weide und Felder.
+Weidetage je Feld zählen nur den eigenen Abschnitt; die beweidete Fläche zählt jedes Feld einmal.

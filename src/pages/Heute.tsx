@@ -1,13 +1,16 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { UmtriebDialog } from './Weide';
+import type { Beweidung } from '../lib/typen';
 import { useAuth } from '../lib/auth';
 import { useAufgaben, useBeweidungen, usePartner, useFeldarbeiten, useFelder, useFlaecheJeKultur, useGeplanteArbeiten, useLager, useMaschinen, useMaschinenEintraege, useWartungFaellig } from '../lib/daten';
 import { tageBis } from './Maschinen';
 import { datum, ha, menge, wochentagDatum } from '../lib/format';
 import { Icon } from '../components/Icon';
-import { aktiv, weidetage } from '../lib/weide';
+import { aktiv, aktuelleFelder, weidetage } from '../lib/weide';
 
 export function Heute() {
-  const { profil } = useAuth();
+  const { profil, darfVerwalten } = useAuth();
   const jahr = new Date().getFullYear();
   const felder = useFelder();
   const kulturen = useFlaecheJeKultur(jahr);
@@ -42,6 +45,7 @@ export function Heute() {
   const weiden = useBeweidungen();
   const partner = usePartner();
   const aufDerWeide = (weiden.data ?? []).filter(aktiv);
+  const [umtrieb, setUmtrieb] = useState<Beweidung | null>(null);
 
   const aktive = (felder.data ?? []).filter((f) => f.status === 'bewirtschaftet');
   const gesamtM2 = aktive.reduce((s, f) => s + Number(f.flaeche_m2), 0);
@@ -102,22 +106,30 @@ export function Heute() {
       )}
 
       {aufDerWeide.length > 0 && (
-        <Link to="/weide" className="karte flex flex-col gap-2 text-text no-underline">
-          <span className="flex items-center gap-2 text-xs font-extrabold text-hof">
+        <section className="karte flex flex-col gap-2">
+          <Link to="/weide" className="flex items-center gap-2 text-xs font-extrabold text-hof no-underline">
             <Icon name="weide" groesse={16} /> TIERE AUF DER WEIDE
-          </span>
-          {aufDerWeide.slice(0, 4).map((b) => (
-            <span key={b.id} className="flex justify-between gap-2 text-sm">
-              <span className="font-bold">
-                {b.anzahl} {b.tierart} · {partner.data?.find((p) => p.id === b.partner_id)?.name ?? ''}
-              </span>
-              <span className="text-right text-leise">
-                {b.beweidung_felder.map((f) => feldName.get(f.feld_id)).join(', ')} · {weidetage(b)}. Tag
-              </span>
-            </span>
+          </Link>
+          {aufDerWeide.slice(0, 5).map((b) => (
+            <div key={b.id} className="flex items-center justify-between gap-2 text-sm">
+              <Link to={`/weide/${b.id}`} className="flex min-w-0 flex-col text-text no-underline">
+                <span className="font-bold">
+                  {b.anzahl} {b.tierart} · {partner.data?.find((p) => p.id === b.partner_id)?.name ?? ''}
+                </span>
+                <span className="text-leise">
+                  {aktuelleFelder(b).map((f) => feldName.get(f.feld_id)).join(', ')} seit {datum(aktuelleFelder(b)[0]?.von ?? b.von)} · {weidetage(b)}. Tag
+                </span>
+              </Link>
+              {darfVerwalten && (
+                <button className="knopf-leise min-h-10 shrink-0" onClick={() => setUmtrieb(b)}>
+                  Weiterziehen
+                </button>
+              )}
+            </div>
           ))}
-        </Link>
+        </section>
       )}
+      {umtrieb && <UmtriebDialog b={umtrieb} art="weiter" felder={felder.data ?? []} onFertig={() => setUmtrieb(null)} />}
 
       {knapp.length > 0 && (
         <Link to="/lager" className="karte flex flex-col gap-2 text-text no-underline">
