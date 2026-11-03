@@ -8,6 +8,8 @@ jobs:
   app:
     name: App bauen
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -23,10 +25,19 @@ jobs:
           npx esbuild scripts/pdf_probe.ts --bundle --platform=node --format=cjs --outfile=probe.cjs \
             --define:import.meta.env='{}' --external:canvg --external:html2canvas --external:dompurify
           node probe.cjs
-      - uses: actions/upload-artifact@v4
-        with:
-          name: pdf-probe
-          path: probe_*.pdf
+      - name: Probe-PDFs im Zweig «pdf-probe» ablegen (zum Ansehen)
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: |
+          mkdir -p /tmp/probe && cp probe_*.pdf /tmp/probe/
+          git config user.name "CI"
+          git config user.email "ci@users.noreply.github.com"
+          git checkout --orphan pdf-probe
+          git rm -rfq --cached . > /dev/null
+          git clean -fdxq -e probe.cjs
+          cp /tmp/probe/*.pdf .
+          git add probe_*.pdf
+          git commit -qm "PDF-Probe ${GITHUB_SHA::7}"
+          git push -qf origin pdf-probe
 
   datenbank:
     name: Datenbank testen
