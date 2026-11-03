@@ -54,6 +54,8 @@ export interface Parzellenblatt {
   zwischenkulturen: { name: string; sorte: string | null; saat: string | null; umbruch: string | null; nurMonat: boolean }[];
   arbeiten: ArbeitZeile[];
   ernten: ErnteZeile[];
+  /** Tiere anderer Betriebe auf diesem Feld (Weidegäste) */
+  weiden?: { partner: string; tierart: string; anzahl: number; gve: number | null; von: string; bis: string | null; ha: number }[];
 }
 
 export interface KontrollDaten {
@@ -81,7 +83,7 @@ export async function parzellenblaetterLaden(jahr: number, feldId?: string): Pro
   const bis = `${jahr}-12-31`;
   let felderQ = supabase.from('felder').select('*').is('geloescht_am', null).neq('status', 'zusammengeführt');
   if (feldId) felderQ = felderQ.eq('id', feldId);
-  const [betrieb, felder, anbau, arbeiten, ernten, maschinen, mitarbeiter, partner] = await Promise.all([
+  const [betrieb, felder, anbau, arbeiten, ernten, maschinen, mitarbeiter, partner, weiden] = await Promise.all([
     supabase.from('betriebe').select('*').maybeSingle(),
     felderQ,
     supabase.from('anbau').select('feld_id, jahr, art, sorte, saatdatum, erntedatum, nur_monat, kulturen(name)').gte('jahr', jahr - 1).lte('jahr', jahr),
@@ -101,6 +103,7 @@ export async function parzellenblaetterLaden(jahr: number, feldId?: string): Pro
     supabase.from('maschinen').select('id, name'),
     supabase.from('mitarbeiter').select('id, name'),
     supabase.from('partner').select('id, name'),
+    supabase.from('beweidungen').select('partner_id, tierart, anzahl, gve, von, bis, beweidung_felder(feld_id, flaeche_m2)').lte('von', bis).or(`bis.is.null,bis.gte.${von}`).order('von'),
   ]);
   for (const r of [felder, anbau, arbeiten, ernten]) if (r.error) throw r.error;
 
@@ -116,6 +119,9 @@ export async function parzellenblaetterLaden(jahr: number, feldId?: string): Pro
   type ErnteRoh = { id: string; feld_id: string; datum: string; schnitt: number | null; flaeche_m2: number; ernte_produkte: { produkt: string; ballen: number | null; ballenart: string | null; menge_kg: number | null; position: number }[] };
   const erntenListe = (ernten.data ?? []) as unknown as ErnteRoh[];
 
+  type WeideRoh = { partner_id: string; tierart: string; anzahl: number; gve: number | null; von: string; bis: string | null; beweidung_felder: { feld_id: string; flaeche_m2: number }[] };
+  // Fehlt die Tabelle noch (Migration 18 nicht eingespielt), bleiben die Weiden einfach leer
+  const weidenListe = (weiden.error ? [] : (weiden.data ?? [])) as unknown as WeideRoh[];
   const sortiert = ((felder.data ?? []) as Feld[]).sort((a, b) => a.feldnummer.localeCompare(b.feldnummer, 'de-CH', { numeric: true }));
   const blaetter: Parzellenblatt[] = sortiert.map((feld) => {
     const haupt = anbauListe.find((a) => a.feld_id === feld.id && a.jahr === jahr && a.art === 'Hauptkultur');
@@ -179,6 +185,14 @@ export async function parzellenblaetterLaden(jahr: number, feldId?: string): Pro
             .sort((x, y) => x.position - y.position)
             .map((p) => ({ produkt: p.produkt, ballen: p.ballen, ballenart: p.ballenart, kg: p.menge_kg != null ? Number(p.menge_kg) : null })),
         })),
+      weiden: weidenListe.flatMap((w) =>
+        w.beweidung_felder
+          .filter((f) => f.feld_id === feld.id)
+          .map((f) => ({
+            partner: name(partner.data, w.partner_id) ?? '', tierart: w.tierart, anzahl: w.anzahl, gve: w.gve != null ? Number(w.gve) : null,
+            von: w.von, bis: w.bis, ha: Number(f.flaeche_m2) / 10000,
+          })),
+      ),
     };
   });
   return { betrieb: (betrieb.data as Betrieb | null) ?? null, jahr, blaetter, felder: sortiert };
@@ -247,7 +261,13 @@ export async function aufzeichnungenPruefen(jahr: number, kulturen: Kultur[]): P
   for (const l of lager ?? []) if (l.lagerfuehrung) punkte.push({ stufe: 'pruefen', text: `Lager «${l.bezeichnung}» hat einen negativen Bestand`, link: `/lager/${l.id}` });
 
   // Betriebsangaben
-  if (!d.betrieb?.betriebsnummer) punkte.push({ stufe: 'info', text: 'Betriebsnummer fehlt in den Betriebsangaben (erscheint auf den Parzellenblättern)', link: '/mehr' });
+  if (!d.betrieb?.betriebsnummer) punkte.push({ stufe: 'info', text: 'Betriebsnummer fehlt in den Betriebsangaben (erscheint auf allen Unterlagen)', link: '/betrieb' });
+  if (!d.betrieb?.bewirtschafter) punkte.push({ stufe: 'info', text: 'Bewirtschafter/in fehlt in der Betriebsverwaltung', link: '/betrieb' });
+
+  // Weidegäste ohne Ende in einem vergangenen Jahr
+  const { data: offeneWeiden } = await supabase.from('beweidungen').select('id, tierart, von').is('bis', null).lt('von', `${jahr}-12-31`);
+  if (jahr < new Date().getFullYear())
+    for (const w of offeneWeiden ?? []) punkte.push({ stufe: 'pruefen', text: `Weide «${w.tierart}» ab ${String(w.von).split('-').reverse().join('.')} hat kein Ende`, link: `/weide/${w.id}` });
 
   // doppelte Texte entfernen (z. B. derselbe Dünger bei mehreren Feldern)
   const gesehen = new Set<string>();

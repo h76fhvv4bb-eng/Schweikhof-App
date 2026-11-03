@@ -4,8 +4,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
 import { supabase, fehlertext } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
-import { useFelder } from '../lib/daten';
-import { ha, haZuM2 } from '../lib/format';
+import { useBeweidungen, useFelder, usePartner } from '../lib/daten';
+import { aktiv } from '../lib/weide';
+import { datum, ha, haZuM2 } from '../lib/format';
 import { FELDSTATUS, NUTZUNGSARTEN, type Anbau, type Feld } from '../lib/typen';
 import { Icon } from '../components/Icon';
 import { FeldHinweise, FeldTeilenZusammenfuehren } from '../components/FeldWerkzeuge';
@@ -302,6 +303,7 @@ export function FeldFormular() {
 
       {!neu && feld && <Verlauf art="feld" id={feld.id} titel="Arbeiten, Aufträge und Ernten" />}
 
+      {!neu && feld && <FeldWeide feldId={feld.id} />}
       {!neu && feld && <FeldExport feldId={feld.id} name={`${feld.feldnummer}_${feld.name}`} />}
 
       {!neu && (
@@ -351,6 +353,34 @@ export function FeldFormular() {
 }
 
 /** Export eines Feldes: Parzellenblatt (PDF) und alle Einträge eines Jahres (CSV) */
+/** Weidegäste auf diesem Feld */
+function FeldWeide({ feldId }: { feldId: string }) {
+  const { darfVerwalten } = useAuth();
+  const weiden = useBeweidungen({ feld_id: feldId });
+  const partner = usePartner();
+  const liste = weiden.data ?? [];
+  if (!liste.length && !darfVerwalten) return null;
+  return (
+    <section className="karte flex flex-col gap-2">
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="m-0 text-lg font-extrabold">Weidegäste</h2>
+        {darfVerwalten && (
+          <Link to={`/weide/neu?feld=${feldId}`} className="knopf-leise min-h-10 no-underline">
+            <Icon name="plus" /> Weide
+          </Link>
+        )}
+      </div>
+      {!liste.length && <span className="text-sm text-leise">Keine Tiere anderer Betriebe auf diesem Feld erfasst.</span>}
+      {liste.slice(0, 8).map((b) => (
+        <Link key={b.id} to={`/weide/${b.id}`} className="rounded-xl bg-grund p-2 text-sm font-bold text-text no-underline">
+          {b.anzahl} {b.tierart} · {partner.data?.find((p) => p.id === b.partner_id)?.name ?? ''} · {datum(b.von)} – {b.bis ? datum(b.bis) : 'offen'}
+          {aktiv(b) && <span className="ml-2 rounded-lg bg-hof-hell px-2 py-0.5 text-xs text-hof">auf der Weide</span>}
+        </Link>
+      ))}
+    </section>
+  );
+}
+
 function FeldExport({ feldId, name }: { feldId: string; name: string }) {
   const aktuell = new Date().getFullYear();
   const [jahr, setJahr] = useState(aktuell);
@@ -388,6 +418,9 @@ function FeldExport({ feldId, name }: { feldId: string; name: string }) {
       for (const e of b.ernten)
         for (const p of e.produkte)
           zeilen.push([e.datum.split('-').reverse().join('.'), `Ernte ${p.produkt}${e.schnitt ? ` ${e.schnitt}. Schnitt` : ''}`, csvZahl(e.teil_ha), '', '', '', '', '', p.ballen ?? '', p.ballenart ?? '', p.kg != null ? csvZahl(p.kg, 0) : '', '', '', '']);
+      for (const w of b.weiden ?? [])
+        zeilen.push([w.von.split('-').reverse().join('.'), `Weide (Gasttiere) bis ${w.bis ? w.bis.split('-').reverse().join('.') : 'offen'}`, csvZahl(w.ha), '', '', '', w.partner,
+          `${w.anzahl} ${w.tierart}`, w.gve != null ? `${csvZahl(w.gve)} GVE` : '', '', '', '', '', '']);
       zeilen.sort((x, y) => String(x[0]).split('.').reverse().join('').localeCompare(String(y[0]).split('.').reverse().join('')));
       csvHerunterladen(
         `Feld_${datei}_${jahr}.csv`,

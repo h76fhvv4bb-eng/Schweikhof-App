@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useAnbau, useBetrieb, useFelder, useNaehrstoffe } from '../lib/daten';
 import { ha, menge } from '../lib/format';
 import { csvHerunterladen, csvZahl } from '../lib/export';
+import { pdfHerunterladen } from '../lib/auftragPdf';
+import { fehlertext } from '../lib/supabase';
 import type { NaehrstoffeJeFeld } from '../lib/typen';
 
 const leer = { n_kg_ha: 0, p2o5_kg_ha: 0, k2o_kg_ha: 0, n_kg: 0, p2o5_kg: 0, k2o_kg: 0, anzahl_gaben: 0 };
@@ -19,6 +21,19 @@ export function Naehrstoffe() {
   const zeilen = (felder.data ?? []).filter((f) => f.status === 'bewirtschaftet');
   const maxN = Math.max(1, ...zeilen.map((f) => Number(wert(f.id, 'erledigt').n_kg_ha) + Number(wert(f.id, 'geplant').n_kg_ha)));
   const summe = (k: 'n_kg' | 'p2o5_kg' | 'k2o_kg', s: 'erledigt' | 'geplant') => zeilen.reduce((x, f) => x + Number(wert(f.id, s)[k]), 0);
+
+  const [laeuft, setLaeuft] = useState(false);
+  async function pdf() {
+    setLaeuft(true);
+    try {
+      const [{ parzellenblaetterLaden }, { duengerbilanzPdf }] = await Promise.all([import('../lib/kontrolle'), import('../lib/berichtePdf')]);
+      pdfHerunterladen(await duengerbilanzPdf(await parzellenblaetterLaden(jahr)), `Duengerbilanz_${jahr}.pdf`);
+    } catch (e) {
+      alert(fehlertext(e));
+    } finally {
+      setLaeuft(false);
+    }
+  }
 
   function exportieren() {
     csvHerunterladen(
@@ -46,6 +61,9 @@ export function Naehrstoffe() {
               <option key={j}>{j}</option>
             ))}
           </select>
+          <button className="knopf-leise" onClick={pdf} disabled={laeuft}>
+            {laeuft ? 'Erstelle …' : 'Düngerbilanz (PDF)'}
+          </button>
           <button className="knopf-leise" onClick={exportieren}>
             Excel (CSV)
           </button>

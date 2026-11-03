@@ -13,6 +13,7 @@ export interface BelegDruck {
     email: string | null;
     iban: string | null;
     mwst_nr: string | null;
+    betriebsnummer?: string | null;
   };
   absender: string | null;
   kunde: { name: string; adresse: string | null };
@@ -231,7 +232,8 @@ export async function belegPdf(d: BelegDruck): Promise<Blob> {
   const adresse = b.plz && b.ort ? `${[b.strasse, b.hausnummer].filter(Boolean).join(' ')}, ${b.plz} ${b.ort}`.replace(/^, /, '') : (b.adresse ?? '').replace(/\n/g, ', ');
   const kontakt = [adresse, b.telefon && `Tel. ${b.telefon}`, b.email].filter(Boolean).join('  |  ');
   if (kontakt) text(kontakt, { groesse: 9, farbe: [91, 107, 94] });
-  if (b.mwst_nr) text(`MWST-Nr. ${b.mwst_nr}`, { groesse: 9, farbe: [91, 107, 94] });
+  const nummern = [b.betriebsnummer && `Betriebsnr. ${b.betriebsnummer}`, b.mwst_nr && `MWST-Nr. ${b.mwst_nr}`].filter(Boolean).join('  |  ');
+  if (nummern) text(nummern, { groesse: 9, farbe: [91, 107, 94] });
 
   // Empfänger (Fensterposition rechts)
   y = 50;

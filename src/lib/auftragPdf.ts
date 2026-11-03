@@ -1,7 +1,7 @@
 import { datum } from './format';
 
 export interface AuftragDruck {
-  betrieb: { name: string; adresse: string | null; telefon: string | null; email: string | null };
+  betrieb: { name: string; adresse: string | null; telefon: string | null; email: string | null; betriebsnummer?: string | null };
   absender: string | null;
   partner: { name: string; kontaktperson: string | null; adresse: string | null; email: string | null };
   auftrag: {
@@ -99,6 +99,7 @@ export async function auftragPdf(d: AuftragDruck): Promise<Blob> {
   text(d.betrieb.name, { groesse: 16, fett: true, farbe: gruen });
   const kontakt = [d.betrieb.adresse?.replace(/\n/g, ', '), d.betrieb.telefon && `Tel. ${d.betrieb.telefon}`, d.betrieb.email].filter(Boolean).join('  |  ');
   if (kontakt) text(kontakt, { groesse: 9, farbe: [91, 107, 94] });
+  if (d.betrieb.betriebsnummer) text(`Betriebsnr. ${d.betrieb.betriebsnummer}`, { groesse: 9, farbe: [91, 107, 94] });
   y += 6;
 
   // Empfänger und Kopfdaten
@@ -200,7 +201,7 @@ export async function auftragPdf(d: AuftragDruck): Promise<Blob> {
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8);
     doc.setTextColor(120, 130, 122);
-    doc.text(pdfText(`${d.betrieb.name} - Auftrag ${d.auftrag.nummer} - Seite ${i}/${seiten}`), links, 290);
+    doc.text(pdfText(`${d.betrieb.name}${d.betrieb.betriebsnummer ? ` (Betriebsnr. ${d.betrieb.betriebsnummer})` : ''} - Auftrag ${d.auftrag.nummer} - Seite ${i}/${seiten}`), links, 290);
   }
   return doc.output('blob');
 }

@@ -148,7 +148,7 @@ export function Kartei() {
       </div>
 
       <h2 className="hidden print:block">
-        {betrieb.data?.name} · Ackerschlagkartei {jahr} · erstellt {datum(new Date())}
+        {betrieb.data?.name}{betrieb.data?.betriebsnummer && ` · Betriebsnr. ${betrieb.data.betriebsnummer}`} · Ackerschlagkartei {jahr} · erstellt {datum(new Date())}
       </h2>
 
       {arbeiten.isLoading && <p className="text-leise">Lade …</p>}

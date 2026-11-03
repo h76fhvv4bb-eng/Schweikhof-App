@@ -2,6 +2,7 @@ import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { Icon, type IconName } from './Icon';
 import { useAuth } from '../lib/auth';
 import { APP_KURZ } from '../lib/marke';
+import { useBetrieb } from '../lib/daten';
 
 export const NAVIGATION: { pfad: string; text: string; icon: IconName; gruppe: string }[] = [
   { pfad: '/', text: 'Heute', icon: 'heute', gruppe: 'Übersicht' },
@@ -17,6 +18,8 @@ export const NAVIGATION: { pfad: string; text: string; icon: IconName; gruppe: s
   { pfad: '/maschinen', text: 'Maschinen', icon: 'traktor', gruppe: 'Betrieb' },
   { pfad: '/mitarbeiter', text: 'Mitarbeitende', icon: 'partner', gruppe: 'Betrieb' },
   { pfad: '/partner', text: 'Partner', icon: 'partner', gruppe: 'Betrieb' },
+  { pfad: '/weide', text: 'Weidegäste', icon: 'weide', gruppe: 'Betrieb' },
+  { pfad: '/betrieb', text: 'Betrieb', icon: 'heute', gruppe: 'Betrieb' },
   { pfad: '/auftraege', text: 'Aufträge', icon: 'auftrag', gruppe: 'Betrieb' },
 ];
 
@@ -30,6 +33,7 @@ const unten: { pfad: string; text: string; icon: IconName }[] = [
 export function AppShell() {
   const { profil, abmelden } = useAuth();
   const ort = useLocation();
+  useBetrieb(); // lädt die Betriebsdaten früh (Betriebsnummer in allen Exporten)
   const gruppen = [...new Set(NAVIGATION.map((n) => n.gruppe))];
   return (
     <div className="md:flex md:min-h-screen">

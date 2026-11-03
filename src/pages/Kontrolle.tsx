@@ -4,6 +4,8 @@ import { useKulturen } from '../lib/daten';
 import { fehlertext } from '../lib/supabase';
 import { aufzeichnungenPruefen, parzellenblaetterLaden, type Pruefpunkt } from '../lib/kontrolle';
 import { fruchtfolgePdf, parzellenblaetterPdf } from '../lib/kontrollePdf';
+import { duengerbilanzPdf, kontrollmappePdf, verkaeufePdf, weidePdf } from '../lib/berichtePdf';
+import { mappeLaden, verkaeufeLaden, weideLaden } from '../lib/berichte';
 import { pdfHerunterladen } from '../lib/auftragPdf';
 import { Icon } from '../components/Icon';
 
@@ -43,6 +45,15 @@ export function Kontrolle() {
       const d = await parzellenblaetterLaden(jahr);
       pdfHerunterladen(await parzellenblaetterPdf(d, nurMitInhalt), `Parzellenblaetter_${jahr}.pdf`);
     });
+  const mappe = () =>
+    mit('alles', async () => {
+      const d = await mappeLaden(jahr, kulturen.data ?? []);
+      setPunkte(d.pruefpunkte);
+      pdfHerunterladen(await kontrollmappePdf(d), `Unterlagen_${jahr}.pdf`);
+    });
+  const duenger = () => mit('db', async () => pdfHerunterladen(await duengerbilanzPdf(await parzellenblaetterLaden(jahr)), `Duengerbilanz_${jahr}.pdf`));
+  const verkaeufe = () => mit('vk', async () => pdfHerunterladen(await verkaeufePdf(await verkaeufeLaden(jahr)), `Verkaeufe_${jahr}.pdf`));
+  const weide = () => mit('wd', async () => pdfHerunterladen(await weidePdf(await weideLaden(`${jahr}-01-01`, `${jahr}-12-31`)), `Weidegaeste_${jahr}.pdf`));
   const pruefen = () => mit('pr', async () => setPunkte(await aufzeichnungenPruefen(jahr, kulturen.data ?? [])));
 
   const farbe = { fehlt: 'bg-fehler-hell text-fehler', pruefen: 'bg-warn-hell text-[#5C3D00]', info: 'bg-[#E6F0F8] text-[#2D5F86]' };
@@ -65,8 +76,20 @@ export function Kontrolle() {
         </div>
       </header>
 
+      <section className="flex flex-col gap-3 rounded-[22px] bg-hof p-5 text-white">
+        <span className="text-xs font-bold tracking-wider text-[#CFE3C9]">ALLES AUF KNOPFDRUCK</span>
+        <h2 className="m-0 text-xl font-extrabold">Unterlagen {jahr} in einem PDF</h2>
+        <span className="text-sm text-[#E4F0E0]">
+          Deckblatt mit Betriebsangaben und Inhalt, Hinweise zu den Aufzeichnungen, Fruchtfolge {jahr - 4}–{jahr + 2}, Parzellenblätter, Düngerbilanz,
+          Verkäufe und Weidegäste.
+        </span>
+        <button className="knopf self-start bg-white text-hof" onClick={mappe} disabled={!!laeuft}>
+          {laeuft === 'alles' ? 'Stelle zusammen …' : 'Alle Unterlagen (PDF)'}
+        </button>
+      </section>
+
       <section className="karte flex flex-col gap-3">
-        <h2 className="m-0 text-lg font-extrabold">Unterlagen als PDF</h2>
+        <h2 className="m-0 text-lg font-extrabold">Einzelne Unterlagen</h2>
         <div className="flex flex-col gap-2 rounded-2xl bg-grund p-3">
           <span className="font-extrabold">Fruchtfolge (farbig)</span>
           <span className="text-sm text-leise">Alle Felder ohne Dauergrünland, Hauptkultur farbig, Saat/Ernte, Zwischenkulturen, Flächen je Kultur.</span>
@@ -98,7 +121,19 @@ export function Kontrolle() {
             {laeuft === 'pb' ? 'Erstelle …' : 'Parzellenblätter-PDF'}
           </button>
         </div>
+        <div className="flex flex-wrap gap-2">
+          <button className="knopf-leise" onClick={duenger} disabled={!!laeuft}>
+            {laeuft === 'db' ? 'Erstelle …' : `Düngerbilanz ${jahr}`}
+          </button>
+          <button className="knopf-leise" onClick={verkaeufe} disabled={!!laeuft}>
+            {laeuft === 'vk' ? 'Erstelle …' : `Verkäufe ${jahr}`}
+          </button>
+          <button className="knopf-leise" onClick={weide} disabled={!!laeuft}>
+            {laeuft === 'wd' ? 'Erstelle …' : `Weidegäste ${jahr}`}
+          </button>
+        </div>
         <div className="flex flex-wrap gap-3 text-sm font-bold">
+          <Link to="/betrieb">Betriebsangaben</Link>
           <Link to="/kartei">Ackerschlagkartei (Excel/Druck)</Link>
           <Link to="/naehrstoffe">Nährstoffe je Feld</Link>
           <Link to="/ernte">Ernte und Erträge</Link>

@@ -198,3 +198,14 @@ Eine unabhängige Durchsicht hat die Verbindungen zwischen den Modulen geprüft.
 - Ein Anbau kann gelöscht werden, ohne dass Arbeiten oder Ernten verschwinden; die Zuordnung zum Anbau wird nachgeführt.
 - Ein Feld mit geplanten Arbeiten oder offenen Aufträgen kann nicht in den Papierkorb.
 - Name und Status der Mitarbeitenden folgen dem Benutzerprofil.
+
+## 2026-11-03 · Betriebsverwaltung, Weidegäste, Unterlagen (Migration 18)
+- Betriebsangaben haben eine eigene Seite «Betrieb» (Übersicht, Bearbeiten nur für Administratoren). Neu: Bewirtschafter/in,
+  Gemeinde, Bank, Website. Die Betriebsnummer steht auf allen PDFs (Kopf oder Fusszeile) und als Zeile in jedem CSV.
+- Weidegäste (`beweidungen`, `beweidung_felder`): Tierhalter ist ein Partner (neue Art «Tierhalter»), Zeitraum mit offenem
+  Ende, Felder mit Teilfläche, GVE optional. Weidezins pauschal, je Tier und Tag, je GVE und Tag oder je ha. Eine Rechnung
+  übernimmt Tierhalter und Betrag und wird mit dem Eintrag verknüpft. Weidetage zählen Beginn und Ende mit.
+- Im Parzellenblatt erscheint die Weide unter «Ernte / Nutzung» mit Beginn und Ende.
+- Die Düngerbilanz zeigt ausgebrachte Nährstoffe aus den erfassten Arbeiten; sie ist ausdrücklich keine Suisse-Bilanz.
+- «Alle Unterlagen» erstellt ein PDF: Deckblatt mit Betriebsangaben und Inhaltsverzeichnis, Hinweise, Fruchtfolge (Jahr −4
+  bis +2), Parzellenblätter, Düngerbilanz, Verkäufe, Weidegäste. Hoch- und Querformat gemischt.

@@ -25,6 +25,8 @@ import { Aufgaben } from './pages/Aufgaben';
 import { MitarbeiterSeite } from './pages/Mitarbeiter';
 import { VerkaufFormular, VerkaufListe } from './pages/Verkauf';
 import { Kontrolle } from './pages/Kontrolle';
+import { BetriebSeite } from './pages/Betrieb';
+import { WeideFormular, WeideListe } from './pages/Weide';
 
 export function App() {
   const { session, profil, laedt, passwortNeu } = useAuth();
@@ -63,6 +65,10 @@ export function App() {
         <Route path="lager/neu" element={<LagerArtikel />} />
         <Route path="lager/:id" element={<LagerArtikel />} />
         <Route path="mehr" element={<Mehr />} />
+        <Route path="betrieb" element={<BetriebSeite />} />
+        <Route path="weide" element={<WeideListe />} />
+        <Route path="weide/neu" element={<WeideFormular />} />
+        <Route path="weide/:id" element={<WeideFormular />} />
         <Route path="benutzer" element={<Benutzer />} />
         <Route path="mitarbeiter" element={<MitarbeiterSeite />} />
         <Route path="verkauf" element={<VerkaufListe />} />

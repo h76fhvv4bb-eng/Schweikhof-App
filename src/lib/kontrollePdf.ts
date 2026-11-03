@@ -5,7 +5,7 @@ import type { Betrieb, Feld } from './typen';
 import type { KontrollDaten, Parzellenblatt } from './kontrolle';
 import { ABSCHNITT_VON } from './kontrolle';
 
-const pdfText = (s: string) =>
+export const pdfText = (s: string) =>
   s
     .replace(/[–—]/g, '-')
     .replace(/[‘’]/g, "'")
@@ -14,27 +14,30 @@ const pdfText = (s: string) =>
     .replace(/₂/g, '2')
     .replace(/₅/g, '5')
     .replace(/[^\x0A\x20-\x7E\xA0-\xFF]/g, '');
-const zahl = (n: number | null | undefined, stellen = 2) =>
+export const zahl = (n: number | null | undefined, stellen = 2) =>
   n == null ? '' : new Intl.NumberFormat('de-CH', { maximumFractionDigits: stellen }).format(n).replace(/’/g, "'");
-const tagMonat = (iso: string | null | undefined) => (iso ? `${iso.slice(8, 10)}.${iso.slice(5, 7)}.` : '');
+export const tagMonat = (iso: string | null | undefined) => (iso ? `${iso.slice(8, 10)}.${iso.slice(5, 7)}.` : '');
 const monat = (iso: string | null | undefined) => (iso ? `${iso.slice(5, 7)}/${iso.slice(2, 4)}` : '');
-const heute = () => {
+export const heute = () => {
   const d = new Date();
   return `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}.${d.getFullYear()}`;
 };
 
-const GRUEN: [number, number, number] = [31, 77, 46];
-const HELLGRUEN: [number, number, number] = [214, 236, 210];
-const LINIE: [number, number, number] = [150, 170, 150];
+export const GRUEN: [number, number, number] = [31, 77, 46];
+export const HELLGRUEN: [number, number, number] = [214, 236, 210];
+export const LINIE: [number, number, number] = [150, 170, 150];
 
-interface Spalte {
+export interface Spalte {
   titel: string;
   breite: number;
   rechts?: boolean;
 }
 
 /** Zeichnet eine Tabelle mit grünem Kopf, Seitenumbruch und mindestens «leer» Leerzeilen zum Nachtragen von Hand */
-function tabelle(doc: jsPDF, y: number, abschnitt: string, spalten: Spalte[], zeilen: string[][], opt: { links: number; unten: number; leer?: number; neueSeite: () => number }) {
+export function tabelle(
+  doc: jsPDF, y: number, abschnitt: string, spalten: Spalte[], zeilen: string[][],
+  opt: { links: number; unten: number; leer?: number; neueSeite: () => number; fett?: (i: number) => boolean },
+) {
   const zeilenHoehe = 6;
   const kopf = () => {
     const kopfZeilen = Math.max(...spalten.map((s) => (doc.splitTextToSize(pdfText(s.titel), s.breite - 2) as string[]).length));
@@ -59,17 +62,18 @@ function tabelle(doc: jsPDF, y: number, abschnitt: string, spalten: Spalte[], ze
   if (y + 9 + zeilenHoehe * 2 > opt.unten) y = opt.neueSeite();
   kopf();
   const alle = [...zeilen];
-  while (alle.length < Math.max(opt.leer ?? 2, zeilen.length + 1)) alle.push(spalten.map(() => ''));
+  // leer: 0 = keine Leerzeilen (Listen), sonst mindestens eine freie Zeile zum Nachtragen
+  while (alle.length < Math.max(opt.leer ?? 2, zeilen.length + (opt.leer === 0 ? 0 : 1))) alle.push(spalten.map(() => ''));
   doc.setTextColor(30, 42, 32);
-  for (const z of alle) {
-    doc.setFont('helvetica', 'normal');
+  for (const [zi, z] of alle.entries()) {
+    doc.setFont('helvetica', opt.fett?.(zi) ? 'bold' : 'normal');
     doc.setFontSize(7.5);
     const teile = z.map((w, i) => doc.splitTextToSize(pdfText(w ?? ''), spalten[i].breite - 2) as string[]);
     const h = Math.max(zeilenHoehe, Math.max(...teile.map((t) => t.length)) * 3.2 + 2.2);
     if (y + h > opt.unten) {
       y = opt.neueSeite();
       kopf();
-      doc.setFont('helvetica', 'normal');
+      doc.setFont('helvetica', opt.fett?.(zi) ? 'bold' : 'normal');
       doc.setFontSize(7.5);
       doc.setTextColor(30, 42, 32);
     }
@@ -101,7 +105,7 @@ function parzellenblatt(doc: jsPDF, b: Parzellenblatt, betrieb: Betrieb | null) 
     y += 14;
   };
   const neueSeite = () => {
-    doc.addPage();
+    doc.addPage('a4', 'portrait');
     y = 12;
     kopfzeile(true);
     doc.setTextColor(30, 42, 32);
@@ -224,13 +228,17 @@ function parzellenblatt(doc: jsPDF, b: Parzellenblatt, betrieb: Betrieb | null) 
     ];
   });
   const nutzung = arbeiten('nutzung').map((a) => [a.arbeitsart, tagMonat(a.datum), zahl(a.teil_ha), '', '', '', bem(a)]);
+  const weiden = (b.weiden ?? []).map((w) => [
+    `Weide (Gasttiere)`, tagMonat(w.von), zahl(w.ha), '', '', w.bis ? tagMonat(w.bis) : 'offen',
+    [`${w.anzahl} ${w.tierart}`, w.gve != null ? `${zahl(w.gve, 1)} GVE` : null, w.partner].filter(Boolean).join(' · '),
+  ]);
   y = tabelle(
     doc, y, 'Ernte / Nutzung',
     [
       { titel: '', breite: 42 }, { titel: 'Beginn Tag/Monat', breite: 16 }, { titel: 'Teilfläche ha', breite: 16, rechts: true },
       { titel: 'Ertrag dt pro Parzelle', breite: 19, rechts: true }, { titel: 'Ertrag dt pro ha', breite: 17, rechts: true }, { titel: 'Ende Tag/Monat', breite: 16 }, { titel: 'Bemerkungen', breite: 60 },
     ],
-    [...ernteZeilen, ...nutzung].sort((x, z) => x[1].split('.').reverse().join('').localeCompare(z[1].split('.').reverse().join(''))),
+    [...ernteZeilen, ...nutzung, ...weiden].sort((x, z) => x[1].split('.').reverse().join('').localeCompare(z[1].split('.').reverse().join(''))),
     opt(3),
   );
 
@@ -248,32 +256,43 @@ function parzellenblatt(doc: jsPDF, b: Parzellenblatt, betrieb: Betrieb | null) 
   void y;
 }
 
-function fusszeilen(doc: jsPDF, text: string, querformat = false) {
+/** Fusszeile auf den Seiten von..bis (Standard: alle); Höhe nach Hoch- oder Querformat der Seite */
+export function fusszeilen(doc: jsPDF, text: string, von = 1, bis = doc.getNumberOfPages()) {
   const seiten = doc.getNumberOfPages();
-  for (let i = 1; i <= seiten; i++) {
+  for (let i = von; i <= bis; i++) {
     doc.setPage(i);
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(7);
     doc.setTextColor(120, 130, 122);
-    doc.text(pdfText(`${text} - erstellt am ${heute()} mit ${APP_NAME} - Seite ${i}/${seiten}`), 12, querformat ? 203 : 291);
+    doc.text(pdfText(`${text} - erstellt am ${heute()} mit ${APP_NAME} - Seite ${i}/${seiten}`), 12, doc.internal.pageSize.getHeight() - 6);
   }
 }
+
+/** Betrieb für Kopf- und Fusszeilen: «Name · Betriebsnr. X» */
+export const betriebZeile = (b: Pick<Betrieb, 'name' | 'betriebsnummer'> | null | undefined) =>
+  [b?.name, b?.betriebsnummer && `Betriebsnr. ${b.betriebsnummer}`].filter(Boolean).join(' - ');
 
 /** Parzellenblätter als PDF: jedes Feld auf eigener Seite (bei vielen Einträgen mehrere Seiten) */
 export async function parzellenblaetterPdf(d: KontrollDaten, nurMitInhalt = false): Promise<Blob> {
   const { jsPDF } = await import('jspdf');
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
-  const blaetter = d.blaetter.filter((b) => !nurMitInhalt || b.arbeiten.length || b.ernten.length || b.hauptkultur);
+  parzellenblaetterSeiten(doc, d, nurMitInhalt, false);
+  fusszeilen(doc, `Parzellenblätter ${d.jahr} - ${betriebZeile(d.betrieb)}`);
+  return doc.output('blob');
+}
+
+/** Zeichnet die Parzellenblätter in ein bestehendes PDF (neueSeite: zuerst eine Seite anfügen) */
+export function parzellenblaetterSeiten(doc: jsPDF, d: KontrollDaten, nurMitInhalt: boolean, neueSeite: boolean) {
+  const blaetter = d.blaetter.filter((b) => !nurMitInhalt || b.arbeiten.length || b.ernten.length || b.hauptkultur || b.weiden?.length);
   blaetter.forEach((b, i) => {
-    if (i > 0) doc.addPage();
+    if (i > 0 || neueSeite) doc.addPage('a4', 'portrait');
     parzellenblatt(doc, b, d.betrieb);
   });
   if (!blaetter.length) {
+    if (neueSeite) doc.addPage('a4', 'portrait');
     doc.setFontSize(12);
     doc.text('Keine Felder.', 20, 20);
   }
-  fusszeilen(doc, `Parzellenblätter ${d.jahr}${d.betrieb ? ` - ${d.betrieb.name}` : ''}`);
-  return doc.output('blob');
 }
 
 // ---------------------------------------------------------------- Fruchtfolge
@@ -305,15 +324,23 @@ export async function fruchtfolgeLaden(von: number, bis: number): Promise<Frucht
 }
 
 export async function fruchtfolgeZeichnen(daten: FruchtfolgeDaten): Promise<Blob> {
+  const { jsPDF } = await import('jspdf');
+  const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'landscape' });
+  fruchtfolgeSeiten(doc, daten, false);
+  fusszeilen(doc, `Fruchtfolge ${daten.von}-${daten.bis} - ${betriebZeile(daten.betrieb)}`);
+  return doc.output('blob');
+}
+
+/** Zeichnet die Fruchtfolge (A4 quer) in ein bestehendes PDF */
+export function fruchtfolgeSeiten(doc: jsPDF, daten: FruchtfolgeDaten, neueSeite: boolean) {
   const { von, bis, betrieb } = daten;
+  if (neueSeite) doc.addPage('a4', 'landscape');
   const alle = [...daten.felder].sort((a, b) => a.feldnummer.localeCompare(b.feldnummer, 'de-CH', { numeric: true }));
   const felder = alle.filter((f) => f.nutzungsart !== 'Dauergrünland');
   const dauer = alle.filter((f) => f.nutzungsart === 'Dauergrünland');
   const anbau = daten.anbau;
   const jahre = Array.from({ length: bis - von + 1 }, (_, i) => von + i);
 
-  const { jsPDF } = await import('jspdf');
-  const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'landscape' });
   const links = 10;
   const rechts = 287;
   const unten = 196;
@@ -327,7 +354,7 @@ export async function fruchtfolgeZeichnen(daten: FruchtfolgeDaten): Promise<Blob
     doc.setFontSize(13);
     doc.text(pdfText(`Fruchtfolge ${von}-${bis}`), links + 3, y + 7);
     doc.setFontSize(9);
-    doc.text(pdfText([betrieb?.name, betrieb?.betriebsnummer && `Betriebsnr. ${betrieb.betriebsnummer}`].filter(Boolean).join(' - ')), rechts - 3, y + 7, { align: 'right' });
+    doc.text(pdfText(betriebZeile(betrieb)), rechts - 3, y + 7, { align: 'right' });
     y += 13;
   };
   titel();
@@ -372,7 +399,7 @@ export async function fruchtfolgeZeichnen(daten: FruchtfolgeDaten): Promise<Blob
   const zeilenHoehe = 11;
   for (const f of felder) {
     if (y + zeilenHoehe > unten - 4) {
-      doc.addPage();
+      doc.addPage('a4', 'landscape');
       y = 12;
       titel();
       kopf();
@@ -423,7 +450,7 @@ export async function fruchtfolgeZeichnen(daten: FruchtfolgeDaten): Promise<Blob
   if (kulturen.length) {
     y += 4;
     if (y + 6 * (kulturen.length + 2) > unten) {
-      doc.addPage();
+      doc.addPage('a4', 'landscape');
       y = 12;
       titel();
     }
@@ -469,6 +496,4 @@ export async function fruchtfolgeZeichnen(daten: FruchtfolgeDaten): Promise<Blob
       y,
     );
   }
-  fusszeilen(doc, `Fruchtfolge ${von}-${bis}${betrieb ? ` - ${betrieb.name}` : ''}`, true);
-  return doc.output('blob');
 }

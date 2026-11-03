@@ -1,6 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from './supabase';
+import { exportBetrieb } from './export';
 import type {
+  Beweidung,
   Anbau, Feld, Feldarbeit, FeldHinweis, FlaecheJeKultur, Hofobjekt, Kultur, Lagerbestand, Maschine, MaschinenEintrag,
   NaehrstoffeJeFeld, Partner, WartungFaellig, Wartungsplan, Auftrag, Ernte, Kartenobjekt, Aufgabe, Mitarbeiter, Betrieb, Verkauf, Foto, MaschinenTeil,
 } from './typen';
@@ -133,7 +135,7 @@ export function useBenutzer() {
 }
 
 /** Nach jeder Buchung: alles neu laden, was vom Lager oder den Arbeiten abhängt. */
-export const ABHAENGIGE_DATEN = [['lager'], ['feldarbeiten'], ['feldarbeit'], ['naehrstoffe'], ['lagerjournal'], ['maschinen'], ['maschineneintraege'], ['wartung'], ['aufgaben'], ['mitarbeiter_stunden'], ['auftraege'], ['fotos'], ['flaeche_je_kultur'], ['maschine_teile']];
+export const ABHAENGIGE_DATEN = [['lager'], ['feldarbeiten'], ['feldarbeit'], ['naehrstoffe'], ['lagerjournal'], ['maschinen'], ['maschineneintraege'], ['wartung'], ['aufgaben'], ['mitarbeiter_stunden'], ['auftraege'], ['fotos'], ['flaeche_je_kultur'], ['maschine_teile'], ['beweidungen']];
 
 export function useBetrieb() {
   return useQuery({
@@ -142,6 +144,7 @@ export function useBetrieb() {
     queryFn: async () => {
       const { data, error } = await supabase.from('betriebe').select('*').maybeSingle();
       if (error) throw error;
+      exportBetrieb(data as Betrieb | null);
       return data as Betrieb | null;
     },
   });
@@ -154,6 +157,20 @@ export function useHofobjekte() {
       const { data, error } = await supabase.from('hofobjekte').select('*').order('typ');
       if (error) throw error;
       return data as Hofobjekt[];
+    },
+  });
+}
+
+/** Weidegäste; optional nur ein Partner oder ein Feld */
+export function useBeweidungen(filter: { partner_id?: string; feld_id?: string } = {}) {
+  return useQuery({
+    queryKey: ['beweidungen', filter.partner_id ?? null, filter.feld_id ?? null],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('beweidungen').select('*, beweidung_felder(feld_id, flaeche_m2)').order('von', { ascending: false });
+      if (error) return [] as Beweidung[];
+      return (data as Beweidung[]).filter(
+        (b) => (!filter.partner_id || b.partner_id === filter.partner_id) && (!filter.feld_id || b.beweidung_felder.some((f) => f.feld_id === filter.feld_id)),
+      );
     },
   });
 }

@@ -1,9 +1,10 @@
 import { Link } from 'react-router-dom';
 import { useAuth } from '../lib/auth';
-import { useAufgaben, useFeldarbeiten, useFelder, useFlaecheJeKultur, useGeplanteArbeiten, useLager, useMaschinen, useMaschinenEintraege, useWartungFaellig } from '../lib/daten';
+import { useAufgaben, useBeweidungen, usePartner, useFeldarbeiten, useFelder, useFlaecheJeKultur, useGeplanteArbeiten, useLager, useMaschinen, useMaschinenEintraege, useWartungFaellig } from '../lib/daten';
 import { tageBis } from './Maschinen';
 import { datum, ha, menge, wochentagDatum } from '../lib/format';
 import { Icon } from '../components/Icon';
+import { aktiv, weidetage } from '../lib/weide';
 
 export function Heute() {
   const { profil } = useAuth();
@@ -37,6 +38,10 @@ export function Heute() {
       .map((m) => ({ id: `mfk-${m.id}`, maschine: m.id, text: `MFK ${(tageBis(m.mfk_faellig) ?? 0) < 0 ? 'abgelaufen' : 'bald'}`, rot: (tageBis(m.mfk_faellig) ?? 0) < 0 })),
     ...(maschEintraege.data ?? []).filter((e) => e.offen).map((e) => ({ id: e.id, maschine: e.maschine_id, text: e.titel, rot: false })),
   ];
+
+  const weiden = useBeweidungen();
+  const partner = usePartner();
+  const aufDerWeide = (weiden.data ?? []).filter(aktiv);
 
   const aktive = (felder.data ?? []).filter((f) => f.status === 'bewirtschaftet');
   const gesamtM2 = aktive.reduce((s, f) => s + Number(f.flaeche_m2), 0);
@@ -93,6 +98,24 @@ export function Heute() {
             <span className="font-extrabold">Kulturen {jahr} unvollständig</span>
             <span className="text-sm text-leise">{ha(fruchtfolgeM2 - zugeordnetM2)} ohne Kultur. In der Fruchtfolge ergänzen.</span>
           </span>
+        </Link>
+      )}
+
+      {aufDerWeide.length > 0 && (
+        <Link to="/weide" className="karte flex flex-col gap-2 text-text no-underline">
+          <span className="flex items-center gap-2 text-xs font-extrabold text-hof">
+            <Icon name="weide" groesse={16} /> TIERE AUF DER WEIDE
+          </span>
+          {aufDerWeide.slice(0, 4).map((b) => (
+            <span key={b.id} className="flex justify-between gap-2 text-sm">
+              <span className="font-bold">
+                {b.anzahl} {b.tierart} · {partner.data?.find((p) => p.id === b.partner_id)?.name ?? ''}
+              </span>
+              <span className="text-right text-leise">
+                {b.beweidung_felder.map((f) => feldName.get(f.feld_id)).join(', ')} · {weidetage(b)}. Tag
+              </span>
+            </span>
+          ))}
         </Link>
       )}
 

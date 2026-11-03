@@ -311,7 +311,7 @@ export function AuftragFormular() {
       anbau.data?.find((a) => a.feld_id === feldId)?.kulturen?.name ??
       null;
     return {
-      betrieb: { name: betrieb.data?.name ?? 'Betrieb', adresse: betrieb.data?.adresse ?? null, telefon: betrieb.data?.telefon ?? null, email: betrieb.data?.email ?? session?.user.email ?? null },
+      betrieb: { name: betrieb.data?.name ?? 'Betrieb', adresse: betrieb.data?.adresse ?? null, telefon: betrieb.data?.telefon ?? null, email: betrieb.data?.email ?? session?.user.email ?? null, betriebsnummer: betrieb.data?.betriebsnummer ?? null },
       absender: profil?.name ?? null,
       partner: {
         name: gewaehlterPartner?.name ?? '',

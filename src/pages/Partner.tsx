@@ -3,7 +3,8 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase, fehlertext } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
-import { useAuftraege, useErnten, useFelder, usePartner, useVerrechneteAbgaben } from '../lib/daten';
+import { useAuftraege, useBeweidungen, useErnten, useFelder, usePartner, useVerrechneteAbgaben } from '../lib/daten';
+import { aktiv, weidetage, weidezins } from '../lib/weide';
 import { AuftragStatus } from './Auftraege';
 import { chf, datum } from '../lib/format';
 import { PARTNERARTEN, type Partner } from '../lib/typen';
@@ -188,6 +189,7 @@ export function PartnerFormular() {
         )}
       </form>
       {p && <PartnerAuftraege partnerId={p.id} art={p.art} />}
+      {p && <PartnerWeide partnerId={p.id} art={p.art} />}
       {p && <PartnerAbnahmen partnerId={p.id} />}
       {p && <Verlauf art="partner" id={p.id} titel="Arbeiten durch diesen Partner" />}
     </div>
@@ -227,6 +229,50 @@ function PartnerAuftraege({ partnerId, art }: { partnerId: string; art: Partner[
 }
 
 /** Was dieser Partner aus der Ernte übernommen hat (Verkauf/Abgabe) inkl. Zahlungsstatus */
+/** Tiere dieses Partners auf unseren Feldern */
+function PartnerWeide({ partnerId, art }: { partnerId: string; art: Partner['art'] }) {
+  const { darfVerwalten } = useAuth();
+  const weiden = useBeweidungen({ partner_id: partnerId });
+  const felder = useFelder();
+  const liste = weiden.data ?? [];
+  if (art !== 'Tierhalter' && !liste.length) return null;
+  const fName = (id: string) => felder.data?.find((f) => f.id === id)?.name ?? '?';
+  return (
+    <section className="karte flex flex-col gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="m-0 text-lg font-extrabold">Weide auf unseren Feldern</h2>
+        <div className="flex gap-2">
+          {liste.length > 0 && (
+            <Link to={`/weide?partner=${partnerId}`} className="knopf-leise min-h-10 no-underline">
+              Export
+            </Link>
+          )}
+          {darfVerwalten && (
+            <Link to={`/weide/neu?partner=${partnerId}`} className="knopf min-h-10 no-underline">
+              <Icon name="plus" /> Weide
+            </Link>
+          )}
+        </div>
+      </div>
+      {!liste.length && <span className="text-sm text-leise">Noch keine Weide erfasst.</span>}
+      {liste.map((b) => {
+        const z = weidezins(b);
+        return (
+          <Link key={b.id} to={`/weide/${b.id}`} className="flex flex-col rounded-xl bg-grund p-2 text-sm text-text no-underline">
+            <span className="font-bold">
+              {b.anzahl} {b.tierart} · {datum(b.von)} – {b.bis ? datum(b.bis) : 'offen'} ({weidetage(b)} Tage){aktiv(b) && ' · auf der Weide'}
+            </span>
+            <span className="text-leise">
+              {b.beweidung_felder.map((f) => fName(f.feld_id)).join(', ')}
+              {z && ` · Weidezins ${chf(z.betrag)}${b.verkauf_id ? ' (verrechnet)' : ' (offen)'}`}
+            </span>
+          </Link>
+        );
+      })}
+    </section>
+  );
+}
+
 function PartnerAbnahmen({ partnerId }: { partnerId: string }) {
   const { darfVerwalten } = useAuth();
   const qc = useQueryClient();

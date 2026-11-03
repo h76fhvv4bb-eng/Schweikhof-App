@@ -3,7 +3,8 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase, fehlertext } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
-import { useBetrieb, useErnten, useFelder, useLager, usePartner, useVerkaeufe, useVerkauf, useVerrechneteAbgaben } from '../lib/daten';
+import { useBetrieb, useBeweidungen, useErnten, useFelder, useLager, usePartner, useVerkaeufe, useVerkauf, useVerrechneteAbgaben } from '../lib/daten';
+import { weidezins } from '../lib/weide';
 import { chf, datum, heuteIso, menge, zahlAus } from '../lib/format';
 import { belegPdf, belegSummen, qrMoeglich, type BelegDruck } from '../lib/belegPdf';
 import { pdfHerunterladen, pdfPerMail } from '../lib/auftragPdf';
@@ -52,6 +53,19 @@ export function VerkaufListe() {
       .map((a) => ({ e, a, produkt: e.ernte_produkte.find((p) => p.id === a.produkt_id)?.produkt ?? '' })),
   );
 
+  const [laeuft, setLaeuft] = useState(false);
+  async function journal() {
+    setLaeuft(true);
+    try {
+      const [{ verkaeufeLaden }, { verkaeufePdf }] = await Promise.all([import('../lib/berichte'), import('../lib/berichtePdf')]);
+      pdfHerunterladen(await verkaeufePdf(await verkaeufeLaden(jahr)), `Verkaeufe_${jahr}.pdf`);
+    } catch (e) {
+      alert(fehlertext(e));
+    } finally {
+      setLaeuft(false);
+    }
+  }
+
   function exportieren() {
     csvHerunterladen(
       `verkaeufe_${jahr}.csv`,
@@ -78,10 +92,15 @@ export function VerkaufListe() {
           <button className="knopf-leise h-11 w-11 px-0" aria-label="Folgejahr" onClick={() => setJahr(jahr + 1)} disabled={jahr >= new Date().getFullYear()}>
             <Icon name="weiter" />
           </button>
-          {liste.length > 0 && (
-            <button className="knopf-leise" onClick={exportieren}>
-              Export (CSV)
-            </button>
+          {liste.length + ohneBeleg.length > 0 && (
+            <>
+              <button className="knopf-leise" onClick={journal} disabled={laeuft}>
+                {laeuft ? 'Erstelle …' : 'Verkäufe (PDF)'}
+              </button>
+              <button className="knopf-leise" onClick={exportieren}>
+                Export (CSV)
+              </button>
+            </>
           )}
           {darfVerwalten && (
             <>
@@ -201,7 +220,8 @@ export function VerkaufFormular() {
   const [arbeitet, setArbeitet] = useState(false);
   const [neuerPartner, setNeuerPartner] = useState(false);
   const [ernteWahl, setErnteWahl] = useState(false);
-  const geladen = useMemo(() => ({ id: '', abgabe: '' }), []);
+  const geladen = useMemo(() => ({ id: '', abgabe: '', weide: '' }), []);
+  const weiden = useBeweidungen();
 
   // Bestehenden Beleg laden
   useEffect(() => {
@@ -265,6 +285,24 @@ export function VerkaufFormular() {
     if (x.a.partner_id) setPartnerId(x.a.partner_id);
     setZeilen([{ bezeichnung: x.titel, menge: String(x.menge), einheit: x.einheit, preis: String(x.preis), artikel_id: null, vom_lager: false, ernte_abnehmer_id: x.a.id!, quelle: 'ernte' }]);
   }, [neu, params, ernteAbgaben, geladen]);
+
+  // Aus der Weide: ?beweidung=<id> → Tierhalter und Weidezins übernehmen
+  useEffect(() => {
+    const wid = params.get('beweidung');
+    const b = weiden.data?.find((x) => x.id === wid);
+    if (!neu || !b || geladen.weide === b.id) return;
+    const z = weidezins(b);
+    if (!z) return;
+    geladen.weide = b.id;
+    setPartnerId(b.partner_id);
+    const flaechen = b.beweidung_felder.map((f) => felder.data?.find((x) => x.id === f.feld_id)?.name).filter(Boolean).join(', ');
+    setZeilen([
+      {
+        bezeichnung: `Weidezins ${b.anzahl} ${b.tierart}, ${datum(b.von)} – ${b.bis ? datum(b.bis) : datum(new Date())}${flaechen ? ` (${flaechen})` : ''}`,
+        menge: String(z.menge), einheit: z.einheit, preis: String(z.preis), artikel_id: null, vom_lager: false, ernte_abnehmer_id: null, quelle: 'frei',
+      },
+    ]);
+  }, [neu, params, weiden.data, felder.data, geladen]);
 
   const aendere = (i: number, teil: Partial<Zeile>) => setZeilen(zeilen.map((z, j) => (j === i ? { ...z, ...teil } : z)));
   const gewaehlterPartner = partner.data?.find((p) => p.id === partnerId);
@@ -330,6 +368,13 @@ export function VerkaufFormular() {
     }
     const { data, error } = await supabase.rpc('verkauf_speichern', { p });
     if (error) return (setFehler(fehlertext(error)), null);
+    // Weidezins: Beleg mit dem Weide-Eintrag verknüpfen
+    const weideId = params.get('beweidung');
+    if (neu && weideId) {
+      const { error: e2 } = await supabase.from('beweidungen').update({ verkauf_id: data }).eq('id', weideId);
+      if (e2) setMeldung(`Beleg gespeichert, aber nicht mit der Weide verknüpft: ${fehlertext(e2)}`);
+      qc.invalidateQueries({ queryKey: ['beweidungen'] });
+    }
     ['verkaeufe', 'lager', 'lagerjournal', 'ernten'].forEach((k) => qc.invalidateQueries({ queryKey: [k] }));
     return data as string;
   }
@@ -342,7 +387,7 @@ export function VerkaufFormular() {
     const d: BelegDruck = {
       betrieb: {
         name: b.name, strasse: b.strasse ?? null, hausnummer: b.hausnummer ?? null, plz: b.plz ?? null, ort: b.ort ?? null, adresse: b.adresse,
-        telefon: b.telefon, email: b.email, iban: b.iban ?? null, mwst_nr: b.mwst_nr ?? null,
+        telefon: b.telefon, email: b.email, iban: b.iban ?? null, mwst_nr: b.mwst_nr ?? null, betriebsnummer: b.betriebsnummer ?? null,
       },
       absender: profil?.name ?? null,
       kunde: beleg.partner_id

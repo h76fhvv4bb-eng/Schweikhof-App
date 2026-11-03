@@ -100,6 +100,12 @@ const pfade = {
       <path d="M11 14h7l1-4h-6V6h-3" />
     </>
   ),
+  weide: (
+    <>
+      <path d="M5 20V7M12 20V7M19 20V7" />
+      <path d="M2 11h20M2 16h20" />
+    </>
+  ),
   partner: (
     <>
       <circle cx="9" cy="8" r="3" />

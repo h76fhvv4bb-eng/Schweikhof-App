@@ -191,7 +191,7 @@ export interface Hofobjekt {
 }
 
 export const PARTNERARTEN = [
-  'Lohnunternehmen', 'Mechaniker/Werkstatt', 'Händler/Lieferant', 'Berater', 'Abnehmer/Käufer', 'Behörde/Kontrolle', 'Andere',
+  'Lohnunternehmen', 'Mechaniker/Werkstatt', 'Händler/Lieferant', 'Berater', 'Abnehmer/Käufer', 'Tierhalter', 'Behörde/Kontrolle', 'Andere',
 ] as const;
 
 export interface Partner {
@@ -479,7 +479,32 @@ export interface Betrieb {
   mwst_nr?: string | null;
   zahlungsfrist_tage?: number;
   betriebsnummer?: string | null;
+  bewirtschafter?: string | null;
+  gemeinde?: string | null;
+  bank?: string | null;
+  website?: string | null;
   version: number;
+}
+
+export const ENTGELTARTEN = ['keins', 'pauschal', 'je Tier und Tag', 'je GVE und Tag', 'je ha'] as const;
+export const TIERARTEN = ['Rinder', 'Mutterkühe', 'Jungvieh', 'Kälber', 'Milchkühe', 'Schafe', 'Ziegen', 'Pferde', 'Esel', 'Alpakas/Lamas', 'Andere'];
+
+/** Tiere eines anderen Betriebs auf eigenen Feldern */
+export interface Beweidung {
+  id: string;
+  betrieb_id: string;
+  partner_id: string;
+  tierart: string;
+  anzahl: number;
+  gve: number | null;
+  von: string;
+  bis: string | null;
+  entgelt_art: (typeof ENTGELTARTEN)[number];
+  entgelt_satz: number | null;
+  verkauf_id: string | null;
+  bemerkungen: string | null;
+  version: number;
+  beweidung_felder: { feld_id: string; flaeche_m2: number }[];
 }
 
 export interface VerkaufPosition {
