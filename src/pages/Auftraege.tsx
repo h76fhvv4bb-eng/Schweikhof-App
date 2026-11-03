@@ -301,6 +301,7 @@ export function AuftragFormular() {
     const { data, error } = await supabase.rpc('auftrag_speichern', { p });
     if (error) return (setFehler(fehlertext(error)), null);
     await qc.invalidateQueries({ queryKey: ['auftraege'] });
+    qc.invalidateQueries({ queryKey: ['feldarbeiten'] });
     return data as string;
   }
 
@@ -407,6 +408,7 @@ export function AuftragFormular() {
     const { error } = await supabase.rpc('auftrag_status', { p_id: id, p_status: status });
     if (error) return setFehler(fehlertext(error));
     qc.invalidateQueries({ queryKey: ['auftraege'] });
+    qc.invalidateQueries({ queryKey: ['feldarbeiten'] });
   }
 
   async function abschliessen() {

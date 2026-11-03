@@ -188,3 +188,13 @@ Dauergrünland (Nutzungsart) erscheint nicht in der Fruchtfolge.
 `maschine_teile` verknüpft Lagerartikel mit Maschinen (Ersatzteil, Verschleissteil, Betriebsstoff, Einbauort, gewünschter
 Vorrat). Der Bestand bleibt im Lager; die Maschine zeigt ihn an und warnt unter dem Vorrat. Beim Erfassen einer Wartung
 stehen die Teile der Maschine zuoberst. Lagerartikel haben eine freie Warengruppe als Untergruppe der Kategorie.
+
+## 2026-11-03 · Verknüpfungen geprüft (Migration 17)
+Eine unabhängige Durchsicht hat die Verbindungen zwischen den Modulen geprüft. Die Regeln liegen in der Datenbank:
+- Eine geplante Arbeit mit offenem Lohnauftrag lässt sich nur über den Auftrag abschliessen.
+- Wird eine Arbeit gelöscht, sind ihre Folgearbeiten wieder frei.
+- Eine Wartungs-Aufgabe setzt beim Erledigen den Wartungsplan zurück, auch über einen Werkstatt-Auftrag.
+- Ist eine Abgabe auf einem Beleg verrechnet, kommen «bezahlt» und Preis vom Beleg. Ein Storno setzt «bezahlt» zurück.
+- Ein Anbau kann gelöscht werden, ohne dass Arbeiten oder Ernten verschwinden; die Zuordnung zum Anbau wird nachgeführt.
+- Ein Feld mit geplanten Arbeiten oder offenen Aufträgen kann nicht in den Papierkorb.
+- Name und Status der Mitarbeitenden folgen dem Benutzerprofil.

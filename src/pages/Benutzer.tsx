@@ -64,6 +64,7 @@ export function Benutzer() {
     if (error) setFehler(fehlertext(error));
     qc.invalidateQueries({ queryKey: ['benutzer-verwaltung'] });
     qc.invalidateQueries({ queryKey: ['benutzer'] });
+    qc.invalidateQueries({ queryKey: ['mitarbeiter'] });
   }
   async function widerrufen(e: Einladung) {
     if (!confirm(`Einladung an ${e.email} widerrufen?`)) return;

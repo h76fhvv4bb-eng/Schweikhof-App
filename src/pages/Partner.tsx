@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase, fehlertext } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
-import { useAuftraege, useErnten, useFelder, usePartner } from '../lib/daten';
+import { useAuftraege, useErnten, useFelder, usePartner, useVerrechneteAbgaben } from '../lib/daten';
 import { AuftragStatus } from './Auftraege';
 import { chf, datum } from '../lib/format';
 import { PARTNERARTEN, type Partner } from '../lib/typen';
@@ -233,6 +233,7 @@ function PartnerAbnahmen({ partnerId }: { partnerId: string }) {
   const ernten = useErnten();
   const felder = useFelder();
   const [fehler, setFehler] = useState<string | null>(null);
+  const verrechnet = useVerrechneteAbgaben();
   const feldName = new Map((felder.data ?? []).map((f) => [f.id, f.name]));
   const zeilen = (ernten.data ?? []).flatMap((e) => e.ernte_abnehmer.filter((a) => a.partner_id === partnerId).map((a) => ({ e, a })));
   const lohn = (ernten.data ?? []).flatMap((e) => e.ernte_dienstleister.filter((d) => d.partner_id === partnerId).map((d) => ({ e, d })));
@@ -280,7 +281,11 @@ function PartnerAbnahmen({ partnerId }: { partnerId: string }) {
               {a.preis_chf ? ` · ${chf(Number(a.preis_chf))}` : ''}
             </span>
           </Link>
-          {a.art === 'Verkauf' && a.preis_chf ? (
+          {a.id && verrechnet.data?.get(a.id) ? (
+            <Link to={`/verkauf/${verrechnet.data.get(a.id)!.id}`} className="shrink-0 text-xs font-bold">
+              {a.bezahlt ? '✓ bezahlt' : 'offen'} · {verrechnet.data.get(a.id)!.art} {verrechnet.data.get(a.id)!.nummer}
+            </Link>
+          ) : a.art === 'Verkauf' && a.preis_chf ? (
             <label className="flex shrink-0 items-center gap-2 text-xs font-bold">
               <input type="checkbox" className="h-5 w-5 accent-hof" checked={a.bezahlt} disabled={!darfVerwalten} onChange={(ev) => bezahlt(a.id, ev.target.checked)} />
               bezahlt

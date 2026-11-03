@@ -783,7 +783,14 @@ export function ErnteFormular() {
                 </label>
                 <span className="text-sm font-bold sm:col-span-3">Betrag: {betrag(a) != null ? chf(betrag(a)) : '–'}</span>
                 <label className="flex items-center gap-2 text-sm font-bold sm:col-span-2">
-                  <input type="checkbox" className="h-5 w-5 accent-hof" checked={a.bezahlt} onChange={(e) => aendereAbgabe(i, { bezahlt: e.target.checked })} />
+                  <input
+                    type="checkbox"
+                    className="h-5 w-5 accent-hof"
+                    checked={a.bezahlt}
+                    disabled={!!(a.id && verrechnet.data?.get(a.id))}
+                    title={a.id && verrechnet.data?.get(a.id) ? 'Zahlung wird beim Beleg erfasst' : undefined}
+                    onChange={(e) => aendereAbgabe(i, { bezahlt: e.target.checked })}
+                  />
                   bezahlt
                 </label>
                 {a.id && verrechnet.data?.get(a.id) ? (

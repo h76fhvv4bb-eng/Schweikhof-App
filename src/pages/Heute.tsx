@@ -40,6 +40,8 @@ export function Heute() {
 
   const aktive = (felder.data ?? []).filter((f) => f.status === 'bewirtschaftet');
   const gesamtM2 = aktive.reduce((s, f) => s + Number(f.flaeche_m2), 0);
+  // Dauergrünland gehört nicht in die Fruchtfolge und braucht darum keine Kultur
+  const fruchtfolgeM2 = aktive.filter((f) => f.nutzungsart !== 'Dauergrünland').reduce((s, f) => s + Number(f.flaeche_m2), 0);
   const zugeordnetM2 = (kulturen.data ?? []).reduce((s, k) => s + Number(k.flaeche_m2), 0);
 
   return (
@@ -82,14 +84,14 @@ export function Heute() {
         </section>
       )}
 
-      {felder.data && felder.data.length > 0 && gesamtM2 - zugeordnetM2 > 1 && (
+      {felder.data && felder.data.length > 0 && fruchtfolgeM2 - zugeordnetM2 > 1 && (
         <Link to="/fruchtfolge" className="karte flex items-start gap-3 text-text no-underline">
           <span className="text-warn">
             <Icon name="warnung" />
           </span>
           <span className="flex flex-col">
             <span className="font-extrabold">Kulturen {jahr} unvollständig</span>
-            <span className="text-sm text-leise">{ha(gesamtM2 - zugeordnetM2)} ohne Kultur. In der Fruchtfolge ergänzen.</span>
+            <span className="text-sm text-leise">{ha(fruchtfolgeM2 - zugeordnetM2)} ohne Kultur. In der Fruchtfolge ergänzen.</span>
           </span>
         </Link>
       )}

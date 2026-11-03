@@ -438,6 +438,7 @@ export interface Aufgabe {
   eintragsart: 'Wartung' | 'Reparatur' | 'Kontrolle' | null;
   partner_id: string | null;
   beobachtung_id: string | null;
+  wartungsplan_id?: string | null;
   bemerkungen: string | null;
   status: 'offen' | 'erledigt';
   erledigt_am: string | null;

@@ -465,7 +465,7 @@ export default function Hofkarte() {
     });
     if (error) setFehler(fehlertext(error));
     setModus({ art: 'ansehen' });
-    ['felder', 'anbau', 'hinweise'].forEach((k) => qc.invalidateQueries({ queryKey: [k] }));
+    ['felder', 'anbau', 'hinweise', 'flaeche_je_kultur'].forEach((k) => qc.invalidateQueries({ queryKey: [k] }));
   }
 
   async function grenzeSpeichern(feldId: string) {
@@ -1161,7 +1161,7 @@ function TeilungBestaetigen({
       p_teil_geometrie: ergebnis.teil, p_rest_geometrie: ergebnis.rest,
     });
     if (error) return onFehler(fehlertext(error));
-    ['felder', 'anbau'].forEach((k) => qc.invalidateQueries({ queryKey: [k] }));
+    ['felder', 'anbau', 'flaeche_je_kultur'].forEach((k) => qc.invalidateQueries({ queryKey: [k] }));
     onFertig();
     navigate(`/felder/${data as string}`);
   }

@@ -172,6 +172,7 @@ function MeinKonto() {
     setMeldung(error ? { text: fehlertext(error), fehler: true } : { text: 'Name gespeichert.', fehler: false });
     qc.invalidateQueries({ queryKey: ['profil'] });
     qc.invalidateQueries({ queryKey: ['benutzer'] });
+    qc.invalidateQueries({ queryKey: ['mitarbeiter'] });
   }
   async function passwortSpeichern(e: FormEvent) {
     e.preventDefault();

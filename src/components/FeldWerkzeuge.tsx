@@ -127,6 +127,7 @@ function Teilen({ feld }: { feld: Feld }) {
     if (error) return setFehler(fehlertext(error));
     qc.invalidateQueries({ queryKey: ['felder'] });
     qc.invalidateQueries({ queryKey: ['anbau'] });
+    qc.invalidateQueries({ queryKey: ['flaeche_je_kultur'] });
     navigate(`/felder/${data as string}`);
   }
 
@@ -198,6 +199,7 @@ function Zusammenfuehren({ feld }: { feld: Feld }) {
     setWahl([]);
     qc.invalidateQueries({ queryKey: ['felder'] });
     qc.invalidateQueries({ queryKey: ['anbau'] });
+    qc.invalidateQueries({ queryKey: ['flaeche_je_kultur'] });
     qc.invalidateQueries({ queryKey: ['hinweise'] });
   }
 

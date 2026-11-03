@@ -24,7 +24,7 @@ export function Felder() {
   const anbau = useAnbau(jahr, jahr);
   const [suche, setSuche] = useState('');
   const [params] = useSearchParams();
-  const [ansicht, setAnsichtState] = useState<Ansicht>(() => (params.has('zeichnen') ? 'hof' : gespeicherteAnsicht()));
+  const [ansicht, setAnsichtState] = useState<Ansicht>(() => (params.has('zeichnen') || params.has('teilen') ? 'hof' : gespeicherteAnsicht()));
   const setAnsicht = (a: Ansicht) => {
     setAnsichtState(a);
     try {

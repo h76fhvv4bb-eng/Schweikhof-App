@@ -274,7 +274,9 @@ export function Erfassen() {
   }
 
   if (profil?.rolle === 'lesen') return <p>Mit der Rolle «Lesen» können keine Arbeiten erfasst werden.</p>;
-  const darfAendern = !id || darfVerwalten || vorhanden.data?.erstellt_von === profil?.id;
+  const ichMitarbeiter = mitarbeiter.data?.find((m) => m.benutzer_id === profil?.id)?.id;
+  const darfAendern =
+    !id || darfVerwalten || vorhanden.data?.erstellt_von === profil?.id || (!!ichMitarbeiter && vorhanden.data?.mitarbeiter_id === ichMitarbeiter);
 
   return (
     <form onSubmit={speichern} className="flex flex-col gap-5 pb-24">

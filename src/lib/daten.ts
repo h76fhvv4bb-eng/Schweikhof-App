@@ -133,7 +133,7 @@ export function useBenutzer() {
 }
 
 /** Nach jeder Buchung: alles neu laden, was vom Lager oder den Arbeiten abhängt. */
-export const ABHAENGIGE_DATEN = [['lager'], ['feldarbeiten'], ['feldarbeit'], ['naehrstoffe'], ['lagerjournal'], ['maschinen'], ['maschineneintraege'], ['wartung'], ['aufgaben'], ['mitarbeiter_stunden'], ['auftraege']];
+export const ABHAENGIGE_DATEN = [['lager'], ['feldarbeiten'], ['feldarbeit'], ['naehrstoffe'], ['lagerjournal'], ['maschinen'], ['maschineneintraege'], ['wartung'], ['aufgaben'], ['mitarbeiter_stunden'], ['auftraege'], ['fotos'], ['flaeche_je_kultur'], ['maschine_teile']];
 
 export function useBetrieb() {
   return useQuery({

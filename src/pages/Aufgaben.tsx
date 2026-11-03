@@ -37,7 +37,7 @@ const plusTage = (tage: number) => {
 };
 
 /** Vorlage für eine neue Aufgabe (aus Wartungsplan, Beobachtung oder Maschinenseite) */
-type Vorlage = Partial<Pick<Aufgabe, 'art' | 'titel' | 'maschine_id' | 'eintragsart' | 'beobachtung_id' | 'faellig_am'>>;
+type Vorlage = Partial<Pick<Aufgabe, 'art' | 'titel' | 'maschine_id' | 'eintragsart' | 'beobachtung_id' | 'faellig_am' | 'wartungsplan_id'>>;
 
 export function Aufgaben() {
   const { profil, darfVerwalten } = useAuth();
@@ -118,14 +118,16 @@ export function Aufgaben() {
 
   // Vorschläge: fällige Wartungen und offene Beobachtungen, für die noch keine Aufgabe besteht
   const geplanteBeobachtungen = new Set((aufgaben.data ?? []).map((a) => a.beobachtung_id).filter(Boolean));
-  const geplanteWartungen = new Set((aufgaben.data ?? []).filter((a) => a.eintragsart === 'Wartung').map((a) => `${a.maschine_id}|${a.titel}`));
+  const geplanteWartungen = new Set(
+    (aufgaben.data ?? []).filter((a) => a.eintragsart === 'Wartung').flatMap((a) => [`${a.maschine_id}|${a.titel}`, `plan|${a.wartungsplan_id}`]),
+  );
   const vorschlaege = [
     ...(wartung.data ?? [])
-      .filter((w) => (w.bald_faellig || w.ueberfaellig) && !geplanteWartungen.has(`${w.maschine_id}|${w.bezeichnung}`))
+      .filter((w) => (w.bald_faellig || w.ueberfaellig) && !geplanteWartungen.has(`${w.maschine_id}|${w.bezeichnung}`) && !geplanteWartungen.has(`plan|${w.plan_id}`))
       .map((w) => ({
         key: `w-${w.plan_id}`,
         text: `${maschName.get(w.maschine_id) ?? ''}: ${w.bezeichnung} ${w.ueberfaellig ? 'überfällig' : 'bald fällig'}`,
-        vorlage: { art: 'Maschine', maschine_id: w.maschine_id, eintragsart: 'Wartung', titel: w.bezeichnung, faellig_am: w.faellig_am ?? null } as Vorlage,
+        vorlage: { art: 'Maschine', maschine_id: w.maschine_id, eintragsart: 'Wartung', titel: w.bezeichnung, faellig_am: w.faellig_am ?? null, wartungsplan_id: w.plan_id } as Vorlage,
       })),
     ...(eintraege.data ?? [])
       .filter((e) => e.offen && !geplanteBeobachtungen.has(e.id))
@@ -385,6 +387,7 @@ function AufgabeFormular({ vorlage, maschinen, onFertig }: { vorlage: Vorlage | 
       eintragsart: w.art === 'Maschine' ? w.eintragsart : null,
       partner_id: w.art === 'Maschine' ? w.partner_id || null : null,
       beobachtung_id: w.art === 'Maschine' ? (vorlage.beobachtung_id ?? null) : null,
+      wartungsplan_id: w.art === 'Maschine' && w.eintragsart === 'Wartung' ? (vorlage.wartungsplan_id ?? null) : null,
       mitarbeiter_id: w.mitarbeiter_id || null,
       zugewiesen_an: mitarbeiter.data?.find((m) => m.id === w.mitarbeiter_id)?.benutzer_id ?? null,
       wichtig: w.wichtig,

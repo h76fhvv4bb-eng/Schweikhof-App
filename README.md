@@ -3,7 +3,7 @@
 Digitale Betriebsführung für einen Schweizer Acker- und Futterbaubetrieb (ca. 16 ha, Kanton Zürich, ÖLN).
 Läuft im Browser auf Mac, iPhone und iPad und lässt sich als App auf den Startbildschirm legen (PWA).
 
-## Was schon funktioniert (Stand 02.11.2026, Version 0.16)
+## Was schon funktioniert (Stand 03.11.2026, Version 0.17)
 
 | Bereich | Stand |
 | --- | --- |

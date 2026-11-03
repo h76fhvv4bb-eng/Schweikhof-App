@@ -600,8 +600,10 @@ function EintragFormular({ maschine, eintrag, onFertig }: { maschine: Maschine; 
   }
   async function loeschen() {
     if (!eintrag || !confirm('Eintrag löschen? Verbrauchte Teile werden ins Lager zurückgebucht.')) return;
+    const eigeneFotos = (fotos.data ?? []).filter((f) => f.eintrag_id === eintrag.id).map((f) => f.pfad);
     const { error } = await supabase.rpc('maschineneintrag_loeschen', { p_id: eintrag.id });
     if (error) return setFehler(fehlertext(error));
+    if (eigeneFotos.length) await supabase.storage.from('fotos').remove(eigeneFotos);
     ABHAENGIGE_DATEN.forEach((k) => qc.invalidateQueries({ queryKey: k }));
     onFertig();
   }

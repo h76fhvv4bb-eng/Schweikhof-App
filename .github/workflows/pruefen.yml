@@ -148,6 +148,12 @@ jobs:
           psql -q -f supabase/tests/13_teile_test.sql 2>&1 | tee ausgabe13.txt
           if grep -E "^ f +\|" ausgabe13.txt; then echo "Ein Test ist fehlgeschlagen"; exit 1; fi
           [ "$(grep -cE '^ t +\|' ausgabe13.txt)" -ge 3 ] || (echo "Zu wenige erfolgreiche Tests"; exit 1)
+          psql -c "drop schema public cascade; create schema public; drop schema auth cascade;"
+          psql -v ON_ERROR_STOP=1 -q -f supabase/tests/00_auth_stub.sql
+          for f in supabase/migrations/*.sql; do psql -v ON_ERROR_STOP=1 -q -f "$f"; done
+          psql -q -f supabase/tests/14_verknuepfungen_test.sql 2>&1 | tee ausgabe14.txt
+          if grep -E "^ f +\|" ausgabe14.txt; then echo "Ein Test ist fehlgeschlagen"; exit 1; fi
+          [ "$(grep -cE '^ t +\|' ausgabe14.txt)" -ge 7 ] || (echo "Zu wenige erfolgreiche Tests"; exit 1)
       - name: Import der Fruchtfolge
         run: |
           psql -c "drop schema public cascade; create schema public; drop schema auth cascade;"
