@@ -11,6 +11,7 @@ export const pdfText = (s: string) =>
     .replace(/[‘’]/g, "'")
     .replace(/[“”]/g, '"')
     .replace(/…/g, '...')
+    .replace(/→/g, '>')
     .replace(/₂/g, '2')
     .replace(/₅/g, '5')
     .replace(/[^\x0A\x20-\x7E\xA0-\xFF]/g, '');
