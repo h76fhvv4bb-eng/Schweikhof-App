@@ -1,6 +1,6 @@
 # To-do-Liste
 
-Stand: 02.11.2026 (Version 0.15). Wird nach jedem Entwicklungsschritt aktualisiert.
+Stand: 02.11.2026 (Version 0.16). Wird nach jedem Entwicklungsschritt aktualisiert.
 
 ## Phase 1 – Planung
 - [x] Anforderungsanalyse, Architektur, Datenmodell, Kosten, Risiken
@@ -14,7 +14,7 @@ Stand: 02.11.2026 (Version 0.15). Wird nach jedem Entwicklungsschritt aktualisie
 - [x] Migration 4 einspielen (Maschinen, Partner, Hinweise, Teilen)
 - [ ] Migration 5 einspielen (Aufträge)
 - [ ] Migration 6 einspielen (Benutzerverwaltung)
-- [ ] Migrationen 7 bis 15 einspielen; danach Betriebsangaben (Adresse, IBAN) ergänzen, danach Import Fruchtfolge 2023–2029
+- [ ] Migrationen 7 bis 16 einspielen; danach Betriebsangaben (Adresse, IBAN) ergänzen, danach Import Fruchtfolge 2023–2029
 - [ ] Feldgrenzen der 13 importierten Felder auf der Karte zeichnen
 - [ ] Supabase: eigenen Mailversand (SMTP) einrichten, Standard-Mails sind auf wenige pro Stunde begrenzt
 - [ ] Domain bei Jimdo klären (eigene DNS-Einträge möglich?)
@@ -43,14 +43,15 @@ Stand: 02.11.2026 (Version 0.15). Wird nach jedem Entwicklungsschritt aktualisie
 - [ ] Parzellen zu Feldern zuordnen
 - [ ] Fotos zu Feldern
 - [x] Hof-Ansicht mit swisstopo-Luftbild, Feldgrenzen zeichnen/ändern, Gebäude mit Links, Schalter Hof-Ansicht/Liste
-- [ ] Export PDF und echtes .xlsx
+- [x] Fruchtfolge-PDF und Parzellenblätter (Kontrolle), Export je Feld
+- [ ] Echtes .xlsx
 
 ## Phase 4 – Arbeiten, Lager, Düngung
 - [x] Lagerartikel, Lagerjournal, Mindestbestand, Inventur
 - [x] Feldarbeiten für mehrere Felder, schnelle Erfassung am Handy
 - [x] Düngung mit automatischer Lagerbuchung, Nährstoffübersicht
 - [x] Ackerschlagkartei mit Filtern, CSV-Export, Druck/PDF
-- [ ] Pflanzenschutz: Wirkstoff, Zulassungsnummer, Wartefrist
+- [ ] Pflanzenschutz: Wirkstoff, Zulassungsnummer, Wartefrist, Stadium (erscheinen dann auch im Parzellenblatt)
 - [ ] Echtes .xlsx und gestaltete PDF-Berichte
 
 ## Phase 5 bis 8

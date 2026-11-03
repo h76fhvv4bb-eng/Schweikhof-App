@@ -175,3 +175,16 @@ und Beobachtung. Gespeichert wird zuerst die Arbeit (`feldarbeit_speichern`), da
 oben, Beobachtung als offener Punkt bei der Maschine; beim erneuten Speichern wird dieser Punkt nachgeführt statt verdoppelt).
 Betriebsmittel können pro ha oder als Gesamtmenge auf die gewählte Fläche eingegeben werden; gespeichert wird immer die
 Menge pro ha, die Gesamtmenge rechnet die Datenbank daraus.
+
+## 2026-11-03 · Kontrolle und Parzellenblätter
+Die Seite «Kontrolle» stellt Unterlagen zusammen: farbige Fruchtfolge (A4 quer, ohne Dauergrünland) und Parzellenblätter
+(A4, je Feld). Das Parzellenblatt folgt dem Aufbau des bekannten Ackerbau/Futterbau-Formulars (Bodenbearbeitung, Saat,
+Düngung mit N/P2O5/K2O/MgO, Pflege/Pflanzenschutz, Ernte/Nutzung, Zwischenkultur), ist aber ein eigenes Layout. Zugeordnet
+wird nach Kalenderjahr des Datums; die Arbeitsart bestimmt den Abschnitt. MgO = Mg / 0.603. Leere Zeilen bleiben zum
+Nachtragen von Hand. Die Prüfung der Aufzeichnungen meldet Lücken als Hinweise, sie prüft keine Vorschriften.
+Dauergrünland (Nutzungsart) erscheint nicht in der Fruchtfolge.
+
+## 2026-11-03 · Maschinenteile und Warengruppen
+`maschine_teile` verknüpft Lagerartikel mit Maschinen (Ersatzteil, Verschleissteil, Betriebsstoff, Einbauort, gewünschter
+Vorrat). Der Bestand bleibt im Lager; die Maschine zeigt ihn an und warnt unter dem Vorrat. Beim Erfassen einer Wartung
+stehen die Teile der Maschine zuoberst. Lagerartikel haben eine freie Warengruppe als Untergruppe der Kategorie.

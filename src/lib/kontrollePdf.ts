@@ -278,10 +278,22 @@ export async function parzellenblaetterPdf(d: KontrollDaten, nurMitInhalt = fals
 
 // ---------------------------------------------------------------- Fruchtfolge
 
-type AnbauF = { feld_id: string; jahr: number; art: string; saatdatum: string | null; erntedatum: string | null; kulturen: { name: string; farbe: string } | null };
+export type AnbauF = { feld_id: string; jahr: number; art: string; saatdatum: string | null; erntedatum: string | null; kulturen: { name: string; farbe: string } | null };
+
+export interface FruchtfolgeDaten {
+  von: number;
+  bis: number;
+  betrieb: Betrieb | null;
+  felder: Feld[];
+  anbau: AnbauF[];
+}
 
 /** Farbige Fruchtfolge-Übersicht (A4 quer): Felder × Jahre, Hauptkultur farbig, Zwischenkulturen klein */
 export async function fruchtfolgePdf(von: number, bis: number): Promise<Blob> {
+  return fruchtfolgeZeichnen(await fruchtfolgeLaden(von, bis));
+}
+
+export async function fruchtfolgeLaden(von: number, bis: number): Promise<FruchtfolgeDaten> {
   const [betriebR, felderR, anbauR] = await Promise.all([
     supabase.from('betriebe').select('*').maybeSingle(),
     supabase.from('felder').select('*').is('geloescht_am', null).neq('status', 'zusammengeführt').neq('status', 'aufgegeben'),
@@ -289,11 +301,15 @@ export async function fruchtfolgePdf(von: number, bis: number): Promise<Blob> {
   ]);
   if (felderR.error) throw felderR.error;
   if (anbauR.error) throw anbauR.error;
-  const betrieb = betriebR.data as Betrieb | null;
-  const alle = ((felderR.data ?? []) as Feld[]).sort((a, b) => a.feldnummer.localeCompare(b.feldnummer, 'de-CH', { numeric: true }));
+  return { von, bis, betrieb: betriebR.data as Betrieb | null, felder: (felderR.data ?? []) as Feld[], anbau: (anbauR.data ?? []) as unknown as AnbauF[] };
+}
+
+export async function fruchtfolgeZeichnen(daten: FruchtfolgeDaten): Promise<Blob> {
+  const { von, bis, betrieb } = daten;
+  const alle = [...daten.felder].sort((a, b) => a.feldnummer.localeCompare(b.feldnummer, 'de-CH', { numeric: true }));
   const felder = alle.filter((f) => f.nutzungsart !== 'Dauergrünland');
   const dauer = alle.filter((f) => f.nutzungsart === 'Dauergrünland');
-  const anbau = (anbauR.data ?? []) as unknown as AnbauF[];
+  const anbau = daten.anbau;
   const jahre = Array.from({ length: bis - von + 1 }, (_, i) => von + i);
 
   const { jsPDF } = await import('jspdf');
