@@ -9,7 +9,7 @@ import { EINHEITEN, LAGERKATEGORIEN, PARTNERARTEN, type Lagerartikel, type Partn
 /** Wert der Auswahl-Option «+ Neu …» in Dropdowns */
 export const NEU = '__neu__';
 
-function Fenster({ titel, children, onSchliessen }: { titel: string; children: ReactNode; onSchliessen: () => void }) {
+export function Fenster({ titel, children, onSchliessen }: { titel: string; children: ReactNode; onSchliessen: () => void }) {
   return (
     <div className="fixed inset-0 z-[2100] flex items-end justify-center bg-black/30 p-3 md:items-center" onClick={onSchliessen}>
       <div className="karte flex max-h-[92dvh] w-full max-w-md flex-col gap-3 overflow-y-auto" onClick={(e) => e.stopPropagation()} role="dialog" aria-label={titel}>

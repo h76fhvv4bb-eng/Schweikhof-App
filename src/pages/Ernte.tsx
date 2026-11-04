@@ -8,6 +8,7 @@ import { chf, datum, ha, heuteIso, menge, zahlAus } from '../lib/format';
 import { csvHerunterladen, csvZahl } from '../lib/export';
 import { ABGABEARTEN, BALLENARTEN, ERNTEPRODUKTE, LEISTUNGEN, type ErnteAbnehmer, type ErnteProdukt, rollenText } from '../lib/typen';
 import { Icon } from '../components/Icon';
+import { RichtpreisWahl } from '../components/RichtpreisWahl';
 import { NEU, NeuerPartnerDialog } from '../components/Schnellanlage';
 
 const BALLENPRODUKTE = new Set(['Heu', 'Emd', 'Grassilage', 'Stroh']);
@@ -328,6 +329,7 @@ export function ErnteFormular() {
   const [fehler, setFehler] = useState<string | null>(null);
   const [speichert, setSpeichert] = useState(false);
   const [neuerPartner, setNeuerPartner] = useState<{ ziel: 'dienst' | 'abgabe'; i: number } | null>(null);
+  const [richtpreisFuer, setRichtpreisFuer] = useState<{ ziel: 'dienst' | 'abgabe'; i: number } | null>(null);
 
   const jahr = Number(w.datum.slice(0, 4)) || new Date().getFullYear();
   const anbau = useAnbau(jahr, jahr);
@@ -670,6 +672,9 @@ export function ErnteFormular() {
             <label className="feld-label">
               Kosten CHF
               <input className="eingabe" inputMode="decimal" value={d.kosten} onChange={(e) => aendereDienst(i, { kosten: e.target.value })} />
+              <button type="button" className="self-start text-xs font-bold text-hof" onClick={() => setRichtpreisFuer({ ziel: 'dienst', i })}>
+                aus Richtpreis …
+              </button>
             </label>
             <button type="button" className="self-end text-sm font-bold text-fehler" onClick={() => setDienste(dienste.filter((_, j) => j !== i))}>
               Entfernen
@@ -771,6 +776,9 @@ export function ErnteFormular() {
                 <label className="feld-label sm:col-span-1">
                   Preis CHF
                   <input className="eingabe" inputMode="decimal" value={a.preis} onChange={(e) => aendereAbgabe(i, { preis: e.target.value })} />
+                  <button type="button" className="self-start text-xs font-bold text-hof" onClick={() => setRichtpreisFuer({ ziel: 'abgabe', i })}>
+                    aus Richtpreis …
+                  </button>
                 </label>
                 <label className="feld-label sm:col-span-1">
                   Einheit
@@ -836,6 +844,28 @@ export function ErnteFormular() {
         <textarea className="eingabe min-h-20" value={w.bemerkungen} onChange={setKopf('bemerkungen')} />
       </label>
 
+      {richtpreisFuer && (
+        <RichtpreisWahl
+          bereiche={richtpreisFuer.ziel === 'dienst' ? ['Dienstleistung', 'Maschine', 'Arbeit'] : ['Futter', 'Andere']}
+          mitMenge={richtpreisFuer.ziel === 'dienst'}
+          titel={richtpreisFuer.ziel === 'dienst' ? 'Kosten aus Richtpreis' : 'Preis aus Richtpreis'}
+          onSchliessen={() => setRichtpreisFuer(null)}
+          onWahl={(r, m) => {
+            if (richtpreisFuer.ziel === 'dienst') {
+              const d = dienste[richtpreisFuer.i];
+              aendereDienst(richtpreisFuer.i, {
+                kosten: String(Math.round(m * r.preis_chf * 100) / 100),
+                bemerkung: d?.bemerkung?.trim() ? d.bemerkung : `${m} ${r.einheit} à ${r.preis_chf} (${r.bezeichnung})`,
+              });
+            } else {
+              const e = r.einheit.toLowerCase();
+              const einheit: AbnehmerZeile['preis_einheit'] = e.startsWith('ballen') ? 'je Ballen' : e === 'dt' || e === '100 kg' ? 'je 100 kg' : e === 't' ? 'je t' : 'total';
+              aendereAbgabe(richtpreisFuer.i, { preis: String(r.preis_chf), preis_einheit: einheit });
+            }
+            setRichtpreisFuer(null);
+          }}
+        />
+      )}
       {neuerPartner && (
         <NeuerPartnerDialog
           art={neuerPartner.ziel === 'dienst' ? 'Lohnunternehmen' : 'Abnehmer/Käufer'}

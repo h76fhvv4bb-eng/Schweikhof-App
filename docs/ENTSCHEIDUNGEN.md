@@ -233,3 +233,10 @@ Herbstsaat für das Folgejahr). Ohne laufende Kultur gilt die Hauptkultur des Ja
 Wird «Säen» erledigt, übernimmt ein Trigger das Datum in die passende Kultur (Saattermin ± 60 Tage, sonst geplante
 Hauptkultur ohne Termin: ab Juli fürs Folgejahr), setzt sie auf «ist» und beendet die laufende Vorkultur am Vortag
 (nicht bei Untersaat).
+
+## 2026-11-04 · Richtpreise (Migration 23)
+Jeder Betrieb hat einen eigenen Katalog `richtpreise` (Bereich, Bezeichnung, Einheit, Preis, Quelle, Jahr). Vorlagen enthalten
+nur öffentlich zugängliche Richtwerte mit Quelle (Agroscope Kostenkatalog 2024: Traktoren, Lader, Arbeitskosten; AGRIDEA 2026:
+Heu). Den vollständigen Agroscope-Katalog übernimmt der Betrieb selbst per CSV. Gleiche Bezeichnung und Einheit werden beim
+Import aktualisiert. Ein Richtpreis ist ein Vorschlag: übernommen wird der Wert, eine spätere Änderung ändert bestehende
+Belege nicht. Maschinen können einen Ansatz (`maschinen.richtpreis_id`) haben.

@@ -26,6 +26,7 @@ import { MitarbeiterSeite } from './pages/Mitarbeiter';
 import { VerkaufFormular, VerkaufListe } from './pages/Verkauf';
 import { Kontrolle } from './pages/Kontrolle';
 import { BetriebSeite } from './pages/Betrieb';
+import { RichtpreiseSeite } from './pages/Richtpreise';
 import { WeideFormular, WeideListe } from './pages/Weide';
 
 export function App() {
@@ -66,6 +67,7 @@ export function App() {
         <Route path="lager/:id" element={<LagerArtikel />} />
         <Route path="mehr" element={<Mehr />} />
         <Route path="betrieb" element={<BetriebSeite />} />
+        <Route path="richtpreise" element={<RichtpreiseSeite />} />
         <Route path="weide" element={<WeideListe />} />
         <Route path="weide/neu" element={<WeideFormular />} />
         <Route path="weide/:id" element={<WeideFormular />} />

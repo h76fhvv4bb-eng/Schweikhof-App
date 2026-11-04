@@ -4,8 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { supabase, fehlertext } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
 import {
-  ABHAENGIGE_DATEN, useHofobjekte, useLager, useMaschinen, useMaschinenEintraege, usePartner, useWartungFaellig, useWartungsplaene,
-} from '../lib/daten';
+  ABHAENGIGE_DATEN, useHofobjekte, useLager, useMaschinen, useMaschinenEintraege, usePartner, useWartungFaellig, useWartungsplaene, useRichtpreise } from '../lib/daten';
 import { chf, datum, heuteIso, menge, zahlAus } from '../lib/format';
 import { EINTRAGSARTEN, MASCHINENKATEGORIEN, MIT_MOTOR, type Maschine, type MaschinenEintrag } from '../lib/typen';
 import { Icon } from '../components/Icon';
@@ -36,13 +35,14 @@ export function MaschineDetail() {
   const maschinen = useMaschinen();
   const orte = useHofobjekte();
   const m = maschinen.data?.find((x) => x.id === id);
-  const [w, setW] = useState<Werte>({ kategorie: 'Traktor', status: 'in Betrieb', standort_id: '' });
+  const [w, setW] = useState<Werte>({ kategorie: 'Traktor', status: 'in Betrieb', standort_id: '', richtpreis_id: '' });
+  const richtpreise = useRichtpreise();
   const [fehler, setFehler] = useState<string | null>(null);
   const [offenDaten, setOffenDaten] = useState(neu);
 
   useEffect(() => {
     if (!m) return;
-    const x: Werte = { kategorie: m.kategorie, status: m.status, standort_id: m.standort_id ?? '' };
+    const x: Werte = { kategorie: m.kategorie, status: m.status, standort_id: m.standort_id ?? '', richtpreis_id: m.richtpreis_id ?? '' };
     for (const k of [...TEXTFELDER, ...ZAHLFELDER]) {
       const v = m[k as keyof Maschine];
       x[k] = v == null ? '' : String(v);
@@ -55,6 +55,8 @@ export function MaschineDetail() {
     setFehler(null);
     if (!w.name?.trim()) return setFehler('Name fehlt.');
     const daten: Record<string, unknown> = { kategorie: w.kategorie, status: w.status, standort_id: w.standort_id || null };
+    // nur mitsenden, wenn gewählt oder vorher gesetzt (ältere Datenbank ohne Migration 23)
+    if (w.richtpreis_id || m?.richtpreis_id) daten.richtpreis_id = w.richtpreis_id || null;
     for (const k of TEXTFELDER) daten[k] = w[k]?.trim() ? w[k].trim() : null;
     for (const k of ZAHLFELDER) {
       const n = zahlAus(w[k] ?? '');
@@ -194,6 +196,21 @@ export function MaschineDetail() {
               {feld('kaufdatum', 'Kaufdatum', 'datum')}
               {feld('kaufpreis', 'Kaufpreis (CHF)', 'zahl')}
             </div>
+            {(richtpreise.data ?? []).some((r) => r.bereich === 'Maschine') && (
+              <label className="feld-label">
+                Ansatz für Arbeiten (Richtpreis)
+                <select className="eingabe" value={w.richtpreis_id ?? ''} onChange={set('richtpreis_id')}>
+                  <option value="">– keiner –</option>
+                  {(richtpreise.data ?? [])
+                    .filter((r) => r.bereich === 'Maschine' && (r.aktiv || r.id === w.richtpreis_id))
+                    .map((r) => (
+                      <option key={r.id} value={r.id}>
+                        {r.bezeichnung} · {r.preis_chf} Fr./{r.einheit}
+                      </option>
+                    ))}
+                </select>
+              </label>
+            )}
             <label className="feld-label">
               Bemerkungen
               <textarea className="eingabe min-h-20 py-2" value={w.bemerkungen ?? ''} onChange={set('bemerkungen')} />

@@ -260,6 +260,7 @@ export interface Maschine {
   standort_id: string | null;
   status: 'in Betrieb' | 'ausser Betrieb' | 'verkauft';
   bemerkungen: string | null;
+  richtpreis_id?: string | null;
   version: number;
 }
 
@@ -494,6 +495,20 @@ export interface Betrieb {
   gemeinde?: string | null;
   bank?: string | null;
   website?: string | null;
+  version: number;
+}
+
+export const RICHTPREIS_BEREICHE = ['Maschine', 'Dienstleistung', 'Futter', 'Arbeit', 'Andere'] as const;
+export interface Richtpreis {
+  id: string;
+  bereich: (typeof RICHTPREIS_BEREICHE)[number];
+  bezeichnung: string;
+  einheit: string;
+  preis_chf: number;
+  quelle: string | null;
+  jahr: number | null;
+  bemerkung: string | null;
+  aktiv: boolean;
   version: number;
 }
 

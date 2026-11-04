@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from './supabase';
 import { exportBetrieb } from './export';
 import type {
-  Beweidung,
+  Beweidung, Richtpreis,
   Anbau, Feld, Feldarbeit, FeldHinweis, FlaecheJeKultur, Hofobjekt, Kultur, Lagerbestand, Maschine, MaschinenEintrag,
   NaehrstoffeJeFeld, Partner, WartungFaellig, Wartungsplan, Auftrag, Ernte, Kartenobjekt, Aufgabe, Mitarbeiter, Betrieb, Verkauf, Foto, MaschinenTeil,
 } from './typen';
@@ -185,6 +185,18 @@ export function useFeldarbeitGeraete() {
       if (error) return m;
       for (const r of data as { feldarbeit_id: string; maschine_id: string }[]) m.set(r.feldarbeit_id, [...(m.get(r.feldarbeit_id) ?? []), r.maschine_id]);
       return m;
+    },
+  });
+}
+
+/** Richtpreis-Katalog des Betriebs (leer, solange Migration 23 fehlt) */
+export function useRichtpreise() {
+  return useQuery({
+    queryKey: ['richtpreise'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('richtpreise').select('*').order('bereich').order('bezeichnung');
+      if (error) return [] as Richtpreis[];
+      return data as Richtpreis[];
     },
   });
 }

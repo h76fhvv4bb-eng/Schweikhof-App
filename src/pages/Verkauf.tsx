@@ -12,6 +12,7 @@ import { csvHerunterladen, csvZahl } from '../lib/export';
 import type { Verkauf } from '../lib/typen';
 import { Icon } from '../components/Icon';
 import { NEU, NeuerPartnerDialog } from '../components/Schnellanlage';
+import { RichtpreisWahl } from '../components/RichtpreisWahl';
 
 const plusTage = (iso: string, tage: number) => {
   const d = new Date(`${iso}T12:00:00`);
@@ -220,6 +221,7 @@ export function VerkaufFormular() {
   const [arbeitet, setArbeitet] = useState(false);
   const [neuerPartner, setNeuerPartner] = useState(false);
   const [ernteWahl, setErnteWahl] = useState(false);
+  const [richtpreisWahl, setRichtpreisWahl] = useState(false);
   const geladen = useMemo(() => ({ id: '', abgabe: '', weide: '' }), []);
   const weiden = useBeweidungen();
 
@@ -554,6 +556,9 @@ export function VerkaufFormular() {
                 <button type="button" className="knopf-leise" onClick={() => setErnteWahl(!ernteWahl)}>
                   <Icon name="ernte" /> Aus Ernte
                 </button>
+                <button type="button" className="knopf-leise" onClick={() => setRichtpreisWahl(true)}>
+                  <Icon name="verkauf" /> Richtpreis
+                </button>
                 <button type="button" className="knopf-leise" onClick={() => setZeilen([...zeilen, leereZeile()])}>
                   <Icon name="plus" /> Frei
                 </button>
@@ -712,6 +717,17 @@ export function VerkaufFormular() {
         </div>
       )}
 
+      {richtpreisWahl && (
+        <RichtpreisWahl
+          mitMenge
+          titel="Position aus Richtpreisen"
+          onSchliessen={() => setRichtpreisWahl(false)}
+          onWahl={(r, m) => {
+            setZeilen([...zeilen, { ...leereZeile(), bezeichnung: r.bezeichnung, menge: String(m), einheit: r.einheit, preis: String(r.preis_chf) }]);
+            setRichtpreisWahl(false);
+          }}
+        />
+      )}
       {neuerPartner && (
         <NeuerPartnerDialog
           art="Abnehmer/Käufer"
