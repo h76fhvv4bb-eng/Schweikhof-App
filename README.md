@@ -3,7 +3,7 @@
 Digitale Betriebsführung für einen Schweizer Acker- und Futterbaubetrieb (ca. 16 ha, Kanton Zürich, ÖLN).
 Läuft im Browser auf Mac, iPhone und iPad und lässt sich als App auf den Startbildschirm legen (PWA).
 
-## Was schon funktioniert (Stand 03.11.2026, Version 0.22)
+## Was schon funktioniert (Stand 04.11.2026, Version 0.23)
 
 | Bereich | Stand |
 | --- | --- |
@@ -50,6 +50,7 @@ Läuft im Browser auf Mac, iPhone und iPad und lässt sich als App auf den Start
 | Hof-Ansicht: Auswahl, was angezeigt wird (Beschriftungen, Kulturfarben, Gebäude, Maschinen, Weidetiere, Hinweise, Flächen); Weidetiere auf ihrem aktuellen Feld, Traktoren und Maschinen am Standplatz | fertig |
 | Partner mit mehreren Rollen (z. B. Lohnunternehmen und Abnehmer); Filter und Auswahl berücksichtigen alle Rollen | fertig |
 | Mehrere Geräte pro Traktor bei geplanten und erledigten Arbeiten (z. B. Kreiselegge + Sämaschine) | fertig |
+| Aktuelle Kultur: nach der Saat (oder ab dem geplanten Saattermin) zeigen Karte und Felder die neue Kultur, auch wenn sie zum nächsten Anbaujahr gehört; erledigte Saat trägt das Saatdatum in die Fruchtfolge ein und beendet die Vorkultur | fertig |
 | Kalender | folgt, siehe [TODO.md](TODO.md) |
 
 ## Technik

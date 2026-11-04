@@ -225,3 +225,11 @@ die Rolle «Tierhalter» dazu.
 `feldarbeit_geraete` hält alle Geräte einer Arbeit in Reihenfolge; `geraet_id` bleibt das erste (für Zähler, ältere
 Abfragen) und wird per Trigger abgeglichen. Gespeichert wird über `feldarbeit_speichern_geraete`, die `feldarbeit_speichern`
 aufruft und danach die Liste setzt (eine Transaktion). Betriebsstunden werden nur beim ersten Gerät erfasst.
+
+## 2026-11-04 · Aktuelle Kultur und Saat-Übernahme (Migration 22)
+Die Hauptkultur eines Jahres bleibt die Grundlage für Fruchtfolge, Kartei und Parzellenblätter. Für Karte und Felderliste
+zählt die «aktuelle Kultur»: die zuletzt gesäte Kultur, deren Saattermin erreicht und die noch nicht geerntet ist (auch
+Herbstsaat für das Folgejahr). Ohne laufende Kultur gilt die Hauptkultur des Jahres.
+Wird «Säen» erledigt, übernimmt ein Trigger das Datum in die passende Kultur (Saattermin ± 60 Tage, sonst geplante
+Hauptkultur ohne Termin: ab Juli fürs Folgejahr), setzt sie auf «ist» und beendet die laufende Vorkultur am Vortag
+(nicht bei Untersaat).

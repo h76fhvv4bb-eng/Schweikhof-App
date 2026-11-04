@@ -8,8 +8,9 @@ import '@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css';
 import type { MultiPolygon, Point, Polygon } from 'geojson';
 import { supabase, fehlertext } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
-import { useAnbau, useBeweidungen, useFelder, useHinweise, useHofobjekte, useKartenobjekte, useMaschinen, usePartner } from '../lib/daten';
+import { useAnbauAlle, useBeweidungen, useFelder, useHinweise, useHofobjekte, useKartenobjekte, useMaschinen, usePartner } from '../lib/daten';
 import { aktiv, aktuelleFelder } from '../lib/weide';
+import { aktuelleKulturJeFeld } from '../lib/aktuelleKultur';
 import { ha } from '../lib/format';
 import {
   FLAECHE_FARBE, GEBAEUDE, KARTEN, QUELLE, SCHWEIZ, baumHtml, feldLabelHtml, feldTeilen, felderVereinigen, flaecheM2, gebaeudeHtml, hinweisHtml,
@@ -94,7 +95,7 @@ export default function Hofkarte() {
   const [params, setParams] = useSearchParams();
   const jahr = new Date().getFullYear();
   const felder = useFelder();
-  const anbau = useAnbau(jahr, jahr);
+  const anbau = useAnbauAlle(jahr - 1, jahr + 1);
   const objekte = useHofobjekte();
   const hinweise = useHinweise();
   const kartenobjekte = useKartenobjekte();
@@ -153,7 +154,9 @@ export default function Hofkarte() {
     merken('hofkarte-anzeige', JSON.stringify(a));
   };
 
-  const kulturJeFeld = useMemo(() => new Map((anbau.data ?? []).map((a) => [a.feld_id, a.kulturen])), [anbau.data]);
+  // aktuelle Kultur: was jetzt wächst (auch Herbstsaat fürs nächste Jahr), sonst Hauptkultur des Jahres
+  const aktuell = useMemo(() => aktuelleKulturJeFeld(anbau.data ?? []), [anbau.data]);
+  const kulturJeFeld = useMemo(() => new Map([...aktuell].map(([f, a]) => [f, a.eintrag.kulturen])), [aktuell]);
 
   // Bäume: jeder Klick setzt sofort einen Baum mit der gewählten Vorlage
   const baumSetzenRef = useRef<(breite: number, laenge: number, v: BaumVorlage) => void>(() => {});
@@ -275,7 +278,7 @@ export default function Hofkarte() {
       });
       const polygon = gruppe.getLayers()[0] as L.Polygon;
       if (!baumAnsicht)
-        polygon.bindTooltip(feldLabelHtml(f.name, k?.name ?? null, ha(Number(f.flaeche_m2), 1)), {
+        polygon.bindTooltip(feldLabelHtml(f.name, k ? `${k.name}${aktuell.get(f.id)?.laeuft === false ? ' (geerntet)' : ''}` : null, ha(Number(f.flaeche_m2), 1)), {
           permanent: true,
           direction: 'center',
           className: 'hof-feld-label',
@@ -294,7 +297,7 @@ export default function Hofkarte() {
       polygon.addTo(e.felder);
       feldLayer.current.set(f.id, polygon);
     }
-  }, [felder.data, kulturJeFeld, gewaehlt, modus, ebene, anzeige.kulturfarben]);
+  }, [felder.data, kulturJeFeld, aktuell, gewaehlt, modus, ebene, anzeige.kulturfarben]);
 
   // ---------- Flächen, Orte und Bäume ohne Fruchtfolge ----------
   useEffect(() => {
@@ -848,7 +851,21 @@ export default function Hofkarte() {
           <span className="text-xs font-bold text-leise">Feld {feld.feldnummer}</span>
           <h2 className="m-0 text-xl font-extrabold">{feld.name}</h2>
           <span className="text-sm">
-            {kulturJeFeld.get(feld.id)?.name ?? `Keine Kultur ${jahr}`} · {ha(Number(feld.flaeche_m2))}
+            {kulturJeFeld.get(feld.id)?.name ?? `Keine Kultur ${jahr}`}
+            {(() => {
+              const a = aktuell.get(feld.id);
+              if (!a) return null;
+              const d = (iso: string | null) => (iso ? iso.split('-').reverse().join('.') : '');
+              return (
+                <>
+                  {a.laeuft && a.seit && ` (${a.eintrag.status === 'ist' ? 'gesät' : 'Saat geplant'} ${a.eintrag.nur_monat ? d(a.seit).slice(3) : d(a.seit)})`}
+                  {a.laeuft === false && ' (geerntet)'}
+                  {a.hauptkultur && <span className="text-leise"> · Hauptkultur {jahr}: {a.hauptkultur.kulturen?.name}</span>}
+                </>
+              );
+            })()}
+            {' · '}
+            {ha(Number(feld.flaeche_m2))}
             {feld.flaeche_gezeichnet_m2 && Math.abs(Number(feld.flaeche_gezeichnet_m2) - Number(feld.flaeche_m2)) > 100 && (
               <span className="text-warn"> · gezeichnet {ha(Number(feld.flaeche_gezeichnet_m2))}</span>
             )}

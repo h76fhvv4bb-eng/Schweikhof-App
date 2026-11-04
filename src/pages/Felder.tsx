@@ -1,6 +1,7 @@
 import { lazy, Suspense, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { useAnbau, useFelder } from '../lib/daten';
+import { useAnbauAlle, useFelder } from '../lib/daten';
+import { aktuelleKulturJeFeld } from '../lib/aktuelleKultur';
 import { useAuth } from '../lib/auth';
 import { ha } from '../lib/format';
 import { Icon } from '../components/Icon';
@@ -21,7 +22,7 @@ export function Felder() {
   const { darfVerwalten } = useAuth();
   const jahr = new Date().getFullYear();
   const felder = useFelder();
-  const anbau = useAnbau(jahr, jahr);
+  const anbau = useAnbauAlle(jahr - 1, jahr + 1);
   const [suche, setSuche] = useState('');
   const [params] = useSearchParams();
   const [ansicht, setAnsichtState] = useState<Ansicht>(() => (params.has('zeichnen') || params.has('teilen') ? 'hof' : gespeicherteAnsicht()));
@@ -34,7 +35,8 @@ export function Felder() {
     }
   };
 
-  const kulturJeFeld = new Map((anbau.data ?? []).map((a) => [a.feld_id, a.kulturen]));
+  // aktuelle Kultur (auch Herbstsaat für das nächste Jahr)
+  const kulturJeFeld = new Map([...aktuelleKulturJeFeld(anbau.data ?? [])].map(([f, a]) => [f, a.eintrag.kulturen]));
   const [sortierung, setSortierungState] = useState<'nr' | 'name' | 'flaeche' | 'kultur' | 'nutzung'>(() => {
     try {
       return (localStorage.getItem('felder-sortierung') as 'nr') || 'nr';
@@ -127,7 +129,7 @@ export function Felder() {
           <option value="nr">nach Nummer</option>
           <option value="name">nach Name</option>
           <option value="flaeche">nach Fläche</option>
-          <option value="kultur">nach Kultur {jahr} (gruppiert)</option>
+          <option value="kultur">nach aktueller Kultur (gruppiert)</option>
           <option value="nutzung">nach Nutzungsart (gruppiert)</option>
         </select>
       </label>
