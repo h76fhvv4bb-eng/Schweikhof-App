@@ -83,6 +83,7 @@ export function BetriebSeite() {
             {zeile('Adresse', adresse)}
             {zeile('Gemeinde / Kanton', [b?.gemeinde, b?.kanton].filter(Boolean).join(' / '))}
             {zeile('Landwirtschaftliche Zone', b?.zone)}
+            {zeile('digiFLUX-Standort', b?.dflid)}
             {zeile('Telefon', b?.telefon)}
             {zeile('E-Mail', b?.email)}
             {zeile('Website', b?.website)}
@@ -124,7 +125,7 @@ export function BetriebSeite() {
 function BetriebFormular({ onFertig }: { onFertig: () => void }) {
   const betrieb = useBetrieb();
   const qc = useQueryClient();
-  const leer = { zone: '', betriebsnummer: '', name: '', bewirtschafter: '', strasse: '', hausnummer: '', plz: '', ort: '', gemeinde: '', kanton: 'ZH', telefon: '', email: '', website: '', iban: '', bank: '', mwst_nr: '', frist: '30' };
+  const leer = { zone: '', dflid: '', betriebsnummer: '', name: '', bewirtschafter: '', strasse: '', hausnummer: '', plz: '', ort: '', gemeinde: '', kanton: 'ZH', telefon: '', email: '', website: '', iban: '', bank: '', mwst_nr: '', frist: '30' };
   const [w, setW] = useState(leer);
   const [fehler, setFehler] = useState<string | null>(null);
   useEffect(() => {
@@ -145,6 +146,7 @@ function BetriebFormular({ onFertig }: { onFertig: () => void }) {
       gemeinde: b.gemeinde ?? '',
       kanton: b.kanton ?? 'ZH',
       zone: b.zone ?? '',
+      dflid: b.dflid ?? '',
       telefon: b.telefon ?? '',
       email: b.email ?? '',
       website: b.website ?? '',
@@ -164,6 +166,7 @@ function BetriebFormular({ onFertig }: { onFertig: () => void }) {
     if (iban && !ibanGueltig(iban)) return setFehler('Die IBAN ist ungültig (nur CH/LI). Bitte prüfen.');
     if (iban && istQrIban(iban)) return setFehler('Das ist eine QR-IBAN. Bitte die normale IBAN des Kontos eintragen.');
     if (w.plz && !/^\d{4}$/.test(w.plz.trim())) return setFehler('PLZ: vier Ziffern.');
+    if (w.dflid.trim() && !/^[A-Za-z0-9]{4,20}$/.test(w.dflid.trim())) return setFehler('digiFLUX-Standort-ID: nur Buchstaben und Ziffern, z. B. D02390130.');
     if (w.email.trim() && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(w.email.trim())) return setFehler('E-Mail-Adresse ungültig.');
     const frist = Number(w.frist);
     if (!Number.isInteger(frist) || frist < 0 || frist > 120) return setFehler('Zahlungsfrist: 0 bis 120 Tage.');
@@ -177,11 +180,12 @@ function BetriebFormular({ onFertig }: { onFertig: () => void }) {
         telefon: t(w.telefon), email: t(w.email), website: t(w.website), iban: iban || null, bank: t(w.bank), mwst_nr: t(w.mwst_nr),
         zahlungsfrist_tage: frist, version: betrieb.data.version,
         ...(w.zone || betrieb.data.zone ? { zone: w.zone || null } : {}),
+        ...(w.dflid.trim() || betrieb.data.dflid ? { dflid: w.dflid.trim().toUpperCase() || null } : {}),
       })
       .eq('id', betrieb.data.id);
     if (error) {
       const m = fehlertext(error);
-      return setFehler(/zone/.test(m) ? 'Für die Zone bitte zuerst Migration 25 in Supabase einspielen.' : /bewirtschafter|gemeinde|bank|website/.test(m) ? 'Bitte zuerst Migration 18 in Supabase einspielen.' : m);
+      return setFehler(/dflid/.test(m) ? 'Für die digiFLUX-ID bitte zuerst Migration 31 in Supabase einspielen.' : /zone/.test(m) ? 'Für die Zone bitte zuerst Migration 25 in Supabase einspielen.' : /bewirtschafter|gemeinde|bank|website/.test(m) ? 'Bitte zuerst Migration 18 in Supabase einspielen.' : m);
     }
     await qc.invalidateQueries({ queryKey: ['betrieb'] });
     onFertig();
@@ -203,6 +207,7 @@ function BetriebFormular({ onFertig }: { onFertig: () => void }) {
           {feld('name', 'Name des Betriebs')}
           {feld('betriebsnummer', 'Betriebsnummer', { placeholder: 'z. B. 0004/1/71' })}
         </div>
+        {feld('dflid', 'digiFLUX-Standort-ID (DFLID oder BUR-Nr.)', { placeholder: 'z. B. D02390130 – steht in digiFLUX beim Standort' })}
         {feld('bewirtschafter', 'Bewirtschafter/in')}
         <div className="grid grid-cols-[1fr_90px] gap-3">
           {feld('strasse', 'Strasse')}

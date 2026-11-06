@@ -547,6 +547,8 @@ export interface Betrieb {
   iban?: string | null;
   mwst_nr?: string | null;
   zahlungsfrist_tage?: number;
+  /** digiFLUX-Standort (DFLID oder BUR), Migration 31 */
+  dflid?: string | null;
   betriebsnummer?: string | null;
   bewirtschafter?: string | null;
   gemeinde?: string | null;
@@ -657,4 +659,26 @@ export interface MaschinenTeil {
   einbauort: string | null;
   vorrat: number | null;
   bemerkung: string | null;
+}
+
+/** Lieferung aus digiFLUX (Migration 31) */
+export interface DigifluxLieferung {
+  id: string;
+  dfx_id: string;
+  quelle: 'Datei' | 'API';
+  status: string | null;
+  lieferdatum: string;
+  abgeber: string | null;
+  abgeber_id: string | null;
+  produkt: string | null;
+  produkt_id: string | null;
+  produkt_quelle: string | null;
+  produktfamilie: string | null;
+  menge: number;
+  einheit: string;
+  lieferschein_nr: string | null;
+  kommentar: string | null;
+  artikel_id: string | null;
+  lagerbewegung_id: string | null;
+  ignoriert: boolean;
 }

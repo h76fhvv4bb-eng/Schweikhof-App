@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from './supabase';
 import { exportBetrieb } from './export';
 import type {
-  Beweidung, Richtpreis, GeraeteEinsatz,
+  Beweidung, Richtpreis, GeraeteEinsatz, DigifluxLieferung,
   Anbau, Feld, Feldarbeit, FeldHinweis, FlaecheJeKultur, Hofobjekt, Kultur, Lagerbestand, Maschine, MaschinenEintrag,
   NaehrstoffeJeFeld, Partner, WartungFaellig, Wartungsplan, Auftrag, Ernte, Kartenobjekt, Aufgabe, Mitarbeiter, Betrieb, Verkauf, Foto, MaschinenTeil,
 } from './typen';
@@ -200,6 +200,18 @@ export function useGeraeteEinsaetze(filter: { maschine_id?: string; partner_id?:
       const { data, error } = await q;
       if (error) return [] as GeraeteEinsatz[];
       return data as GeraeteEinsatz[];
+    },
+  });
+}
+
+/** Lieferungen aus digiFLUX (leer, solange Migration 31 fehlt) */
+export function useDigifluxLieferungen() {
+  return useQuery({
+    queryKey: ['digiflux'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('digiflux_lieferungen').select('id, dfx_id, quelle, status, lieferdatum, abgeber, abgeber_id, produkt, produkt_id, produkt_quelle, produktfamilie, menge, einheit, lieferschein_nr, kommentar, artikel_id, lagerbewegung_id, ignoriert').order('lieferdatum', { ascending: false });
+      if (error) return null;
+      return data as DigifluxLieferung[];
     },
   });
 }
