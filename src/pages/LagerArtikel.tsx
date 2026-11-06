@@ -7,6 +7,7 @@ import { ABHAENGIGE_DATEN, useLager, useMaschinen, useMaschinenTeile } from '../
 import { chf, datum, heuteIso, menge, zahlAus } from '../lib/format';
 import { EINHEITEN, LAGERKATEGORIEN, type Lagerartikel, type Lagerbewegung } from '../lib/typen';
 import { Icon } from '../components/Icon';
+import { lagerartikelLoeschen } from '../lib/lagerLoeschen';
 
 const NAEHRSTOFFE = [
   ['n_je_einheit', 'N'],
@@ -86,6 +87,16 @@ export function LagerArtikel() {
       : await supabase.from('lagerartikel').update({ ...daten, version: artikel!.version }).eq('id', id!);
     if (error) return setFehler(fehlertext(error));
     qc.invalidateQueries({ queryKey: ['lager'] });
+    navigate('/lager');
+  }
+
+  async function loeschen() {
+    if (!artikel || !confirm(`«${artikel.bezeichnung}» löschen? Frühere Buchungen und Feldarbeiten bleiben erhalten.`)) return;
+    setFehler(null);
+    const r = await lagerartikelLoeschen([artikel.id]);
+    if (r.fehler) return setFehler(r.text);
+    qc.invalidateQueries({ queryKey: ['lager'] });
+    qc.invalidateQueries({ queryKey: ['maschine_teile'] });
     navigate('/lager');
   }
 
@@ -211,6 +222,20 @@ export function LagerArtikel() {
         {fehler && <p className="m-0 rounded-xl bg-fehler-hell p-3 text-sm font-semibold text-fehler">{fehler}</p>}
         {darfVerwalten && <button className="knopf">Speichern</button>}
       </form>
+
+      {artikel && darfVerwalten && (
+        <section className="karte flex flex-col gap-2">
+          {artikel.lagerfuehrung && Number(artikel.bestand) !== 0 ? (
+            <span className="text-sm text-leise">
+              Löschen ist erst möglich, wenn der Bestand 0 ist (Verbrauch buchen oder Inventur auf 0).
+            </span>
+          ) : (
+            <button type="button" className="knopf-leise self-start text-fehler" onClick={loeschen}>
+              Artikel löschen
+            </button>
+          )}
+        </section>
+      )}
 
       {artikel && <ArtikelMaschinen artikelId={artikel.id} />}
       {artikel && artikel.lagerfuehrung && <Journal artikelId={artikel.id} einheit={artikel.einheit} />}
