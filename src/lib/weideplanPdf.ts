@@ -140,9 +140,25 @@ async function kartenbild(d: WeideplanDaten, schritte: ReturnType<typeof planSch
   // Nummern (Reihenfolge) in der Feldmitte
   for (const f of weide) {
     const nr = [...new Set(schritte.filter((x) => x.feld_id === f.id).map((x) => x.nr))].join(', ');
-    const aussen = ringe(f.geometrie!)[0][0];
-    const mx = aussen.reduce((t, p) => t + p[0], 0) / aussen.length;
-    const my = aussen.reduce((t, p) => t + p[1], 0) / aussen.length;
+    // Schwerpunkt der grössten Teilfläche (Flächenformel, ohne doppelten Schlusspunkt)
+    const aussen = ringe(f.geometrie!).map((p) => p[0]).sort((x, y) => y.length - x.length)[0];
+    let fl = 0, mx = 0, my = 0;
+    for (let i = 0; i < aussen.length - 1; i++) {
+      const [x1, y1] = aussen[i];
+      const [x2, y2] = aussen[i + 1];
+      const k = x1 * y2 - x2 * y1;
+      fl += k;
+      mx += (x1 + x2) * k;
+      my += (y1 + y2) * k;
+    }
+    if (Math.abs(fl) < 1e-14) {
+      const n = Math.max(1, aussen.length - 1);
+      mx = aussen.slice(0, n).reduce((t, p) => t + p[0], 0) / n;
+      my = aussen.slice(0, n).reduce((t, p) => t + p[1], 0) / n;
+    } else {
+      mx /= 3 * fl;
+      my /= 3 * fl;
+    }
     const [x, y] = punkt(mx, my);
     c.font = `bold ${Math.round(26 * skala)}px Helvetica, Arial, sans-serif`;
     const tb = Math.max(c.measureText(nr).width + 22 * skala, 44 * skala);
