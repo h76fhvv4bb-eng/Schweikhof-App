@@ -322,9 +322,14 @@ export function ErnteFormular() {
   const ernten = useErnten();
   const verrechnet = useVerrechneteAbgaben();
   const bestehend = ernten.data?.find((e) => e.id === id);
-  const [w, setW] = useState({ feld_id: suche.get('feld') ?? '', datum: heuteIso(), schnitt: '', flaeche_ha: '', bemerkungen: '' });
+  // Vorbelegung aus einer erledigten Erntearbeit (Feld, Datum, Fläche, Lohnunternehmen mit Kosten)
+  const [w, setW] = useState({ feld_id: suche.get('feld') ?? '', datum: suche.get('datum') ?? heuteIso(), schnitt: '', flaeche_ha: '', bemerkungen: '' });
   const [produkte, setProdukte] = useState<ProduktZeile[]>([]);
-  const [dienste, setDienste] = useState<DienstZeile[]>([]);
+  const [dienste, setDienste] = useState<DienstZeile[]>(() =>
+    suche.get('dl_partner')
+      ? [{ partner_id: suche.get('dl_partner')!, leistung: suche.get('dl_leistung') ?? 'Andere', kosten: suche.get('dl_kosten') ?? '', bemerkung: '' }]
+      : [],
+  );
   const [abnehmer, setAbnehmer] = useState<AbnehmerZeile[]>([]);
   const [fehler, setFehler] = useState<string | null>(null);
   const [speichert, setSpeichert] = useState(false);
@@ -363,7 +368,8 @@ export function ErnteFormular() {
   // Feldfläche und erstes Produkt vorschlagen
   useEffect(() => {
     if (!neu || !feld) return;
-    setW((v) => ({ ...v, flaeche_ha: (Number(feld.flaeche_m2) / 10000).toFixed(2).replace(/\.?0+$/, '') }));
+    const vorgabe = feld.id === suche.get('feld') ? suche.get('ha') : null; // bearbeitete Teilfläche
+    setW((v) => ({ ...v, flaeche_ha: vorgabe || (Number(feld.flaeche_m2) / 10000).toFixed(2).replace(/\.?0+$/, '') }));
     setProdukte((p) => (p.length ? p : [neuesProdukt(produktAusKultur(kulturName, 1))]));
   }, [feld, kulturName, neu]);
 

@@ -8,9 +8,11 @@ import { PersonAuswahl } from './Mitarbeiter';
 import { HinweisListe } from '../components/FeldWerkzeuge';
 import { MIT_MOTOR } from '../lib/typen';
 import { ha, heuteIso, menge, zahlAus } from '../lib/format';
-import { ARBEITSARTEN, rollenText, type Arbeitsart, type Lagerbestand, type Maschine } from '../lib/typen';
+import { ARBEITSARTEN, ERNTEARBEITEN, rollenText, type Arbeitsart, type Lagerbestand, type Maschine } from '../lib/typen';
 import { Icon } from '../components/Icon';
 import { ZaehlerFelder, pruefeZaehler } from '../components/Zaehler';
+import { ErnteWeiter } from '../components/ErnteWeiter';
+import { ernteLink } from '../lib/ernteWeiter';
 import { NEU, NeuerArtikelDialog } from '../components/Schnellanlage';
 
 const HAUPTARTEN: Arbeitsart[] = ['Pflügen', 'Grubbern', 'Eggen', 'Säen', 'Düngen', 'Pflanzenschutz', 'Mähen', 'Wenden', 'Schwaden', 'Pressen', 'Ernten', 'Mulchen'];
@@ -65,6 +67,8 @@ export function Erfassen() {
   const geraetId = geraetIds[0] ?? '';
   const geraeteListe = useFeldarbeitGeraete();
   const [partnerId, setPartnerId] = useState('');
+  const lohnarbeit = !!partnerId;
+  const [ernteWeiter, setErnteWeiter] = useState<string | null>(null);
   const maschinen = useMaschinen();
   const partner = usePartner();
   const hinweise = useHinweise();
@@ -209,7 +213,7 @@ export function Erfassen() {
     if (!geplant && datum > heuteIso()) return setFehler('Eine erledigte Arbeit kann nicht in der Zukunft liegen. Als «geplant» speichern?');
     const zMaschine = maschinen.data?.find((m) => m.id === maschineId);
     const zGeraet = maschinen.data?.find((m) => m.id === geraetId);
-    if (!geplant) {
+    if (!geplant && !lohnarbeit) {
       const pz =
         (zMaschine && (pruefeZaehler(abschluss.m_stunden, id ? null : zMaschine.betriebsstunden, zMaschine.name) ??
           pruefeZaehler(abschluss.m_km, id ? null : zMaschine.kilometerstand, zMaschine.name))) ||
@@ -224,14 +228,15 @@ export function Erfassen() {
         datum,
         arbeitsart,
         status: geplant ? 'geplant' : 'erledigt',
-        dauer_h: d,
+        // neue Lohnarbeit: keine eigene Person und Arbeitszeit (bestehende Angaben bleiben beim Bearbeiten)
+        dauer_h: lohnarbeit && !geplant && !id ? null : d,
         maschine,
         geraet,
         maschine_id: maschineId || null,
         geraet_id: geraetId || null,
         partner_id: partnerId || null,
-        mitarbeiter_id: person || null,
-        ausgefuehrt_von: mitarbeiter.data?.find((m) => m.id === person)?.benutzer_id ?? null,
+        mitarbeiter_id: lohnarbeit && !geplant && !id ? null : person || null,
+        ausgefuehrt_von: lohnarbeit && !geplant && !id ? null : (mitarbeiter.data?.find((m) => m.id === person)?.benutzer_id ?? null),
         vorgaenger_id: vorgaengerId || null,
         ausbringung,
         bemerkungen,
@@ -254,9 +259,9 @@ export function Erfassen() {
       const r = await supabase.rpc('feldarbeit_abschluss', {
         p_id: arbeitId as string,
         p: {
-          maschine_stunden: maschineId ? zahlAus(abschluss.m_stunden) : null,
-          maschine_km: maschineId ? zahlAus(abschluss.m_km) : null,
-          geraet_stunden: geraetId ? zahlAus(abschluss.g_stunden) : null,
+          maschine_stunden: maschineId && !lohnarbeit ? zahlAus(abschluss.m_stunden) : null,
+          maschine_km: maschineId && !lohnarbeit ? zahlAus(abschluss.m_km) : null,
+          geraet_stunden: geraetId && !lohnarbeit ? zahlAus(abschluss.g_stunden) : null,
           beobachtung: abschluss.beobachtung.trim() || null,
           beobachtung_an_maschine: abschluss.melden || null,
         },
@@ -268,7 +273,18 @@ export function Erfassen() {
       }
     }
     setSpeichert(false);
-    ABHAENGIGE_DATEN.forEach((k) => qc.invalidateQueries({ queryKey: k }));
+    ABHAENGIGE_DATEN.concat([['auftraege']]).forEach((k) => qc.invalidateQueries({ queryKey: k }));
+    // Nach einer neu erfassten Erntearbeit direkt zur Ernte
+    if (!geplant && !id && ERNTEARBEITEN.includes(arbeitsart)) {
+      return setErnteWeiter(
+        ernteLink({
+          felder: felderListe.map((f) => ({ feld_id: f.feld_id, flaeche_m2: ('flaeche_m2' in f ? f.flaeche_m2 : null) ?? Number(felder.data?.find((x) => x.id === f.feld_id)?.flaeche_m2 ?? 0) })),
+          datum,
+          arbeitsart,
+          partner_id: partnerId || null,
+        }),
+      );
+    }
     navigate(geplant ? '/aufgaben' : '/kartei');
   }
 
@@ -532,7 +548,7 @@ export function Erfassen() {
           )}
           {!mehr && (
             <button type="button" className="self-start text-sm font-extrabold text-hof" onClick={() => setMehr(true)}>
-              + {geplant ? 'Dauer, Maschine, Person, ' : ''}Lohnunternehmen, Teilfläche, Bemerkung
+              + {geplant ? 'Dauer, Maschine, Person, Lohnunternehmen, ' : ''}Teilfläche, Bemerkung
             </button>
           )}
           {mehr && (
@@ -573,17 +589,20 @@ export function Erfassen() {
                 )}
                 </>
                 )}
-                <label className="feld-label col-span-2">
-                  Ausgeführt durch Lohnunternehmen / Partner
-                  <select className="eingabe" value={partnerId} onChange={(e) => setPartnerId(e.target.value)}>
-                    <option value="">– eigener Betrieb –</option>
-                    {(partner.data ?? []).filter((p) => p.aktiv).map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name} ({rollenText(p)})
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                {geplant && (
+                  <label className="feld-label col-span-2">
+                    Vergeben an Lohnunternehmen / Partner
+                    <select className="eingabe" value={partnerId} onChange={(e) => setPartnerId(e.target.value)}>
+                      <option value="">– eigener Betrieb –</option>
+                      {(partner.data ?? []).filter((p) => p.aktiv).map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.name} ({rollenText(p)})
+                        </option>
+                      ))}
+                    </select>
+                    {partnerId && <span className="text-xs font-normal text-leise">Wird automatisch als Lohnauftrag unter «Aufträge» geführt.</span>}
+                  </label>
+                )}
               </div>
               {arbeitsart === 'Düngen' && (
                 <label className="feld-label">
@@ -601,7 +620,24 @@ export function Erfassen() {
 
         {!geplant && (
           <section className="karte flex flex-col gap-3">
-            <h2 className="m-0 text-[15px] font-extrabold text-[#3E4C41]">{zeigeMittel ? '4' : '3'} · Wie lange, womit, Beobachtungen?</h2>
+            <h2 className="m-0 text-[15px] font-extrabold text-[#3E4C41]">{zeigeMittel ? '4' : '3'} · Wer, wie lange, womit, Beobachtungen?</h2>
+            <label className="feld-label">
+              Ausgeführt durch
+              <select className="eingabe" value={partnerId} onChange={(e) => setPartnerId(e.target.value)}>
+                <option value="">eigener Betrieb</option>
+                {(partner.data ?? []).filter((p) => p.aktiv || p.id === partnerId).map((p) => (
+                  <option key={p.id} value={p.id}>
+                    Lohnunternehmen: {p.name} ({rollenText(p)})
+                  </option>
+                ))}
+              </select>
+            </label>
+            {lohnarbeit && (
+              <p className="m-0 text-sm text-leise">
+                Lohnarbeit: eigene Maschinenstunden und Arbeitszeit entfallen. Die Arbeit erscheint unter «Aufträge», dort lässt sich die Abrechnung erfassen.
+              </p>
+            )}
+            {!lohnarbeit && (
             <div className="grid grid-cols-2 gap-3">
               <label className="feld-label">
                 Wie lange? (Std.)
@@ -635,9 +671,10 @@ export function Erfassen() {
                 </label>
               )}
             </div>
+            )}
             {(() => {
-              const zm = maschinen.data?.find((m) => m.id === maschineId);
-              const zg = maschinen.data?.find((m) => m.id === geraetId);
+              const zm = lohnarbeit ? undefined : maschinen.data?.find((m) => m.id === maschineId);
+              const zg = lohnarbeit ? undefined : maschinen.data?.find((m) => m.id === geraetId);
               return (
                 <>
                   {zm && (
@@ -679,6 +716,7 @@ export function Erfassen() {
         )}
       </fieldset>
 
+      {ernteWeiter && <ErnteWeiter titel={`${arbeitsart} erledigt`} link={ernteWeiter} onSpaeter={() => navigate('/kartei')} />}
       {neuerArtikelFuer != null && (
         <NeuerArtikelDialog
           kategorie={kategorie}

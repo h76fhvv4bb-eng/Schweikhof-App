@@ -240,3 +240,16 @@ nur öffentlich zugängliche Richtwerte mit Quelle (Agroscope Kostenkatalog 2024
 Heu). Den vollständigen Agroscope-Katalog übernimmt der Betrieb selbst per CSV. Gleiche Bezeichnung und Einheit werden beim
 Import aktualisiert. Ein Richtpreis ist ein Vorschlag: übernommen wird der Wert, eine spätere Änderung ändert bestehende
 Belege nicht. Maschinen können einen Ansatz (`maschinen.richtpreis_id`) haben.
+
+## 2026-11-06 · Lohnarbeit einheitlich (Migration 24)
+- Eine Arbeit mit Lohnunternehmen hat immer einen Auftrag: `lohnauftrag_abgleichen` legt ihn beim Speichern an (geplant →
+  «Entwurf», direkt erledigt → «Erledigt») und hält Partner, Termin und Felder gleich. Neuer Partner → Auftrag wieder
+  «Entwurf»; Partner entfernt oder Arbeit gelöscht → «Abgebrochen». Betriebsmittel werden nur beim Anlegen übernommen.
+- Status gibt es nur einmal: den des Auftrags. «Aufgaben» zeigt ihn an, und der Haken dort schliesst über denselben Ablauf
+  ab wie «Aufträge» (`auftrag_abschliessen_abrechnung` → `auftrag_abschliessen`).
+- Abrechnung: `abrechnung` (Stunde, Hektare, Ballen, Stück, Pauschale) und `preis_je_einheit` am Auftrag; beim Abschluss
+  wird die Menge erfasst, `kosten_chf` = Menge × Preis (Pauschale = Preis). Die Kosten stehen auch in der Bemerkung der Arbeit.
+  Nachträgliche Korrektur über `auftrag_abrechnung_nachtragen`.
+- Lohnarbeit verlangt beim Abschluss keine eigenen Maschinenstunden, Arbeitszeit oder Person.
+- Nach «Ernten» oder «Pressen» bietet die App «Ertrag jetzt erfassen» an; Feld(er), Datum, Fläche und Lohnunternehmen mit
+  Kosten werden in die Ernte übernommen (keine Doppelerfassung).

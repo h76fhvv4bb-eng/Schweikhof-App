@@ -56,7 +56,7 @@ export function ErnteSammel() {
   const partner = usePartner();
   const orte = useHofobjekte();
   const ernten = useErnten();
-  const [datum, setDatum] = useState(heuteIso());
+  const [datum, setDatum] = useState(params.get('datum') ?? heuteIso());
   const [schnitt, setSchnitt] = useState('');
   const [spalten, setSpalten] = useState<Spalte[]>([]);
   const [zeilen, setZeilen] = useState<Zeile[]>([]);
@@ -95,6 +95,31 @@ export function ErnteSammel() {
     setSchnitt(s.size === 1 ? zuText([...s][0]) : '');
     setDatum(geladen[0].datum);
   }, [bearbeiten, geladen]);
+
+  // Vorbelegung aus einer erledigten Erntearbeit: ?felder=id:ha,… und Lohnunternehmen mit Kosten
+  const vorbelegt = useRef(false);
+  useEffect(() => {
+    const liste = (params.get('felder') ?? '').split(',').filter(Boolean);
+    if (bearbeiten || vorbelegt.current || !liste.length || !felder.data || !anbau.isSuccess) return;
+    vorbelegt.current = true;
+    const eintraege = liste
+      .map((x) => {
+        const [id, h] = x.split(':');
+        const f = felder.data!.find((y) => y.id === id);
+        return f ? { feld_id: id, ha: h || haText(Number(f.flaeche_m2)) } : null;
+      })
+      .filter((x): x is { feld_id: string; ha: string } => !!x);
+    if (!eintraege.length) return;
+    const sp = [neueSpalte(produktAusKultur(kulturJeFeld.get(eintraege[0].feld_id) ?? undefined, 1))];
+    setSpalten(sp);
+    setZeilen(eintraege.map((e) => ({ feld_id: e.feld_id, datum: params.get('datum') ?? heuteIso(), flaeche_ha: e.ha, werte: sp.map(() => ({ ballen: '', kg: '' })) })));
+    const partnerId = params.get('dl_partner');
+    if (partnerId) {
+      const summe = eintraege.reduce((t, e) => t + (zahlAus(e.ha) ?? 0), 0);
+      const k = zahlAus(params.get('dl_kosten') ?? '');
+      setDienste([{ partner_id: partnerId, leistung: params.get('dl_leistung') ?? 'Andere', kosten_ha: k != null && summe > 0 ? String(Math.round((k / summe) * 100) / 100) : '' }]);
+    }
+  }, [bearbeiten, params, felder.data, anbau.isSuccess, kulturJeFeld]);
 
   const aktiveFelder = (felder.data ?? []).filter((f) => f.status !== 'aufgegeben' && f.status !== 'zusammengeführt');
   const feld = (id: string) => felder.data?.find((f) => f.id === id);

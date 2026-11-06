@@ -336,6 +336,13 @@ export interface AuftragMittel {
   lagerartikel?: { bezeichnung: string; einheit: string } | null;
 }
 
+/** Abrechnung von Lohn- und Werkstattarbeit */
+export const ABRECHNUNGSARTEN = ['Stunde', 'Hektare', 'Ballen', 'Stück', 'Pauschale'] as const;
+/** Einheit für Anzeige und Mengenfeld */
+export const ABRECHNUNG_EINHEIT: Record<(typeof ABRECHNUNGSARTEN)[number], string> = { Stunde: 'h', Hektare: 'ha', Ballen: 'Ballen', Stück: 'Stk', Pauschale: 'pauschal' };
+/** Arbeiten, nach denen eine Ernte (Ertrag) erfasst wird */
+export const ERNTEARBEITEN: readonly string[] = ['Ernten', 'Pressen'];
+
 export interface Auftrag {
   id: string;
   betrieb_id: string;
@@ -354,6 +361,11 @@ export interface Auftrag {
   feldarbeit_id: string | null;
   aufgabe_id?: string | null;
   eintrag_id: string | null;
+  /** Abrechnung (Migration 24) */
+  abrechnung?: (typeof ABRECHNUNGSARTEN)[number] | null;
+  preis_je_einheit?: number | null;
+  menge_abgerechnet?: number | null;
+  kosten_chf?: number | null;
   version: number;
   auftrag_felder: { feld_id: string }[];
   auftrag_mittel: AuftragMittel[];

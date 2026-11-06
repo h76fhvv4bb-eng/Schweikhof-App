@@ -5,10 +5,12 @@ import type { MultiPolygon, Polygon } from 'geojson';
 import { supabase, fehlertext } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
 import {
-  ABHAENGIGE_DATEN, useAnbau, useAuftraege, useBetrieb, useFelder, useHinweise, useHofobjekte, useLager, useMaschinen, useMaschinenEintraege, usePartner, useAufgaben, useGeplanteArbeiten,
+  useAnbau, useAuftraege, useBetrieb, useFelder, useHinweise, useHofobjekte, useLager, useMaschinen, useMaschinenEintraege, usePartner, useAufgaben, useGeplanteArbeiten,
 } from '../lib/daten';
-import { datum, ha, heuteIso, menge, zahlAus } from '../lib/format';
-import { ARBEITSARTEN, LAGERKATEGORIEN, MIT_MOTOR, type Auftrag, rollenText, hatRolle } from '../lib/typen';
+import { chf, datum, ha, menge, zahlAus } from '../lib/format';
+import { ABRECHNUNG_EINHEIT, ABRECHNUNGSARTEN, ARBEITSARTEN, LAGERKATEGORIEN, MIT_MOTOR, type Auftrag, rollenText, hatRolle } from '../lib/typen';
+import { AbrechnungNachtragen, AuftragAbschluss } from '../components/AuftragAbschluss';
+import { RichtpreisWahl } from '../components/RichtpreisWahl';
 import { HinweisListe } from '../components/FeldWerkzeuge';
 import { Icon } from '../components/Icon';
 import { NEU, NeuerArtikelDialog } from '../components/Schnellanlage';
@@ -88,6 +90,8 @@ export function AuftraegeListe() {
               pName(a.partner_id),
               a.termin_von && `Termin ${datum(a.termin_von)}`,
               a.art === 'Lohnarbeit' && `${a.auftrag_felder.length} Felder`,
+              a.kosten_chf != null && chf(Number(a.kosten_chf)),
+              a.kosten_chf == null && a.abrechnung && a.preis_je_einheit != null && `${chf(Number(a.preis_je_einheit))} ${a.abrechnung === 'Pauschale' ? 'pauschal' : `je ${ABRECHNUNG_EINHEIT[a.abrechnung]}`}`,
             ]
               .filter(Boolean)
               .join(' · ')}
@@ -153,7 +157,10 @@ export function AuftragFormular() {
   const [neuerArtikelFuer, setNeuerArtikelFuer] = useState<number | null>(null);
   const [meldung, setMeldung] = useState<string | null>(null);
   const [arbeitet, setArbeitet] = useState(false);
-  const [abschluss, setAbschluss] = useState<{ datum: string; kosten: string; bemerkung: string } | null>(null);
+  const [abschlussOffen, setAbschlussOffen] = useState(false);
+  const [abrechnung, setAbrechnung] = useState<string>('');
+  const [preisJe, setPreisJe] = useState('');
+  const [richtpreisWahl, setRichtpreisWahl] = useState(false);
   const geladen = useMemo(() => ({ id: '' }), []);
   // Aus den Aufgaben: geplante Feldarbeit (Lohnarbeit) oder Maschinen-Aufgabe (Werkstatt) übernehmen
   const geplanteArbeiten = useGeplanteArbeiten();
@@ -209,6 +216,8 @@ export function AuftragFormular() {
     setTerminBis(a.termin_bis ?? '');
     setBeschreibung(a.beschreibung ?? '');
     setFeldWahl(a.auftrag_felder.map((f) => f.feld_id));
+    setAbrechnung(a.abrechnung ?? '');
+    setPreisJe(a.preis_je_einheit != null ? String(a.preis_je_einheit) : '');
     setBeobWahl(a.auftrag_beobachtungen.map((b) => b.eintrag_id));
     setMittel(
       a.auftrag_mittel.map((m) => ({
@@ -233,6 +242,12 @@ export function AuftragFormular() {
   const ausgewaehlteFelder = (felder.data ?? []).filter((f) => feldWahl.includes(f.id));
   const flaecheHa = ausgewaehlteFelder.reduce((s, f) => s + Number(f.flaeche_m2), 0) / 10000;
   const maschine = maschinen.data?.find((m) => m.id === maschineId);
+  // Fläche für Abschluss und Ernte: Teilflächen der geplanten Arbeit, sonst ganze Felder
+  const abschlussFelder = ausgewaehlteFelder.map((f) => ({
+    feld_id: f.id,
+    flaeche_m2: Number(quelleArbeit?.feldarbeit_felder.find((x) => x.feld_id === f.id)?.flaeche_m2 ?? f.flaeche_m2),
+  }));
+  const abschlussFlaecheM2 = abschlussFelder.reduce((s, f) => s + f.flaeche_m2, 0);
 
   // Vorschlag für den Titel
   useEffect(() => {
@@ -282,6 +297,8 @@ export function AuftragFormular() {
       beobachtungen: art === 'Werkstatt' ? beobWahl : [],
       feldarbeit_id: art === 'Lohnarbeit' && quelleArbeit ? quelleArbeit.id : null,
       aufgabe_id: aufgabeId || null,
+      abrechnung: abrechnung || null,
+      preis_je_einheit: abrechnung ? zahlAus(preisJe) : null,
     };
   }
 
@@ -298,7 +315,10 @@ export function AuftragFormular() {
     } catch (e) {
       return (setFehler((e as Error).message), null);
     }
-    const { data, error } = await supabase.rpc('auftrag_speichern', { p });
+    if (abrechnung && preisJe.trim() && (zahlAus(preisJe) == null || zahlAus(preisJe)! < 0)) return (setFehler('Preis der Abrechnung ungültig.'), null);
+    let { data, error } = await supabase.rpc('auftrag_speichern_abrechnung', { p });
+    // ältere Datenbank ohne Migration 24: ohne Abrechnung speichern
+    if (error && /auftrag_speichern_abrechnung/.test(error.message)) ({ data, error } = await supabase.rpc('auftrag_speichern', { p }));
     if (error) return (setFehler(fehlertext(error)), null);
     await qc.invalidateQueries({ queryKey: ['auftraege'] });
     qc.invalidateQueries({ queryKey: ['feldarbeiten'] });
@@ -411,22 +431,6 @@ export function AuftragFormular() {
     qc.invalidateQueries({ queryKey: ['feldarbeiten'] });
   }
 
-  async function abschliessen() {
-    if (!id || !abschluss) return;
-    setFehler(null);
-    const gespeichert = await speichern();
-    if (!gespeichert) return;
-    const { data, error } = await supabase.rpc('auftrag_abschliessen', {
-      p_id: id,
-      p_datum: abschluss.datum,
-      p_kosten: zahlAus(abschluss.kosten),
-      p_bemerkung: abschluss.bemerkung.trim() || null,
-    });
-    if (error) return setFehler(fehlertext(error));
-    ABHAENGIGE_DATEN.concat([['auftraege'], ['hinweise']]).forEach((k) => qc.invalidateQueries({ queryKey: k }));
-    navigate(art === 'Lohnarbeit' ? `/arbeiten/${data as string}` : `/maschinen/${maschineId}`);
-  }
-
   if (!darfVerwalten) return <p>Aufträge können nur Administratoren und Betriebsleiter bearbeiten.</p>;
   if (id && auftraege.isSuccess && !vorhanden) return <p>Auftrag nicht gefunden.</p>;
 
@@ -462,6 +466,7 @@ export function AuftragFormular() {
           .
         </p>
       )}
+      {vorhanden?.status === 'Erledigt' && <AbrechnungNachtragen auftrag={vorhanden} flaecheM2={abschlussFlaecheM2} />}
 
       <fieldset disabled={!!abgeschlossen} className="m-0 flex flex-col gap-4 border-0 p-0">
         {!id && (
@@ -748,7 +753,56 @@ export function AuftragFormular() {
             />
           </label>
         </section>
+
+        {!abgeschlossen && (
+          <section className="karte flex flex-col gap-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h2 className="m-0 text-lg font-extrabold">Abrechnung</h2>
+              <button type="button" className="text-sm font-bold text-hof" onClick={() => setRichtpreisWahl(true)}>
+                aus Richtpreis …
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <label className="feld-label">
+                Abrechnen nach
+                <select className="eingabe" value={abrechnung} onChange={(e) => setAbrechnung(e.target.value)}>
+                  <option value="">noch offen / Betrag</option>
+                  {ABRECHNUNGSARTEN.map((x) => (
+                    <option key={x}>{x}</option>
+                  ))}
+                </select>
+              </label>
+              {abrechnung && (
+                <label className="feld-label">
+                  {abrechnung === 'Pauschale' ? 'Betrag CHF' : `CHF je ${ABRECHNUNG_EINHEIT[abrechnung as keyof typeof ABRECHNUNG_EINHEIT]}`}
+                  <input className="eingabe" inputMode="decimal" value={preisJe} onChange={(e) => setPreisJe(e.target.value)} />
+                </label>
+              )}
+            </div>
+            {abrechnung === 'Hektare' && zahlAus(preisJe) != null && art === 'Lohnarbeit' && flaecheHa > 0 && (
+              <span className="text-sm text-leise">
+                Voraussichtlich {ha(flaecheHa * 10000)} × {chf(zahlAus(preisJe)!)} = {chf(Math.round(flaecheHa * zahlAus(preisJe)! * 100) / 100)}
+              </span>
+            )}
+            {abrechnung && abrechnung !== 'Pauschale' && abrechnung !== 'Hektare' && (
+              <span className="text-sm text-leise">Die {abrechnung === 'Stunde' ? 'Stunden' : abrechnung === 'Ballen' ? 'Ballenzahl' : 'Stückzahl'} gibst du beim Abschliessen ein; die Kosten werden berechnet.</span>
+            )}
+          </section>
+        )}
       </fieldset>
+      {richtpreisWahl && (
+        <RichtpreisWahl
+          bereiche={['Dienstleistung', 'Maschine', 'Arbeit']}
+          titel="Abrechnung aus Richtpreis"
+          onSchliessen={() => setRichtpreisWahl(false)}
+          onWahl={(rp) => {
+            const e = rp.einheit.toLowerCase();
+            setAbrechnung(e === 'h' || e === 'akh' ? 'Stunde' : e === 'ha' ? 'Hektare' : e.startsWith('ballen') ? 'Ballen' : e.startsWith('stk') || e.startsWith('stück') ? 'Stück' : 'Pauschale');
+            setPreisJe(String(rp.preis_chf));
+            setRichtpreisWahl(false);
+          }}
+        />
+      )}
 
       {fehler && <p className="m-0 rounded-xl bg-fehler-hell p-3 text-sm font-semibold text-fehler">{fehler}</p>}
       {meldung && <p className="m-0 rounded-xl bg-hof-hell p-3 text-sm font-semibold text-hof">{meldung}</p>}
@@ -790,40 +844,22 @@ export function AuftragFormular() {
                 Als bestätigt markieren
               </button>
             )}
-            <button className="knopf" onClick={() => setAbschluss({ datum: heuteIso(), kosten: '', bemerkung: '' })}>
+            <button className="knopf" onClick={() => setAbschlussOffen(true)}>
               Erledigt – abschliessen
             </button>
             <button className="ml-auto text-sm font-bold text-fehler" onClick={() => confirm('Auftrag abbrechen?') && statusSetzen('Abgebrochen')}>
               Abbrechen
             </button>
           </div>
-          {abschluss && (
-            <div className="flex flex-col gap-3 rounded-2xl bg-grund p-3">
-              <span className="text-sm">
-                {art === 'Lohnarbeit'
-                  ? 'Die Arbeit wird mit allen Feldern und Betriebsmitteln in die Ackerschlagkartei übernommen.'
-                  : 'Bei der Maschine wird eine Reparatur erfasst, die gewählten Beobachtungen gelten als behoben.'}
-              </span>
-              <div className="grid grid-cols-2 gap-3">
-                <label className="feld-label">
-                  Erledigt am
-                  <input className="eingabe" type="date" value={abschluss.datum} onChange={(e) => setAbschluss({ ...abschluss, datum: e.target.value })} />
-                </label>
-                {art === 'Werkstatt' && (
-                  <label className="feld-label">
-                    Kosten (CHF)
-                    <input className="eingabe" inputMode="decimal" value={abschluss.kosten} onChange={(e) => setAbschluss({ ...abschluss, kosten: e.target.value })} />
-                  </label>
-                )}
-              </div>
-              <label className="feld-label">
-                Bemerkung
-                <input className="eingabe" value={abschluss.bemerkung} onChange={(e) => setAbschluss({ ...abschluss, bemerkung: e.target.value })} />
-              </label>
-              <button className="knopf" onClick={abschliessen}>
-                Abschliessen
-              </button>
-            </div>
+          {abschlussOffen && vorhanden && (
+            <AuftragAbschluss
+              auftrag={{ ...vorhanden, abrechnung: (abrechnung || null) as Auftrag['abrechnung'], preis_je_einheit: abrechnung ? zahlAus(preisJe) : null, arbeitsart: art === 'Lohnarbeit' ? arbeitsart : null }}
+              flaecheM2={abschlussFlaecheM2}
+              felder={abschlussFelder}
+              vorSpeichern={async () => !!(await speichern())}
+              onAbbrechen={() => setAbschlussOffen(false)}
+              onFertig={(ziel) => navigate(art === 'Lohnarbeit' ? `/arbeiten/${ziel}` : `/maschinen/${maschineId}`)}
+            />
           )}
         </section>
       )}

@@ -14,6 +14,11 @@ import { Icon } from '../components/Icon';
 import { PersonAuswahl } from './Mitarbeiter';
 import { ZaehlerFelder, pruefeZaehler } from '../components/Zaehler';
 import type { Auftrag } from '../lib/typen';
+import { ERNTEARBEITEN } from '../lib/typen';
+import { AuftragStatus } from './Auftraege';
+import { AuftragAbschluss } from '../components/AuftragAbschluss';
+import { ErnteWeiter } from '../components/ErnteWeiter';
+import { ernteLink } from '../lib/ernteWeiter';
 
 type Filter = 'alle' | 'feld' | 'maschine' | 'allgemein';
 
@@ -205,17 +210,17 @@ export function Aufgaben() {
                     🔒
                   </span>
                 )}
-                {darfPlanen && !e.wartetAuf && e.auftrag && (
+                {darfPlanen && !e.wartetAuf && e.auftrag && !darfVerwalten && (
                   <Link
                     to={`/auftraege/${e.auftrag.id}`}
-                    title="Über den Auftrag abschliessen"
+                    title="Wird über den Auftrag abgeschlossen"
                     aria-label={`Auftrag ${e.auftrag.nummer} öffnen`}
                     className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border-[3px] border-hof text-hof no-underline hover:bg-hof-hell"
                   >
                     <Icon name="auftrag" groesse={20} />
                   </Link>
                 )}
-                {darfPlanen && !e.wartetAuf && !e.auftrag && (
+                {darfPlanen && !e.wartetAuf && (!e.auftrag || darfVerwalten) && (
                   <button
                     onClick={() => setErledigen(e)}
                     aria-label={`${e.titel} erledigen`}
@@ -257,8 +262,8 @@ export function Aufgaben() {
                       </Link>
                     )}
                     {e.auftrag && (
-                      <Link to={`/auftraege/${e.auftrag.id}`} className="text-leise">
-                        Auftrag {e.auftrag.nummer} · {e.auftrag.status}
+                      <Link to={`/auftraege/${e.auftrag.id}`} className="flex items-center gap-1.5 text-leise">
+                        {e.auftrag.art === 'Lohnarbeit' ? 'Lohnauftrag' : 'Werkstattauftrag'} {e.auftrag.nummer} <AuftragStatus status={e.auftrag.status} />
                       </Link>
                     )}
                     {e.wartetAuf && <span className="text-leise">wartet auf «{e.wartetAuf}»</span>}
@@ -289,10 +294,21 @@ export function Aufgaben() {
       {erledigteZeigen && <Erledigte maschName={maschName} />}
 
       {neu && <AufgabeFormular vorlage={neu} maschinen={maschinen.data ?? []} onFertig={() => setNeu(null)} />}
-      {erledigen?.feldarbeit && (
+      {erledigen?.auftrag && (
+        <Dialog titel={`Erledigt: ${erledigen.titel}`} onSchliessen={() => setErledigen(null)}>
+          <AuftragAbschluss
+            auftrag={erledigen.auftrag}
+            flaecheM2={(erledigen.feldarbeit?.feldarbeit_felder ?? []).reduce((t, f) => t + Number(f.flaeche_m2), 0)}
+            felder={(erledigen.feldarbeit?.feldarbeit_felder ?? []).map((f) => ({ feld_id: f.feld_id, flaeche_m2: Number(f.flaeche_m2) }))}
+            onAbbrechen={() => setErledigen(null)}
+            onFertig={() => setErledigen(null)}
+          />
+        </Dialog>
+      )}
+      {erledigen?.feldarbeit && !erledigen.auftrag && (
         <FeldarbeitErledigen arbeit={erledigen.feldarbeit} titel={erledigen.titel} maschinen={maschinen.data ?? []} onFertig={() => setErledigen(null)} />
       )}
-      {erledigen?.aufgabe && <AufgabeErledigen aufgabe={erledigen.aufgabe} maschinen={maschinen.data ?? []} onFertig={() => setErledigen(null)} />}
+      {erledigen?.aufgabe && !erledigen.auftrag && <AufgabeErledigen aufgabe={erledigen.aufgabe} maschinen={maschinen.data ?? []} onFertig={() => setErledigen(null)} />}
     </div>
   );
 }
@@ -534,13 +550,17 @@ function FeldarbeitErledigen({ arbeit, titel, maschinen, onFertig }: { arbeit: F
   );
   const [fehler, setFehler] = useState<string | null>(null);
   const [laeuft, setLaeuft] = useState(false);
+  const [ernteLinkWeiter, setErnteLinkWeiter] = useState<string | null>(null);
+  // Lohnarbeit: keine eigenen Maschinenstunden und keine Arbeitszeit
+  const lohn = !!arbeit.partner_id;
 
   async function erledigt() {
     setFehler(null);
     if (w.datum > heuteIso()) return setFehler('Das Datum liegt in der Zukunft.');
     const pz =
-      (maschine && (pruefeZaehler(w.m_stunden, maschine.betriebsstunden, maschine.name) ?? pruefeZaehler(w.m_km, maschine.kilometerstand, maschine.name))) ||
-      (geraet && pruefeZaehler(w.g_stunden, geraet.betriebsstunden, geraet.name));
+      !lohn &&
+      ((maschine && (pruefeZaehler(w.m_stunden, maschine.betriebsstunden, maschine.name) ?? pruefeZaehler(w.m_km, maschine.kilometerstand, maschine.name))) ||
+        (geraet && pruefeZaehler(w.g_stunden, geraet.betriebsstunden, geraet.name)));
     if (pz && !confirm(`${pz}\n\nTrotzdem speichern?`)) return;
     for (const [id, v] of Object.entries(mittel)) if (v.trim() && (zahlAus(v) == null || zahlAus(v)! < 0)) return setFehler(`Menge ungültig: ${arbeit.feldarbeit_mittel.find((m) => m.artikel_id === id)?.lagerartikel?.bezeichnung ?? ''}`);
     setLaeuft(true);
@@ -548,11 +568,11 @@ function FeldarbeitErledigen({ arbeit, titel, maschinen, onFertig }: { arbeit: F
       p_id: arbeit.id,
       p: {
         datum: w.datum,
-        mitarbeiter_id: w.wer || null,
-        dauer_h: zahlAus(w.dauer),
-        maschine_stunden: zahlAus(w.m_stunden),
-        maschine_km: zahlAus(w.m_km),
-        geraet_stunden: zahlAus(w.g_stunden),
+        mitarbeiter_id: lohn ? null : w.wer || null,
+        dauer_h: lohn ? null : zahlAus(w.dauer),
+        maschine_stunden: lohn ? null : zahlAus(w.m_stunden),
+        maschine_km: lohn ? null : zahlAus(w.m_km),
+        geraet_stunden: lohn ? null : zahlAus(w.g_stunden),
         mittel: Object.entries(mittel).map(([artikel_id, v]) => ({ artikel_id, gesamtmenge: zahlAus(v) })),
         beobachtung: w.beobachtung.trim() || null,
         beobachtung_an_maschine: w.melden || null,
@@ -561,8 +581,20 @@ function FeldarbeitErledigen({ arbeit, titel, maschinen, onFertig }: { arbeit: F
     setLaeuft(false);
     if (error) return setFehler(fehlertext(error));
     ABHAENGIGE_DATEN.forEach((k) => qc.invalidateQueries({ queryKey: k }));
+    // Nach einer Erntearbeit direkt zur Ernte
+    if (ERNTEARBEITEN.includes(arbeit.arbeitsart))
+      return setErnteLinkWeiter(
+        ernteLink({
+          felder: arbeit.feldarbeit_felder.map((f) => ({ feld_id: f.feld_id, flaeche_m2: Number(f.flaeche_m2) })),
+          datum: w.datum,
+          arbeitsart: arbeit.arbeitsart,
+          partner_id: arbeit.partner_id,
+        }),
+      );
     onFertig();
   }
+
+  if (ernteLinkWeiter) return <ErnteWeiter titel={titel} link={ernteLinkWeiter} onSpaeter={onFertig} />;
 
   return (
     <Dialog titel={`Erledigt: ${titel}`} onSchliessen={onFertig}>
@@ -571,15 +603,20 @@ function FeldarbeitErledigen({ arbeit, titel, maschinen, onFertig }: { arbeit: F
           Wann?
           <input className="eingabe" type="date" max={heuteIso()} value={w.datum} onChange={(e) => setW({ ...w, datum: e.target.value })} />
         </label>
-        <label className="feld-label">
-          Wie lange? (Std.)
-          <input className="eingabe" inputMode="decimal" value={w.dauer} onChange={(e) => setW({ ...w, dauer: e.target.value })} placeholder="z. B. 2.5" />
-        </label>
-        <label className="feld-label col-span-2">
-          Wer hat es gemacht?
-          <PersonAuswahl wert={w.wer} onWahl={(v) => setW({ ...w, wer: v })} leer="– ich –" />
-        </label>
+        {!lohn && (
+          <>
+            <label className="feld-label">
+              Wie lange? (Std.)
+              <input className="eingabe" inputMode="decimal" value={w.dauer} onChange={(e) => setW({ ...w, dauer: e.target.value })} placeholder="z. B. 2.5" />
+            </label>
+            <label className="feld-label col-span-2">
+              Wer hat es gemacht?
+              <PersonAuswahl wert={w.wer} onWahl={(v) => setW({ ...w, wer: v })} leer="– ich –" />
+            </label>
+          </>
+        )}
       </div>
+      {lohn && <p className="m-0 text-sm text-leise">Lohnarbeit: eigene Maschinenstunden und Arbeitszeit werden nicht erfasst.</p>}
 
       {arbeit.feldarbeit_mittel.length > 0 && (
         <div className="flex flex-col gap-2 rounded-2xl bg-grund p-3">
@@ -610,7 +647,7 @@ function FeldarbeitErledigen({ arbeit, titel, maschinen, onFertig }: { arbeit: F
         </div>
       )}
 
-      {maschine && (
+      {maschine && !lohn && (
         <ZaehlerFelder
           maschine={maschine}
           stunden={w.m_stunden}
@@ -619,7 +656,7 @@ function FeldarbeitErledigen({ arbeit, titel, maschinen, onFertig }: { arbeit: F
           onKm={(v) => setW({ ...w, m_km: v })}
         />
       )}
-      {geraet && <ZaehlerFelder maschine={geraet} stunden={w.g_stunden} km="" onStunden={(v) => setW({ ...w, g_stunden: v })} />}
+      {geraet && !lohn && <ZaehlerFelder maschine={geraet} stunden={w.g_stunden} km="" onStunden={(v) => setW({ ...w, g_stunden: v })} />}
 
       <label className="feld-label">
         Beobachtungen (optional)
