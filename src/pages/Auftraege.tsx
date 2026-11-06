@@ -5,16 +5,17 @@ import type { MultiPolygon, Polygon } from 'geojson';
 import { supabase, fehlertext } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
 import {
-  useAnbau, useAuftraege, useBetrieb, useFelder, useHinweise, useHofobjekte, useLager, useMaschinen, useMaschinenEintraege, usePartner, useAufgaben, useGeplanteArbeiten,
+  useAnbauAlle, useAuftraege, useBetrieb, useFelder, useHinweise, useHofobjekte, useLager, useMaschinen, useMaschinenEintraege, usePartner, useAufgaben, useGeplanteArbeiten,
 } from '../lib/daten';
-import { chf, datum, ha, menge, zahlAus } from '../lib/format';
+import { chf, datum, ha, heuteIso, menge, zahlAus } from '../lib/format';
+import { aktuelleKulturJeFeld } from '../lib/aktuelleKultur';
 import { ABRECHNUNG_EINHEIT, ABRECHNUNGSARTEN, ARBEITSGRUPPEN, LAGERKATEGORIEN, MIT_MOTOR, type Auftrag, rollenText, hatRolle } from '../lib/typen';
 import { AbrechnungNachtragen, AuftragAbschluss } from '../components/AuftragAbschluss';
 import { RichtpreisWahl } from '../components/RichtpreisWahl';
 import { HinweisListe } from '../components/FeldWerkzeuge';
 import { Icon } from '../components/Icon';
 import { NEU, NeuerArtikelDialog } from '../components/Schnellanlage';
-import type { Lagerartikel } from '../lib/typen';
+import type { Anbau, Lagerartikel } from '../lib/typen';
 
 const STATUSFARBE: Record<string, string> = {
   Entwurf: 'bg-[#E7E1D0] text-[#3E4C41]',
@@ -139,7 +140,7 @@ export function AuftragFormular() {
   const betrieb = useBetrieb();
   const orte = useHofobjekte();
   const jahr = new Date().getFullYear();
-  const anbau = useAnbau(jahr, jahr + 1);
+  const anbau = useAnbauAlle(jahr - 1, jahr + 1);
 
   const [art, setArt] = useState<Auftrag['art']>((params.get('art') as Auftrag['art']) || 'Lohnarbeit');
   const [partnerId, setPartnerId] = useState(params.get('partner') ?? '');
@@ -240,6 +241,11 @@ export function AuftragFormular() {
   }, [id, art, maschineId, eintraegeAlle.data]);
 
   const ausgewaehlteFelder = (felder.data ?? []).filter((f) => feldWahl.includes(f.id));
+  // aktuelle Kultur am Termin (ab der Saat die neue Kultur, auch wenn sie zum nächsten Anbaujahr gehört)
+  const kulturAmTermin = useMemo(
+    () => aktuelleKulturJeFeld((anbau.data ?? []) as Anbau[], terminVon || heuteIso()),
+    [anbau.data, terminVon],
+  );
   const flaecheHa = ausgewaehlteFelder.reduce((s, f) => s + Number(f.flaeche_m2), 0) / 10000;
   const maschine = maschinen.data?.find((m) => m.id === maschineId);
   // Fläche für Abschluss und Ernte: Teilflächen der geplanten Arbeit, sonst ganze Felder
@@ -326,10 +332,7 @@ export function AuftragFormular() {
   }
 
   function druckdaten() {
-    const kultur = (feldId: string) =>
-      anbau.data?.find((a) => a.feld_id === feldId && a.jahr === jahr)?.kulturen?.name ??
-      anbau.data?.find((a) => a.feld_id === feldId)?.kulturen?.name ??
-      null;
+    const kultur = (feldId: string) => kulturAmTermin.get(feldId)?.eintrag.kulturen?.name ?? null;
     return {
       betrieb: { name: betrieb.data?.name ?? 'Betrieb', adresse: betrieb.data?.adresse ?? null, telefon: betrieb.data?.telefon ?? null, email: betrieb.data?.email ?? session?.user.email ?? null, betriebsnummer: betrieb.data?.betriebsnummer ?? null },
       absender: profil?.name ?? null,
@@ -573,9 +576,17 @@ export function AuftragFormular() {
                       type="button"
                       aria-pressed={an}
                       onClick={() => setFeldWahl(an ? feldWahl.filter((x) => x !== f.id) : [...feldWahl, f.id])}
-                      className={`min-h-11 rounded-full border-2 px-4 text-sm font-extrabold ${an ? 'border-hof bg-hof text-white' : 'border-linie bg-white'}`}
+                      className={`flex min-h-11 items-center gap-2 rounded-full border-2 py-1 pl-1.5 pr-4 text-left text-sm font-extrabold ${an ? 'border-hof bg-hof text-white' : 'border-linie bg-white'}`}
                     >
-                      {f.name}
+                      <span className={`flex h-7 min-w-7 items-center justify-center rounded-full px-1.5 text-xs ${an ? 'bg-white text-hof' : 'bg-hof-hell text-hof'}`}>
+                        {f.feldnummer}
+                      </span>
+                      <span className="flex flex-col leading-tight">
+                        {f.name}
+                        {kulturAmTermin.get(f.id)?.eintrag.kulturen?.name && (
+                          <span className={`text-[11px] font-semibold ${an ? 'text-white/85' : 'text-leise'}`}>{kulturAmTermin.get(f.id)!.eintrag.kulturen!.name}</span>
+                        )}
+                      </span>
                     </button>
                   );
                 })}

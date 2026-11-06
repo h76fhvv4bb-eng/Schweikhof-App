@@ -104,3 +104,21 @@ body {
   background: #FFFFFF; border: 2px solid var(--color-hof); font-size: 13px; line-height: 1; box-shadow: 0 2px 3px rgb(0 0 0 / 0.25);
 }
 .hof-maschine-mehr { font-size: 10px; font-weight: 800; color: var(--color-hof); }
+
+/* Zoom: Symbole wie die Beschriftung mitverkleinern (mittel kleiner, fern nur noch kleine Punkte) */
+.hof-gebaeude-bild, .hof-hinweis, .hof-ort, .hof-baum, .hof-tiere, .hof-maschinen { transition: transform 0.15s; }
+.hof-zoom-mittel .hof-gebaeude-bild { transform: scale(0.7); }
+.hof-zoom-mittel .hof-gebaeude-name { font-size: 10px; padding: 1px 6px; transform: translateY(-10px); }
+.hof-zoom-mittel .hof-hinweis, .hof-zoom-mittel .hof-ort { transform: scale(0.75); }
+.hof-zoom-mittel .hof-baum { transform: scale(0.7); transform-origin: 50% 85%; }
+.hof-zoom-mittel .hof-tiere { transform: scale(0.8); transform-origin: 50% 0; }
+.hof-zoom-mittel .hof-maschinen { transform: translateY(-14px) scale(0.8); transform-origin: 50% 0; }
+.hof-zoom-fern .hof-gebaeude-bild { transform: scale(0.45); }
+.hof-zoom-fern .hof-gebaeude-name { display: none; }
+.hof-zoom-fern .hof-hinweis, .hof-zoom-fern .hof-ort { transform: scale(0.5); }
+.hof-zoom-fern .hof-baum { transform: scale(0.45); transform-origin: 50% 85%; }
+.hof-zoom-fern .hof-tiere { transform: translateY(-14px) scale(0.6); transform-origin: 50% 0; }
+.hof-zoom-fern .hof-tiere-zahl { display: none; }
+.hof-zoom-fern .hof-maschinen { transform: translateY(-30px) scale(0.6); transform-origin: 50% 0; }
+.hof-zoom-fern .hof-maschine:nth-child(n + 2) { display: none; }
+.hof-ort.gewaehlt, .hof-gebaeude.gewaehlt .hof-gebaeude-bild { transform: scale(1.08); }

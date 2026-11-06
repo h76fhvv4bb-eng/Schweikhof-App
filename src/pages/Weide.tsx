@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase, fehlertext } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
-import { useBeweidungen, useFelder, usePartner, useVerkaeufe } from '../lib/daten';
+import { useBetrieb, useBeweidungen, useFelder, useHinweise, usePartner, useVerkaeufe } from '../lib/daten';
 import { chf, datum, ha, haZuM2, heuteIso, menge, zahlAus } from '../lib/format';
 import { ENTGELTARTEN, TIERARTEN, hatRolle, type Beweidung, type Feld } from '../lib/typen';
 import { abschnitte, aktiv, aktuelleFelder, tagVerschieben, weideHa, weidetage, weidezins } from '../lib/weide';
@@ -318,6 +318,42 @@ export function WeideFormular() {
   const [fehler, setFehler] = useState<string | null>(null);
   const [neuerPartner, setNeuerPartner] = useState(false);
   const [dialog, setDialog] = useState<'weiter' | 'ende' | null>(null);
+  const betrieb = useBetrieb();
+  const hinweise = useHinweise();
+  const [planLaeuft, setPlanLaeuft] = useState<'' | 'pdf' | 'mail'>('');
+  const [planFehler, setPlanFehler] = useState<string | null>(null);
+
+  /** Weideplan für den Tierhalter: Karte mit nummerierten Flächen und Reihenfolge (gespeicherter Stand) */
+  async function weideplan(wie: 'pdf' | 'mail') {
+    if (!vorhanden) return;
+    setPlanLaeuft(wie);
+    setPlanFehler(null);
+    try {
+      const [{ weideplanPdf }, { pdfPerMail }] = await Promise.all([import('../lib/weideplanPdf'), import('../lib/auftragPdf')]);
+      const halter = partner.data?.find((p) => p.id === vorhanden.partner_id) ?? null;
+      const pdf = await weideplanPdf({
+        betrieb: betrieb.data ?? null,
+        partner: halter ? { name: halter.name, adresse: halter.adresse, telefon: halter.telefon } : null,
+        beweidung: vorhanden,
+        felder: felder.data ?? [],
+        hinweise: hinweise.data ?? [],
+      });
+      const dateiname = `Weideplan_${(halter?.name ?? 'Weide').replace(/[^A-Za-z0-9ÄÖÜäöüéè_-]+/g, '_')}_${vorhanden.von}.pdf`;
+      if (wie === 'pdf') {
+        const url = URL.createObjectURL(pdf);
+        if (!window.open(url, '_blank')) pdfHerunterladen(pdf, dateiname);
+      } else {
+        await pdfPerMail(
+          pdf, dateiname, halter?.email ?? null, `Weideplan ${vorhanden.anzahl} ${vorhanden.tierart}`,
+          `Grüezi\n\nIm Anhang der Weideplan mit den Flächen und der Reihenfolge.\n\nFreundliche Grüsse\n${betrieb.data?.name ?? ''}`,
+        );
+      }
+    } catch (e) {
+      setPlanFehler(`Weideplan konnte nicht erstellt werden: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setPlanLaeuft('');
+    }
+  }
   const geladen = useMemo(() => ({ schluessel: '' }), []);
 
   useEffect(() => {
@@ -443,6 +479,24 @@ export function WeideFormular() {
           <button className="knopf-leise min-h-10" onClick={() => setDialog('ende')}>
             Abgeholt
           </button>
+        </section>
+      )}
+
+      {!neu && vorhanden && (
+        <section className="karte flex flex-col gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="flex-1 font-extrabold">Weideplan für den Tierhalter</span>
+            <button type="button" className="knopf-leise min-h-10" disabled={!!planLaeuft} onClick={() => weideplan('pdf')}>
+              {planLaeuft === 'pdf' ? 'Erstelle …' : 'PDF'}
+            </button>
+            <button type="button" className="knopf-leise min-h-10" disabled={!!planLaeuft} onClick={() => weideplan('mail')}>
+              {planLaeuft === 'mail' ? 'Erstelle …' : 'Senden'}
+            </button>
+          </div>
+          <span className="text-xs text-leise">
+            Luftbild mit den nummerierten Weideflächen und die Reihenfolge mit Daten. Geplante Flächen unten unter «Felder und Umtrieb» mit Datum eintragen und speichern.
+          </span>
+          {planFehler && <p className="m-0 rounded-xl bg-fehler-hell p-3 text-sm font-semibold text-fehler">{planFehler}</p>}
         </section>
       )}
 

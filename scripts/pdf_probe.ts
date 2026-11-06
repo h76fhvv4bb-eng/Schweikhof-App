@@ -4,6 +4,7 @@ import { belegPdf } from '../src/lib/belegPdf';
 import { fruchtfolgeZeichnen, parzellenblaetterPdf, type FruchtfolgeDaten } from '../src/lib/kontrollePdf';
 import { duengerbilanzPdf, kontrollmappePdf, verkaeufePdf, weidePdf, type VerkaufsDaten, type WeideDaten } from '../src/lib/berichtePdf';
 import type { KontrollDaten } from '../src/lib/kontrolle';
+import { weideplanPdf } from '../src/lib/weideplanPdf';
 import type { Beweidung, Verkauf } from '../src/lib/typen';
 import type { Betrieb, Feld } from '../src/lib/typen';
 
@@ -80,6 +81,13 @@ async function main() {
   };
   const weide: WeideDaten = { von: '2026-01-01', bis: '2026-12-31', betrieb, felder, partner: [{ id: 'p1', name: 'Hof Nachbar', adresse: null }], eintraege: [weideEintrag] };
   writeFileSync('probe_weide.pdf', Buffer.from(await (await weidePdf(weide)).arrayBuffer()));
+  // Weideplan (in Node ohne Karte, im Browser mit Luftbild)
+  const plan = await weideplanPdf({
+    betrieb, partner: { name: 'Hof Nachbar', adresse: null, telefon: null }, felder,
+    hinweise: [{ id: 'h1', betrieb_id: 'b', feld_id: 'f3', art: 'Gefahr', text: 'Stromleitung am Waldrand', breite: null, laenge: null, aktiv: true } as never],
+    beweidung: { ...weideEintrag, bemerkungen: 'Wasser beim Brunnen in der Hausweide.' },
+  });
+  writeFileSync('probe_weideplan.pdf', Buffer.from(await plan.arrayBuffer()));
 
   const beleg = {
     id: 'v1', nummer: '2026-001', art: 'Rechnung', datum: '2026-07-01', partner_id: 'p1', kunde_name: null, kunde_adresse: null, zahlungsart: 'Überweisung',
