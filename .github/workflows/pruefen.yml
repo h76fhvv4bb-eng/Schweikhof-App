@@ -240,5 +240,14 @@ jobs:
           psql -q -c "insert into public.betriebe (name) values ('Test')"
           for f in supabase/daten/*.sql; do psql -v ON_ERROR_STOP=1 -q -f "$f" > /dev/null; psql -v ON_ERROR_STOP=1 -q -f "$f" > /dev/null; done
           [ "$(psql -tAc 'select count(*) from public.felder')" -eq 13 ] || (echo "Import: falsche Anzahl Felder"; exit 1)
+      - name: Parzellenblätter 2024/2025 nachtragen
+        run: |
+          psql -c "drop schema public cascade; create schema public; drop schema auth cascade;"
+          psql -v ON_ERROR_STOP=1 -q -f supabase/tests/00_auth_stub.sql
+          for f in supabase/migrations/*.sql; do psql -v ON_ERROR_STOP=1 -q -f "$f"; done
+          psql -v ON_ERROR_STOP=1 -q -f supabase/tests/28_betrieb_mit_admin.sql > /dev/null
+          psql -v ON_ERROR_STOP=1 -q -f supabase/daten/import_fruchtfolge_2023_2029.sql > /dev/null
+          for i in 1 2; do psql -v ON_ERROR_STOP=1 -q -f supabase/daten/2024_2025_parzellenblaetter.sql > /dev/null; done
+          [ "$(psql -tAc "select concat_ws('/', (select count(*) from felder), (select count(*) from feldarbeiten), (select count(*) from ernten), (select count(*) from lagerbewegungen))")" = "26/35/29/0" ] || (echo "Parzellenblätter: unerwartete Anzahl"; exit 1)
       - name: Einrichtungsdatei aktuell?
         run: scripts/einrichtung_erstellen.sh | diff - supabase/einrichtung_komplett.sql || (echo "supabase/einrichtung_komplett.sql ist veraltet – scripts/einrichtung_erstellen.sh ausführen"; exit 1)
