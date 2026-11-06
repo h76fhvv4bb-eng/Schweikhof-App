@@ -16,7 +16,7 @@ declare
 begin
   -- als Administrator des Betriebs handeln (Berechtigungen, «erfasst von»)
   select id into v_admin from benutzer_profile where rolle = 'administrator' and aktiv order by erstellt_am limit 1;
-  if v_admin is null then raise exception 'Kein aktiver Administrator gefunden'; end if;
+  if v_admin is null then raise notice 'Kein aktiver Administrator gefunden – nichts nachgetragen'; return; end if;
   perform set_config('request.jwt.claim.sub', v_admin::text, true);
   perform set_config('request.jwt.claims', json_build_object('sub', v_admin, 'role', 'authenticated')::text, true);
 
