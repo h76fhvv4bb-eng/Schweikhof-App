@@ -360,10 +360,15 @@ export function Erfassen() {
                   type="button"
                   aria-pressed={an}
                   onClick={() => feldUmschalten(f.id)}
-                  className={`min-h-11 rounded-full border-2 px-4 text-sm font-extrabold ${
+                  className={`flex min-h-11 items-center gap-2 rounded-full border-2 pl-1.5 pr-4 text-sm font-extrabold ${
                     an ? 'border-hof bg-hof text-white' : 'border-linie bg-white text-text'
                   }`}
                 >
+                  <span
+                    className={`flex h-7 min-w-7 items-center justify-center rounded-full px-1.5 text-xs ${an ? 'bg-white text-hof' : 'bg-hof-hell text-hof'}`}
+                  >
+                    {f.feldnummer}
+                  </span>
                   {f.name}
                 </button>
               );
@@ -386,7 +391,7 @@ export function Erfassen() {
                 const f = felder.data?.find((x) => x.id === fid);
                 return (
                   <label key={fid} className="flex items-center justify-between gap-2 text-sm font-bold">
-                    {f?.name} ({ha(Number(f?.flaeche_m2))})
+                    {f ? `${f.feldnummer} · ${f.name}` : ''} ({ha(Number(f?.flaeche_m2))})
                     <input
                       className="eingabe w-28"
                       inputMode="decimal"
@@ -425,7 +430,7 @@ export function Erfassen() {
                   .filter((a) => a.id !== id)
                   .map((a) => (
                     <option key={a.id} value={a.id}>
-                      {a.arbeitsart} · {a.feldarbeit_felder.map((f) => felder.data?.find((x) => x.id === f.feld_id)?.name).join(', ')} ({a.datum.split('-').reverse().join('.')})
+                      {a.arbeitsart} · {a.feldarbeit_felder.map((f) => { const x = felder.data?.find((y) => y.id === f.feld_id); return x ? `${x.feldnummer} ${x.name}` : ''; }).join(', ')} ({a.datum.split('-').reverse().join('.')})
                     </option>
                   ))}
                 {vorgaengerId && !geplanteArbeiten.data?.some((a) => a.id === vorgaengerId) && <option value={vorgaengerId}>bereits erledigte Arbeit</option>}
