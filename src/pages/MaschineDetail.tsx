@@ -6,7 +6,8 @@ import { useAuth } from '../lib/auth';
 import {
   ABHAENGIGE_DATEN, useHofobjekte, useLager, useMaschinen, useMaschinenEintraege, usePartner, useWartungFaellig, useWartungsplaene, useRichtpreise } from '../lib/daten';
 import { chf, datum, heuteIso, menge, zahlAus } from '../lib/format';
-import { EINTRAGSARTEN, MASCHINENKATEGORIEN, MIT_MOTOR, type Maschine, type MaschinenEintrag } from '../lib/typen';
+import { EINTRAGSARTEN, MASCHINENKATEGORIEN, MIT_MOTOR, MIET_ABRECHNUNG, MIET_EINHEIT, hatRolle, istExtern, type Maschine, type MaschinenEintrag } from '../lib/typen';
+import { useGeraeteEinsaetze } from '../lib/daten';
 import { Icon } from '../components/Icon';
 import { Verlauf } from '../components/Verlauf';
 import { FotoGalerie, FotoKnopf, FotoVorschau } from '../components/Fotos';
@@ -35,14 +36,19 @@ export function MaschineDetail() {
   const maschinen = useMaschinen();
   const orte = useHofobjekte();
   const m = maschinen.data?.find((x) => x.id === id);
-  const [w, setW] = useState<Werte>({ kategorie: 'Traktor', status: 'in Betrieb', standort_id: '', richtpreis_id: '' });
+  const [w, setW] = useState<Werte>({ kategorie: 'Traktor', status: 'in Betrieb', standort_id: '', richtpreis_id: '', eigentum: 'eigen', partner_id: '', miet_abrechnung: 'Hektare', mietpreis: '' });
+  const partner = usePartner();
   const richtpreise = useRichtpreise();
   const [fehler, setFehler] = useState<string | null>(null);
   const [offenDaten, setOffenDaten] = useState(neu);
 
   useEffect(() => {
     if (!m) return;
-    const x: Werte = { kategorie: m.kategorie, status: m.status, standort_id: m.standort_id ?? '', richtpreis_id: m.richtpreis_id ?? '' };
+    const x: Werte = {
+      kategorie: m.kategorie, status: m.status, standort_id: m.standort_id ?? '', richtpreis_id: m.richtpreis_id ?? '',
+      eigentum: m.eigentum ?? 'eigen', partner_id: m.partner_id ?? '', miet_abrechnung: m.miet_abrechnung ?? 'Hektare',
+      mietpreis: m.mietpreis == null ? '' : String(m.mietpreis),
+    };
     for (const k of [...TEXTFELDER, ...ZAHLFELDER]) {
       const v = m[k as keyof Maschine];
       x[k] = v == null ? '' : String(v);
@@ -57,6 +63,16 @@ export function MaschineDetail() {
     const daten: Record<string, unknown> = { kategorie: w.kategorie, status: w.status, standort_id: w.standort_id || null };
     // nur mitsenden, wenn gewählt oder vorher gesetzt (ältere Datenbank ohne Migration 23)
     if (w.richtpreis_id || m?.richtpreis_id) daten.richtpreis_id = w.richtpreis_id || null;
+    // Besitz nur mitsenden, wenn extern oder vorher extern (ältere Datenbank ohne Migration 27)
+    if (w.eigentum !== 'eigen' || (m && istExtern(m))) {
+      const preis = zahlAus(w.mietpreis ?? '');
+      if (w.mietpreis?.trim() && (preis == null || preis < 0)) return setFehler('Mietpreis ungültig.');
+      if (w.eigentum !== 'eigen' && !w.partner_id) return setFehler('Bitte wählen, bei welchem Partner das Gerät gemietet oder geliehen ist.');
+      daten.eigentum = w.eigentum;
+      daten.partner_id = w.eigentum === 'eigen' ? null : w.partner_id || null;
+      daten.mietpreis = w.eigentum === 'gemietet' ? preis : null;
+      daten.miet_abrechnung = w.eigentum === 'gemietet' && preis != null ? w.miet_abrechnung : null;
+    }
     for (const k of TEXTFELDER) daten[k] = w[k]?.trim() ? w[k].trim() : null;
     for (const k of ZAHLFELDER) {
       const n = zahlAus(w[k] ?? '');
@@ -66,7 +82,10 @@ export function MaschineDetail() {
     const { error } = neu
       ? await supabase.from('maschinen').insert({ ...daten, betrieb_id: profil!.betrieb_id })
       : await supabase.from('maschinen').update({ ...daten, version: m!.version }).eq('id', id!);
-    if (error) return setFehler(fehlertext(error));
+    if (error) {
+      const t = fehlertext(error);
+      return setFehler(/eigentum|partner_id|miet/.test(t) ? 'Für gemietete Geräte bitte zuerst Migration 27 in Supabase einspielen.' : t);
+    }
     ABHAENGIGE_DATEN.forEach((k) => qc.invalidateQueries({ queryKey: k }));
     if (neu) navigate('/maschinen');
     else setOffenDaten(false);
@@ -74,6 +93,10 @@ export function MaschineDetail() {
 
   const set = (k: string) => (e: { target: { value: string } }) => setW({ ...w, [k]: e.target.value });
   const motor = MIT_MOTOR.includes(w.kategorie);
+  const extern = w.eigentum !== 'eigen';
+  const partnerAuswahl = (partner.data ?? [])
+    .filter((p) => (p.aktiv || p.id === w.partner_id))
+    .sort((a, b) => Number(hatRolle(b, 'Maschinenvermieter') || hatRolle(b, 'Lohnunternehmen')) - Number(hatRolle(a, 'Maschinenvermieter') || hatRolle(a, 'Lohnunternehmen')) || a.name.localeCompare(b.name, 'de-CH'));
   const schild = MIT_SCHILD.includes(w.kategorie);
   const hallen = (orte.data ?? []).filter((o) => ['Maschinenhalle', 'Scheune', 'Werkstatt', 'Hof', 'Lager'].includes(o.typ));
 
@@ -109,6 +132,8 @@ export function MaschineDetail() {
         </div>
       </header>
 
+      {m && istExtern(m) && <Miete maschine={m} partnerName={partner.data?.find((p) => p.id === m.partner_id)?.name} />}
+
       {m && <Faelligkeiten maschine={m} />}
 
       {m && <MaschinenFotos maschineId={m.id} />}
@@ -124,6 +149,71 @@ export function MaschineDetail() {
       {offenDaten && (
         <form onSubmit={speichern} className="karte flex flex-col gap-3">
           <fieldset disabled={!darfVerwalten} className="m-0 flex flex-col gap-3 border-0 p-0">
+            <div className="flex flex-col gap-1">
+              <span className="feld-label">Besitz</span>
+              <div className="flex flex-wrap gap-2">
+                {([['eigen', 'Eigene Maschine'], ['gemietet', 'Gemietet'], ['geliehen', 'Geliehen (gratis)']] as const).map(([k, t]) => (
+                  <button
+                    key={k}
+                    type="button"
+                    aria-pressed={w.eigentum === k}
+                    onClick={() => setW({ ...w, eigentum: k })}
+                    className={`min-h-10 rounded-full border-2 px-3 text-sm font-bold ${w.eigentum === k ? 'border-hof bg-hof text-white' : 'border-linie bg-white'}`}
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {extern && (
+              <div className="grid grid-cols-2 gap-3 rounded-2xl bg-grund p-3">
+                <label className="feld-label col-span-2">
+                  {w.eigentum === 'gemietet' ? 'Gemietet bei' : 'Geliehen von'}
+                  <select className="eingabe" value={w.partner_id} onChange={set('partner_id')}>
+                    <option value="">– Partner wählen –</option>
+                    {partnerAuswahl.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                {partnerAuswahl.length === 0 && (
+                  <p className="col-span-2 m-0 text-xs text-leise">
+                    Zuerst unter <Link to="/partner">Partner</Link> den Vermieter erfassen (Rolle «Maschinenvermieter»).
+                  </p>
+                )}
+                {w.eigentum === 'gemietet' && (
+                  <>
+                    <label className="feld-label">
+                      Mietpreis (CHF)
+                      <input className="eingabe" inputMode="decimal" value={w.mietpreis} onChange={set('mietpreis')} placeholder="optional" />
+                    </label>
+                    <label className="feld-label">
+                      Abgerechnet je
+                      <select className="eingabe" value={w.miet_abrechnung} onChange={set('miet_abrechnung')}>
+                        {MIET_ABRECHNUNG.map((a) => (
+                          <option key={a} value={a}>
+                            {a === 'Hektare' ? 'Hektare' : a === 'Stunde' ? 'Stunde (Arbeitsdauer)' : a === 'Tag' ? 'Tag' : 'Einsatz (pauschal)'}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <p className="col-span-2 m-0 text-xs text-leise">
+                      Die Mietkosten werden aus den erledigten Arbeiten mit diesem Gerät berechnet (
+                      {w.miet_abrechnung === 'Hektare'
+                        ? 'bearbeitete Fläche'
+                        : w.miet_abrechnung === 'Stunde'
+                          ? 'erfasste Arbeitsdauer'
+                          : w.miet_abrechnung === 'Tag'
+                            ? 'je Arbeitstag einmal'
+                            : 'je Arbeit'}
+                      ).
+                    </p>
+                  </>
+                )}
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-3">
               <label className="feld-label">
                 Kategorie
@@ -152,9 +242,9 @@ export function MaschineDetail() {
               <label className="feld-label">
                 Status
                 <select className="eingabe" value={w.status} onChange={set('status')}>
-                  <option>in Betrieb</option>
-                  <option>ausser Betrieb</option>
-                  <option>verkauft</option>
+                  <option value="in Betrieb">{extern ? 'verfügbar' : 'in Betrieb'}</option>
+                  <option value="ausser Betrieb">ausser Betrieb</option>
+                  <option value="verkauft">{extern ? 'nicht mehr verfügbar' : 'verkauft'}</option>
                 </select>
               </label>
             </div>
@@ -191,11 +281,15 @@ export function MaschineDetail() {
               {motor && feld('getriebeoel', 'Achsöl / Weiteres')}
             </div>
 
-            <h2 className="m-0 mt-2 text-base font-extrabold">Kauf</h2>
-            <div className="grid grid-cols-2 gap-3">
-              {feld('kaufdatum', 'Kaufdatum', 'datum')}
-              {feld('kaufpreis', 'Kaufpreis (CHF)', 'zahl')}
-            </div>
+            {!extern && (
+              <>
+                <h2 className="m-0 mt-2 text-base font-extrabold">Kauf</h2>
+                <div className="grid grid-cols-2 gap-3">
+                  {feld('kaufdatum', 'Kaufdatum', 'datum')}
+                  {feld('kaufpreis', 'Kaufpreis (CHF)', 'zahl')}
+                </div>
+              </>
+            )}
             {(richtpreise.data ?? []).some((r) => r.bereich === 'Maschine') && (
               <label className="feld-label">
                 Ansatz für Arbeiten (Richtpreis)
@@ -225,6 +319,59 @@ export function MaschineDetail() {
       {m && <Eintraege maschine={m} />}
       {m && <Verlauf art="maschine" id={m.id} titel="Einsätze und offene Aufgaben" />}
     </div>
+  );
+}
+
+/** Gemietetes oder geliehenes Gerät: bei wem, zu welchem Preis und die Einsätze mit Mietkosten */
+function Miete({ maschine, partnerName }: { maschine: Maschine; partnerName?: string }) {
+  const jahre = [new Date().getFullYear(), new Date().getFullYear() - 1];
+  const [jahr, setJahr] = useState(jahre[0]);
+  const einsaetze = useGeraeteEinsaetze({ maschine_id: maschine.id });
+  const liste = (einsaetze.data ?? []).filter((e) => e.datum.startsWith(String(jahr)));
+  const summe = liste.reduce((s, e) => s + Number(e.kosten_chf ?? 0), 0);
+  const ha = liste.reduce((s, e) => s + Number(e.flaeche_ha ?? 0), 0);
+  const tage = new Set(liste.map((e) => e.datum)).size;
+  return (
+    <section className="karte flex flex-col gap-2">
+      <div className="flex items-baseline justify-between gap-2">
+        <h2 className="m-0 text-lg font-extrabold">{maschine.eigentum === 'geliehen' ? 'Geliehen' : 'Miete'}</h2>
+        <select className="eingabe h-10 min-h-0 py-0" value={jahr} onChange={(e) => setJahr(Number(e.target.value))} aria-label="Jahr">
+          {jahre.map((j) => (
+            <option key={j}>{j}</option>
+          ))}
+        </select>
+      </div>
+      <span className="text-sm">
+        {maschine.eigentum === 'geliehen' ? 'Geliehen von ' : 'Gemietet bei '}
+        {maschine.partner_id ? <Link to={`/partner/${maschine.partner_id}`}>{partnerName ?? 'Partner'}</Link> : '–'}
+        {maschine.mietpreis != null && maschine.miet_abrechnung && ` · ${chf(Number(maschine.mietpreis))} je ${MIET_EINHEIT[maschine.miet_abrechnung]}`}
+      </span>
+      {liste.length === 0 ? (
+        <span className="text-sm text-leise">{jahr}: noch keine erledigten Arbeiten mit diesem Gerät.</span>
+      ) : (
+        <>
+          <span className="font-extrabold">
+            {jahr}: {liste.length} Arbeit{liste.length > 1 ? 'en' : ''} an {tage} Tag{tage > 1 ? 'en' : ''} · {menge(Math.round(ha * 100) / 100)} ha
+            {maschine.eigentum === 'gemietet' && ` · Mietkosten ${chf(summe)}`}
+          </span>
+          {liste.map((e) => (
+            <Link key={e.feldarbeit_id} to={`/arbeiten/${e.feldarbeit_id}`} className="flex justify-between gap-2 border-b border-rand py-1 text-sm text-text no-underline last:border-0">
+              <span>
+                <b>
+                  {datum(e.datum)} · {e.arbeitsart}
+                </b>
+                <span className="block text-xs text-leise">
+                  {e.felder} · {e.flaeche_ha} ha{e.dauer_h != null ? ` · ${e.dauer_h} h` : ''}
+                </span>
+              </span>
+              {maschine.eigentum === 'gemietet' && (
+                <span className="whitespace-nowrap font-bold">{e.kosten_chf != null ? chf(Number(e.kosten_chf)) : maschine.miet_abrechnung === 'Stunde' ? 'Dauer fehlt' : '–'}</span>
+              )}
+            </Link>
+          ))}
+        </>
+      )}
+    </section>
   );
 }
 

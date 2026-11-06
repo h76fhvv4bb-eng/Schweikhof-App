@@ -798,7 +798,7 @@ function GeraeteWahl({ geraete, wahl, onWahl }: { geraete: Maschine[]; wahl: str
           <option value="">{wahl.length ? '+ weiteres Gerät anhängen …' : '– Gerät wählen –'}</option>
           {frei.map((m) => (
             <option key={m.id} value={m.id}>
-              {m.name} ({m.kategorie})
+              {m.name} ({m.kategorie}{m.eigentum === 'gemietet' ? ', gemietet' : m.eigentum === 'geliehen' ? ', geliehen' : ''})
             </option>
           ))}
         </select>

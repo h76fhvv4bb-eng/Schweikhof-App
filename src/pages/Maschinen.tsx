@@ -1,7 +1,8 @@
 import { useState, type ReactNode } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../lib/auth';
-import { useHofobjekte, useMaschinen, useMaschinenEintraege, useWartungFaellig } from '../lib/daten';
+import { useHofobjekte, useMaschinen, useMaschinenEintraege, usePartner, useWartungFaellig } from '../lib/daten';
+import { istExtern } from '../lib/typen';
 import { datum, menge } from '../lib/format';
 import { Icon } from '../components/Icon';
 
@@ -24,7 +25,12 @@ export function Maschinen() {
   const [alle, setAlle] = useState(false);
 
   const liste = (maschinen.data ?? []).filter((m) => (alle || m.status !== 'verkauft') && (!standort || m.standort_id === standort));
-  const kategorien = [...new Set(liste.map((m) => m.kategorie))];
+  const partner = usePartner();
+  const partnerName = (id: string | null | undefined) => partner.data?.find((p) => p.id === id)?.name;
+  // eigene Maschinen nach Kategorie, gemietete und geliehene Geräte zuletzt in einer eigenen Gruppe
+  const kategorien: string[] = [...new Set<string>(liste.filter((m) => !istExtern(m)).map((m) => m.kategorie))];
+  if (liste.some(istExtern)) kategorien.push('Gemietet und geliehen');
+  const inGruppe = (m: (typeof liste)[number], k: string) => (k === 'Gemietet und geliehen' ? istExtern(m) : !istExtern(m) && m.kategorie === k);
   const ortName = (id: string | null) => orte.data?.find((o) => o.id === id)?.name;
 
   return (
@@ -62,7 +68,7 @@ export function Maschinen() {
         <section key={k} className="flex flex-col gap-2">
           <h2 className="m-0 mt-2 text-sm font-extrabold text-leise">{k}</h2>
           {liste
-            .filter((m) => m.kategorie === k)
+            .filter((m) => inGruppe(m, k))
             .map((m) => {
               const plaene = (wartung.data ?? []).filter((w) => w.maschine_id === m.id);
               const ueber = plaene.filter((w) => w.ueberfaellig).length;
@@ -79,8 +85,13 @@ export function Maschinen() {
                     {[m.hersteller, m.modell, m.baujahr, m.kennzeichen, ortName(m.standort_id) && `Standplatz ${ortName(m.standort_id)}`]
                       .filter(Boolean)
                       .join(' · ')}
-                    {m.status !== 'in Betrieb' && ` · ${m.status}`}
+                    {m.status !== 'in Betrieb' && ` · ${istExtern(m) && m.status === 'verkauft' ? 'nicht mehr verfügbar' : m.status}`}
                   </span>
+                  {istExtern(m) && (
+                    <span className="self-start rounded-lg bg-hof-hell px-2 py-0.5 text-xs font-extrabold text-hof">
+                      {m.kategorie} · {m.eigentum === 'gemietet' ? 'gemietet bei' : 'geliehen von'} {partnerName(m.partner_id) ?? '…'}
+                    </span>
+                  )}
                   {(ueber > 0 || bald > 0 || (mfk != null && mfk <= 60) || offen > 0) && (
                     <div className="flex flex-wrap gap-1.5">
                       {ueber > 0 && <Marke rot>{ueber} Wartung überfällig</Marke>}

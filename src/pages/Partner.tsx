@@ -3,11 +3,11 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase, fehlertext } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
-import { useAuftraege, useBeweidungen, useErnten, useFelder, usePartner, useVerrechneteAbgaben } from '../lib/daten';
+import { useAuftraege, useBeweidungen, useErnten, useFelder, useGeraeteEinsaetze, useMaschinen, usePartner, useVerrechneteAbgaben } from '../lib/daten';
 import { aktiv, umtriebText, weidetage, weidezins } from '../lib/weide';
 import { AuftragStatus } from './Auftraege';
 import { chf, datum } from '../lib/format';
-import { PARTNERARTEN, hatRolle, rollenText, type Partner } from '../lib/typen';
+import { MIET_EINHEIT, PARTNERARTEN, hatRolle, istExtern, rollenText, type Partner } from '../lib/typen';
 import { Icon } from '../components/Icon';
 import { Verlauf } from '../components/Verlauf';
 
@@ -208,6 +208,7 @@ export function PartnerFormular() {
       </form>
       {p && <PartnerAuftraege partner={p} />}
       {p && <PartnerWeide partnerId={p.id} tierhalter={hatRolle(p, 'Tierhalter')} />}
+      {p && <PartnerGeraete partnerId={p.id} vermieter={hatRolle(p, 'Maschinenvermieter')} />}
       {p && <PartnerAbnahmen partnerId={p.id} />}
       {p && <Verlauf art="partner" id={p.id} titel="Arbeiten durch diesen Partner" />}
     </div>
@@ -258,6 +259,52 @@ function PartnerAuftraege({ partner }: { partner: Partner }) {
 }
 
 /** Was dieser Partner aus der Ernte übernommen hat (Verkauf/Abgabe) inkl. Zahlungsstatus */
+/** Gemietete oder geliehene Geräte dieses Partners mit Einsätzen und Mietkosten im Jahr */
+function PartnerGeraete({ partnerId, vermieter }: { partnerId: string; vermieter: boolean }) {
+  const { darfVerwalten } = useAuth();
+  const maschinen = useMaschinen();
+  const einsaetze = useGeraeteEinsaetze({ partner_id: partnerId });
+  const jahr = new Date().getFullYear();
+  const geraete = (maschinen.data ?? []).filter((m) => m.partner_id === partnerId && istExtern(m));
+  if (!vermieter && !geraete.length) return null;
+  const imJahr = (id: string) => (einsaetze.data ?? []).filter((e) => e.maschine_id === id && e.datum.startsWith(String(jahr)));
+  const total = geraete.reduce((s, m) => s + imJahr(m.id).reduce((x, e) => x + Number(e.kosten_chf ?? 0), 0), 0);
+  return (
+    <section className="karte flex flex-col gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="m-0 text-lg font-extrabold">Gemietete Geräte</h2>
+        {darfVerwalten && (
+          <Link to="/maschinen/neu" className="knopf-leise min-h-10 no-underline">
+            <Icon name="plus" /> Gerät
+          </Link>
+        )}
+      </div>
+      {!geraete.length && <span className="text-sm text-leise">Noch kein Gerät dieses Partners erfasst. Beim Gerät unter «Besitz» «Gemietet» wählen.</span>}
+      {geraete.map((m) => {
+        const e = imJahr(m.id);
+        const kosten = e.reduce((x, y) => x + Number(y.kosten_chf ?? 0), 0);
+        return (
+          <Link key={m.id} to={`/maschinen/${m.id}`} className="flex flex-col rounded-xl bg-grund p-2 text-sm text-text no-underline">
+            <span className="font-bold">
+              {m.name} ({m.kategorie}){m.eigentum === 'geliehen' && ' · geliehen'}
+            </span>
+            <span className="text-leise">
+              {m.mietpreis != null && m.miet_abrechnung ? `${chf(Number(m.mietpreis))} je ${MIET_EINHEIT[m.miet_abrechnung]} · ` : ''}
+              {jahr}: {e.length} Arbeit{e.length === 1 ? '' : 'en'}
+              {m.eigentum === 'gemietet' && e.length > 0 && ` · ${chf(kosten)}`}
+            </span>
+          </Link>
+        );
+      })}
+      {geraete.length > 1 && total > 0 && (
+        <span className="font-extrabold">
+          Mietkosten {jahr}: {chf(total)}
+        </span>
+      )}
+    </section>
+  );
+}
+
 /** Tiere dieses Partners auf unseren Feldern */
 function PartnerWeide({ partnerId, tierhalter }: { partnerId: string; tierhalter: boolean }) {
   const { darfVerwalten } = useAuth();

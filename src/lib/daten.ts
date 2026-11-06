@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from './supabase';
 import { exportBetrieb } from './export';
 import type {
-  Beweidung, Richtpreis,
+  Beweidung, Richtpreis, GeraeteEinsatz,
   Anbau, Feld, Feldarbeit, FeldHinweis, FlaecheJeKultur, Hofobjekt, Kultur, Lagerbestand, Maschine, MaschinenEintrag,
   NaehrstoffeJeFeld, Partner, WartungFaellig, Wartungsplan, Auftrag, Ernte, Kartenobjekt, Aufgabe, Mitarbeiter, Betrieb, Verkauf, Foto, MaschinenTeil,
 } from './typen';
@@ -135,7 +135,7 @@ export function useBenutzer() {
 }
 
 /** Nach jeder Buchung: alles neu laden, was vom Lager oder den Arbeiten abhängt. */
-export const ABHAENGIGE_DATEN = [['lager'], ['feldarbeiten'], ['feldarbeit'], ['naehrstoffe'], ['lagerjournal'], ['maschinen'], ['maschineneintraege'], ['wartung'], ['aufgaben'], ['mitarbeiter_stunden'], ['auftraege'], ['fotos'], ['flaeche_je_kultur'], ['maschine_teile'], ['beweidungen'], ['feldarbeit_geraete']];
+export const ABHAENGIGE_DATEN = [['lager'], ['feldarbeiten'], ['feldarbeit'], ['naehrstoffe'], ['lagerjournal'], ['maschinen'], ['maschineneintraege'], ['wartung'], ['aufgaben'], ['mitarbeiter_stunden'], ['auftraege'], ['fotos'], ['flaeche_je_kultur'], ['maschine_teile'], ['beweidungen'], ['feldarbeit_geraete'], ['geraete_einsaetze']];
 
 export function useBetrieb() {
   return useQuery({
@@ -185,6 +185,21 @@ export function useFeldarbeitGeraete() {
       if (error) return m;
       for (const r of data as { feldarbeit_id: string; maschine_id: string }[]) m.set(r.feldarbeit_id, [...(m.get(r.feldarbeit_id) ?? []), r.maschine_id]);
       return m;
+    },
+  });
+}
+
+/** Einsätze gemieteter/geliehener Geräte mit Mietkosten (leer, solange Migration 27 fehlt) */
+export function useGeraeteEinsaetze(filter: { maschine_id?: string; partner_id?: string }) {
+  return useQuery({
+    queryKey: ['geraete_einsaetze', filter.maschine_id ?? '', filter.partner_id ?? ''],
+    queryFn: async () => {
+      let q = supabase.from('geraete_einsaetze').select('*').order('datum', { ascending: false });
+      if (filter.maschine_id) q = q.eq('maschine_id', filter.maschine_id);
+      if (filter.partner_id) q = q.eq('partner_id', filter.partner_id);
+      const { data, error } = await q;
+      if (error) return [] as GeraeteEinsatz[];
+      return data as GeraeteEinsatz[];
     },
   });
 }

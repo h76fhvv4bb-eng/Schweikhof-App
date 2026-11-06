@@ -200,7 +200,7 @@ export interface Hofobjekt {
 }
 
 export const PARTNERARTEN = [
-  'Lohnunternehmen', 'Mechaniker/Werkstatt', 'Händler/Lieferant', 'Berater', 'Abnehmer/Käufer', 'Tierhalter', 'Behörde/Kontrolle', 'Andere',
+  'Lohnunternehmen', 'Mechaniker/Werkstatt', 'Händler/Lieferant', 'Maschinenvermieter', 'Berater', 'Abnehmer/Käufer', 'Tierhalter', 'Behörde/Kontrolle', 'Andere',
 ] as const;
 
 /** Hat der Partner diese Rolle (Haupt- oder weitere Rolle)? */
@@ -266,7 +266,34 @@ export interface Maschine {
   status: 'in Betrieb' | 'ausser Betrieb' | 'verkauft';
   bemerkungen: string | null;
   richtpreis_id?: string | null;
+  /** Migration 27: eigene oder externe Maschine (gemietet/geliehen bei einem Partner) */
+  eigentum?: 'eigen' | 'gemietet' | 'geliehen';
+  partner_id?: string | null;
+  miet_abrechnung?: (typeof MIET_ABRECHNUNG)[number] | null;
+  mietpreis?: number | null;
   version: number;
+}
+
+export const MIET_ABRECHNUNG = ['Hektare', 'Stunde', 'Tag', 'Einsatz'] as const;
+export const MIET_EINHEIT: Record<(typeof MIET_ABRECHNUNG)[number], string> = { Hektare: 'ha', Stunde: 'Std.', Tag: 'Tag', Einsatz: 'Einsatz' };
+/** Gehört die Maschine einem Partner? */
+export const istExtern = (m: { eigentum?: string | null }) => !!m.eigentum && m.eigentum !== 'eigen';
+
+/** Einsatz eines gemieteten oder geliehenen Geräts (View geraete_einsaetze) */
+export interface GeraeteEinsatz {
+  maschine_id: string;
+  maschine: string;
+  eigentum: string;
+  partner_id: string | null;
+  feldarbeit_id: string;
+  datum: string;
+  arbeitsart: string;
+  felder: string | null;
+  flaeche_ha: number;
+  dauer_h: number | null;
+  miet_abrechnung: string | null;
+  mietpreis: number | null;
+  kosten_chf: number | null;
 }
 
 export interface Wartungsplan {
