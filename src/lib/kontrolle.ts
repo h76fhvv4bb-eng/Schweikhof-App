@@ -2,6 +2,7 @@ import { supabase } from './supabase';
 import { hinweiseFuerJahr } from './fruchtfolgeRegeln';
 import type { Betrieb, Feld, Kultur } from './typen';
 import { inFruchtfolge } from './typen';
+import { bffHinweise } from './bff';
 
 /** Abschnitte des Parzellenblatts und welche Arbeitsarten dorthin gehören */
 export const ABSCHNITT_VON: Record<string, 'boden' | 'saat' | 'duengung' | 'pflege' | 'nutzung'> = {
@@ -234,6 +235,10 @@ export async function aufzeichnungenPruefen(jahr: number, kulturen: Kultur[]): P
     if (ackerkultur && !b.arbeiten.some((a) => a.arbeitsart === 'Säen') && jahr <= new Date().getFullYear())
       punkte.push({ stufe: 'pruefen', text: `${titel}: ${b.hauptkultur}, aber keine Saat im ${jahr} erfasst (Herbstsaat im Vorjahr?)`, link: `/erfassen?feld=${f.id}` });
     for (const a of b.arbeiten) {
+      // Biodiversitätsförderfläche: Schnitt vor dem Termin, Düngung, Pflanzenschutz
+      if (a.status === 'erledigt')
+        for (const h of bffHinweise(f, d.betrieb?.zone, a.arbeitsart, a.datum))
+          punkte.push({ stufe: 'pruefen', text: `${a.datum.split('-').reverse().join('.')} ${a.arbeitsart}: ${h}`, link: `/arbeiten/${a.id}` });
       if (a.arbeitsart === 'Düngen' && !a.mittel.length)
         punkte.push({ stufe: 'fehlt', text: `${titel}: Düngung vom ${a.datum.split('-').reverse().join('.')} ohne Dünger und Menge`, link: `/arbeiten/${a.id}` });
       if (a.arbeitsart === 'Pflanzenschutz' && !a.mittel.length)

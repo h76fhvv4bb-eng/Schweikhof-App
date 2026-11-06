@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
 import { supabase, fehlertext } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
-import { useBeweidungen, useFelder, usePartner } from '../lib/daten';
+import { useBeweidungen, useFelder, usePartner, useBetrieb } from '../lib/daten';
 import { aktiv } from '../lib/weide';
 import { datum, ha, haZuM2 } from '../lib/format';
 import { FELDSTATUS, NUTZUNGSARTEN, type Anbau, type Feld } from '../lib/typen';
@@ -15,6 +15,7 @@ import { parzellenblaetterLaden } from '../lib/kontrolle';
 import { parzellenblaetterPdf } from '../lib/kontrollePdf';
 import { pdfHerunterladen } from '../lib/auftragPdf';
 import { csvHerunterladen, csvZahl } from '../lib/export';
+import { BFF_TYPEN, schnittAb, tagMonatText, type BffTyp } from '../lib/bff';
 
 const schema = z.object({
   feldnummer: z.string().trim().min(1, 'Feldnummer fehlt').max(20),
@@ -59,8 +60,13 @@ export function FeldFormular() {
     kk: '',
     kmg: '',
     probe: '',
+    bff: '' as string,
+    bffQ: '' as string,
+    vernetzung: false,
+    schnittAbTag: '', // TT.MM
   });
   const [fehler, setFehler] = useState<string | null>(null);
+  const betrieb = useBetrieb();
 
   useEffect(() => {
     if (feld)
@@ -78,6 +84,10 @@ export function FeldFormular() {
         kk: feld.korrektur_k2o == null ? '' : String(feld.korrektur_k2o),
         kmg: feld.korrektur_mg == null ? '' : String(feld.korrektur_mg),
         probe: feld.bodenprobe_jahr == null ? '' : String(feld.bodenprobe_jahr),
+        bff: feld.bff_typ ?? '',
+        bffQ: feld.bff_qualitaet ? String(feld.bff_qualitaet) : '',
+        vernetzung: !!feld.bff_vernetzung,
+        schnittAbTag: feld.schnitt_ab ? tagMonatText(feld.schnitt_ab).slice(0, 5) : '',
       });
     else if (neu && felder.data) {
       const naechste = felder.data.reduce((m, f) => Math.max(m, Number(f.feldnummer) || 0), 0) + 1;
@@ -120,11 +130,21 @@ export function FeldFormular() {
       };
       const geprueft = schema.safeParse(roh);
       if (!geprueft.success) throw new Error(geprueft.error.issues[0].message);
+      // BFF nur mitsenden, wenn gesetzt oder vorher gesetzt (ältere Datenbank ohne Migration 25)
+      const tm = w.schnittAbTag.trim().match(/^(\d{1,2})\.(\d{1,2})\.?$/);
+      if (w.schnittAbTag.trim() && !tm) throw new Error('Schnitt frühestens: als TT.MM eingeben, z. B. 01.07');
+      const bff = {
+        bff_typ: w.bff || null,
+        bff_qualitaet: w.bff && w.bffQ ? Number(w.bffQ) : null,
+        bff_vernetzung: !!w.bff && w.vernetzung,
+        schnitt_ab: w.bff && tm ? `${tm[2].padStart(2, '0')}-${tm[1].padStart(2, '0')}` : null,
+      };
+      const mitBff = w.bff || feld?.bff_typ ? bff : {};
       if (neu) {
-        const { error } = await supabase.from('felder').insert({ ...geprueft.data, betrieb_id: profil!.betrieb_id });
+        const { error } = await supabase.from('felder').insert({ ...geprueft.data, ...mitBff, betrieb_id: profil!.betrieb_id });
         if (error) throw error;
       } else {
-        const { error } = await supabase.from('felder').update({ ...geprueft.data, version: feld!.version }).eq('id', id!);
+        const { error } = await supabase.from('felder').update({ ...geprueft.data, ...mitBff, version: feld!.version }).eq('id', id!);
         if (error) throw error;
       }
     },
@@ -133,7 +153,10 @@ export function FeldFormular() {
       qc.invalidateQueries({ queryKey: ['flaeche_je_kultur'] });
       navigate('/felder');
     },
-    onError: (e) => setFehler(fehlertext(e)),
+    onError: (e) => {
+      const m = fehlertext(e);
+      setFehler(/bff_|schnitt_ab/.test(m) ? 'Für BFF bitte zuerst Migration 25 in Supabase einspielen.' : m);
+    },
   });
 
   async function grenzeZuruecksetzen() {
@@ -226,6 +249,57 @@ export function FeldFormular() {
                 ))}
               </select>
             </label>
+          </div>
+          <div className="flex flex-col gap-3 rounded-2xl bg-grund p-3">
+            <label className="feld-label">
+              Biodiversitätsförderfläche (BFF / «öko»)
+              <select className="eingabe" value={w.bff} onChange={(e) => setW({ ...w, bff: e.target.value })}>
+                <option value="">keine BFF</option>
+                {BFF_TYPEN.map((t) => (
+                  <option key={t}>{t}</option>
+                ))}
+              </select>
+            </label>
+            {w.bff && (
+              <>
+                <div className="grid grid-cols-2 gap-3">
+                  <label className="feld-label">
+                    Qualitätsstufe
+                    <select className="eingabe" value={w.bffQ} onChange={(e) => setW({ ...w, bffQ: e.target.value })}>
+                      <option value="">–</option>
+                      <option value="1">Q I</option>
+                      <option value="2">Q II</option>
+                    </select>
+                  </label>
+                  <label className="feld-label">
+                    Schnitt frühestens (TT.MM)
+                    <input
+                      className="eingabe"
+                      inputMode="decimal"
+                      value={w.schnittAbTag}
+                      onChange={(e) => setW({ ...w, schnittAbTag: e.target.value })}
+                      placeholder={(() => {
+                        const ab = schnittAb({ bff_typ: w.bff as BffTyp, schnitt_ab: null }, betrieb.data?.zone);
+                        return ab ? `Vorgabe ${tagMonatText(ab).slice(0, 5)}` : 'kein Termin';
+                      })()}
+                    />
+                  </label>
+                </div>
+                <label className="flex min-h-10 items-center gap-2 text-sm font-bold">
+                  <input type="checkbox" className="h-5 w-5 accent-hof" checked={w.vernetzung} onChange={(e) => setW({ ...w, vernetzung: e.target.checked })} />
+                  Im Vernetzungsprojekt (eigene Termine, z. B. Rückzugsstreifen)
+                </label>
+                <span className="text-xs text-leise">
+                  {(() => {
+                    const ab = schnittAb({ bff_typ: w.bff as BffTyp, schnitt_ab: null }, betrieb.data?.zone);
+                    return ab
+                      ? `Richtwert nach DZV für ${betrieb.data?.zone ?? 'Tal- und Hügelzone'}: Schnitt ab ${tagMonatText(ab)} Weicht dein Termin ab (Vernetzung, Vereinbarung), trag ihn oben ein.`
+                      : 'Für diesen Typ hinterlegt die App keinen Schnitttermin.';
+                  })()}{' '}
+                  Die App warnt bei Arbeiten vor dem Termin, bei Düngung und Pflanzenschutz. Massgebend sind DZV, Kanton und Vereinbarungen.
+                </span>
+              </>
+            )}
           </div>
           <div className="grid grid-cols-2 gap-3">
             <label className="feld-label">

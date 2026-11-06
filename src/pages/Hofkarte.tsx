@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import L from 'leaflet';
@@ -8,9 +8,11 @@ import '@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css';
 import type { MultiPolygon, Point, Polygon } from 'geojson';
 import { supabase, fehlertext } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
-import { useAnbauAlle, useBeweidungen, useFelder, useHinweise, useHofobjekte, useKartenobjekte, useMaschinen, usePartner } from '../lib/daten';
+import { useAnbauAlle, useBetrieb, useBeweidungen, useFelder, useHinweise, useHofobjekte, useKartenobjekte, useMaschinen, usePartner } from '../lib/daten';
 import { aktiv, aktuelleFelder } from '../lib/weide';
 import { aktuelleKulturJeFeld } from '../lib/aktuelleKultur';
+import { BFF_KURZ, schnittAb, tagMonatText } from '../lib/bff';
+import { inFruchtfolge, type Feld } from '../lib/typen';
 import { ha } from '../lib/format';
 import {
   FLAECHE_FARBE, GEBAEUDE, KARTEN, QUELLE, SCHWEIZ, baumHtml, feldLabelHtml, feldTeilen, felderVereinigen, flaecheM2, gebaeudeHtml, hinweisHtml,
@@ -108,6 +110,37 @@ export default function Hofkarte() {
   } | null>(null);
   const objektLayer = useRef(new Map<string, L.Layer>());
   const feldLayer = useRef(new Map<string, L.Polygon>());
+
+  /** Beschriftung: Kultur, sonst Nutzung bzw. BFF-Typ (Dauergrünland, Weide) statt «keine Kultur» */
+  function kulturText(f: Feld, kultur: string | null): string | null {
+    const geerntet = kultur && aktuell.get(f.id)?.laeuft === false ? ' (geerntet)' : '';
+    if (kultur) return `${kultur}${geerntet}`;
+    if (f.bff_typ) return `${BFF_KURZ[f.bff_typ]} (BFF)`;
+    if (!inFruchtfolge(f)) return f.nutzungsart;
+    return null;
+  }
+
+  /** Überlappende Beschriftungen ausblenden: grössere Felder zuerst, kleinere nur, wenn Platz ist */
+  const labelsOrdnen = useCallback(() => {
+    requestAnimationFrame(() => {
+      const flaeche = new Map((felder.data ?? []).map((f) => [f.id, Number(f.flaeche_m2)]));
+      const liste = [...feldLayer.current.entries()]
+        .map(([id, p]) => ({ el: p.getTooltip()?.getElement(), m2: flaeche.get(id) ?? 0 }))
+        .filter((x): x is { el: HTMLElement; m2: number } => !!x.el)
+        .sort((a, b) => b.m2 - a.m2);
+      const belegt: DOMRect[] = [];
+      for (const { el } of liste) {
+        el.style.visibility = '';
+        const r = el.getBoundingClientRect();
+        if (!r.width) continue;
+        const ueber = belegt.some((b) => r.left < b.right + 2 && r.right > b.left - 2 && r.top < b.bottom + 1 && r.bottom > b.top - 1);
+        if (ueber) el.style.visibility = 'hidden';
+        else belegt.push(r);
+      }
+    });
+  }, [felder.data]);
+  const labelsRef = useRef(labelsOrdnen);
+  labelsRef.current = labelsOrdnen;
   const markerRef = useRef(new Map<string, L.Marker>());
   const eingepasst = useRef(false);
 
@@ -146,6 +179,7 @@ export default function Hofkarte() {
   const [neuerHinweis, setNeuerHinweis] = useState<{ feldId: string; breite: number; laenge: number } | null>(null);
   const maschinen = useMaschinen();
   const weiden = useBeweidungen();
+  const betriebDaten = useBetrieb();
   const partner = usePartner();
   const [anzeige, setAnzeigeState] = useState<Anzeige>(anzeigeLaden);
   const [anzeigeOffen, setAnzeigeOffen] = useState(false);
@@ -233,6 +267,16 @@ export default function Hofkarte() {
       }
     });
     mapRef.current = map;
+    // Beschriftung je nach Zoom: weit weg nur Namen, sehr weit weg keine
+    const zoomKlasse = () => {
+      const z = map.getZoom();
+      const el = map.getContainer();
+      el.classList.toggle('hof-zoom-fern', z < 15);
+      el.classList.toggle('hof-zoom-mittel', z >= 15 && z < 17);
+    };
+    zoomKlasse();
+    map.on('zoomend', zoomKlasse);
+    map.on('zoomend moveend', () => labelsRef.current());
     return () => {
       map.remove();
       mapRef.current = null;
@@ -272,13 +316,13 @@ export default function Hofkarte() {
         style: {
           color: istGewaehlt ? '#1F4D2E' : '#FFFFFF',
           weight: istGewaehlt ? 4 : baumAnsicht ? 2 : 3,
-          fillColor: anzeige.kulturfarben ? (k?.farbe ?? '#C9C2B0') : '#FFFFFF',
+          fillColor: anzeige.kulturfarben ? (k?.farbe ?? (inFruchtfolge(f) ? '#C9C2B0' : f.bff_typ ? '#B9D98A' : '#8DBF6A')) : '#FFFFFF',
           fillOpacity: baumAnsicht ? 0.12 : anzeige.kulturfarben ? 0.6 : 0.15,
         },
       });
       const polygon = gruppe.getLayers()[0] as L.Polygon;
       if (!baumAnsicht)
-        polygon.bindTooltip(feldLabelHtml(f.name, k ? `${k.name}${aktuell.get(f.id)?.laeuft === false ? ' (geerntet)' : ''}` : null, ha(Number(f.flaeche_m2), 1)), {
+        polygon.bindTooltip(feldLabelHtml(f.name, kulturText(f, k?.name ?? null), ha(Number(f.flaeche_m2), 1)), {
           permanent: true,
           direction: 'center',
           className: 'hof-feld-label',
@@ -297,6 +341,7 @@ export default function Hofkarte() {
       polygon.addTo(e.felder);
       feldLayer.current.set(f.id, polygon);
     }
+    labelsOrdnen();
   }, [felder.data, kulturJeFeld, aktuell, gewaehlt, modus, ebene, anzeige.kulturfarben]);
 
   // ---------- Flächen, Orte und Bäume ohne Fruchtfolge ----------
@@ -382,6 +427,7 @@ export default function Hofkarte() {
       else map.removeLayer(g);
     }
   }, [ebene, anzeige]);
+  useEffect(() => labelsOrdnen(), [anzeige, labelsOrdnen]);
 
   // ---------- Weidetiere auf ihrem aktuellen Feld ----------
   useEffect(() => {
@@ -851,7 +897,7 @@ export default function Hofkarte() {
           <span className="text-xs font-bold text-leise">Feld {feld.feldnummer}</span>
           <h2 className="m-0 text-xl font-extrabold">{feld.name}</h2>
           <span className="text-sm">
-            {kulturJeFeld.get(feld.id)?.name ?? `Keine Kultur ${jahr}`}
+            {kulturJeFeld.get(feld.id)?.name ?? kulturText(feld, null) ?? `Keine Kultur ${jahr}`}
             {(() => {
               const a = aktuell.get(feld.id);
               if (!a) return null;
@@ -866,6 +912,17 @@ export default function Hofkarte() {
             })()}
             {' · '}
             {ha(Number(feld.flaeche_m2))}
+            {feld.bff_typ && (() => {
+              const ab = schnittAb(feld, betriebDaten.data?.zone);
+              return (
+                <span className="block text-xs font-bold text-hof">
+                  BFF: {feld.bff_typ}
+                  {feld.bff_qualitaet ? ` · Q${feld.bff_qualitaet === 2 ? ' II' : ' I'}` : ''}
+                  {feld.bff_vernetzung ? ' · Vernetzung' : ''}
+                  {ab ? ` · Schnitt ab ${tagMonatText(ab)}` : ''}
+                </span>
+              );
+            })()}
             {feld.flaeche_gezeichnet_m2 && Math.abs(Number(feld.flaeche_gezeichnet_m2) - Number(feld.flaeche_m2)) > 100 && (
               <span className="text-warn"> · gezeichnet {ha(Number(feld.flaeche_gezeichnet_m2))}</span>
             )}

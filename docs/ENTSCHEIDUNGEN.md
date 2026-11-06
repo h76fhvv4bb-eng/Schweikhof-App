@@ -253,3 +253,10 @@ Belege nicht. Maschinen können einen Ansatz (`maschinen.richtpreis_id`) haben.
 - Lohnarbeit verlangt beim Abschluss keine eigenen Maschinenstunden, Arbeitszeit oder Person.
 - Nach «Ernten» oder «Pressen» bietet die App «Ertrag jetzt erfassen» an; Feld(er), Datum, Fläche und Lohnunternehmen mit
   Kosten werden in die Ernte übernommen (keine Doppelerfassung).
+
+## 2026-11-06 · BFF und Kartenbeschriftung (Migration 25)
+- `felder.bff_typ`, `bff_qualitaet`, `bff_vernetzung`, `schnitt_ab` (MM-TT) und `betriebe.zone`. Frühester Schnitt als Richtwert
+  nach DZV Anhang 4 (Wiesen, Uferwiesen, Krautsaum: Tal-/Hügelzone 15.06., Bergzone I–II 01.07., III–IV 15.07.; Streue 01.09.);
+  ein am Feld eingetragener Termin (Vernetzung, Vereinbarung) geht vor. Die App warnt nur (Erfassen, Kontrolle), sie sperrt nicht.
+- Karte: Felder ohne Kultur ausserhalb der Fruchtfolge zeigen Nutzung bzw. BFF-Typ. Beschriftungen kleiner; überlappende
+  werden ausgeblendet (grössere Felder zuerst); bei Zoom 15–16 nur Namen, darunter keine Beschriftung.

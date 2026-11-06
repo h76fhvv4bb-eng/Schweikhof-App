@@ -8,6 +8,7 @@ import { ibanGueltig, istQrIban } from '../lib/belegPdf';
 import { ha } from '../lib/format';
 import { aktiv } from '../lib/weide';
 import { NUTZUNGSARTEN } from '../lib/typen';
+import { ZONEN } from '../lib/bff';
 
 const KANTONE = ['AG', 'AI', 'AR', 'BE', 'BL', 'BS', 'FR', 'GE', 'GL', 'GR', 'JU', 'LU', 'NE', 'NW', 'OW', 'SG', 'SH', 'SO', 'SZ', 'TG', 'TI', 'UR', 'VD', 'VS', 'ZG', 'ZH'];
 
@@ -81,6 +82,7 @@ export function BetriebSeite() {
             {zeile('Bewirtschafter/in', b?.bewirtschafter)}
             {zeile('Adresse', adresse)}
             {zeile('Gemeinde / Kanton', [b?.gemeinde, b?.kanton].filter(Boolean).join(' / '))}
+            {zeile('Landwirtschaftliche Zone', b?.zone)}
             {zeile('Telefon', b?.telefon)}
             {zeile('E-Mail', b?.email)}
             {zeile('Website', b?.website)}
@@ -122,7 +124,7 @@ export function BetriebSeite() {
 function BetriebFormular({ onFertig }: { onFertig: () => void }) {
   const betrieb = useBetrieb();
   const qc = useQueryClient();
-  const leer = { betriebsnummer: '', name: '', bewirtschafter: '', strasse: '', hausnummer: '', plz: '', ort: '', gemeinde: '', kanton: 'ZH', telefon: '', email: '', website: '', iban: '', bank: '', mwst_nr: '', frist: '30' };
+  const leer = { zone: '', betriebsnummer: '', name: '', bewirtschafter: '', strasse: '', hausnummer: '', plz: '', ort: '', gemeinde: '', kanton: 'ZH', telefon: '', email: '', website: '', iban: '', bank: '', mwst_nr: '', frist: '30' };
   const [w, setW] = useState(leer);
   const [fehler, setFehler] = useState<string | null>(null);
   useEffect(() => {
@@ -142,6 +144,7 @@ function BetriebFormular({ onFertig }: { onFertig: () => void }) {
       ort: b.ort ?? s2?.[2] ?? '',
       gemeinde: b.gemeinde ?? '',
       kanton: b.kanton ?? 'ZH',
+      zone: b.zone ?? '',
       telefon: b.telefon ?? '',
       email: b.email ?? '',
       website: b.website ?? '',
@@ -173,11 +176,12 @@ function BetriebFormular({ onFertig }: { onFertig: () => void }) {
         strasse: t(w.strasse), hausnummer: t(w.hausnummer), plz: t(w.plz), ort: t(w.ort), gemeinde: t(w.gemeinde), kanton: w.kanton,
         telefon: t(w.telefon), email: t(w.email), website: t(w.website), iban: iban || null, bank: t(w.bank), mwst_nr: t(w.mwst_nr),
         zahlungsfrist_tage: frist, version: betrieb.data.version,
+        ...(w.zone || betrieb.data.zone ? { zone: w.zone || null } : {}),
       })
       .eq('id', betrieb.data.id);
     if (error) {
       const m = fehlertext(error);
-      return setFehler(/bewirtschafter|gemeinde|bank|website/.test(m) ? 'Bitte zuerst Migration 18 in Supabase einspielen.' : m);
+      return setFehler(/zone/.test(m) ? 'Für die Zone bitte zuerst Migration 25 in Supabase einspielen.' : /bewirtschafter|gemeinde|bank|website/.test(m) ? 'Bitte zuerst Migration 18 in Supabase einspielen.' : m);
     }
     await qc.invalidateQueries({ queryKey: ['betrieb'] });
     onFertig();
@@ -219,6 +223,15 @@ function BetriebFormular({ onFertig }: { onFertig: () => void }) {
             </select>
           </label>
         </div>
+        <label className="feld-label">
+          Landwirtschaftliche Zone (für Schnitttermine der BFF)
+          <select className="eingabe" value={w.zone} onChange={set('zone')}>
+            <option value="">– nicht angegeben (Tal-/Hügelzone angenommen) –</option>
+            {ZONEN.map((z) => (
+              <option key={z}>{z}</option>
+            ))}
+          </select>
+        </label>
         <div className="grid gap-3 sm:grid-cols-3">
           {feld('telefon', 'Telefon', { type: 'tel' })}
           {feld('email', 'E-Mail', { type: 'email' })}

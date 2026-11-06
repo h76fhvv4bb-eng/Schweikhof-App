@@ -36,21 +36,26 @@ body {
 /* ---------- Hof-Ansicht (Karte) ---------- */
 .leaflet-container { font-family: var(--font-sans); }
 .hof-feld-label {
-  background: rgba(255, 255, 255, 0.94);
+  background: rgba(255, 255, 255, 0.86);
   border: 0;
-  border-radius: 14px;
-  padding: 3px 10px;
-  box-shadow: 0 2px 0 rgba(30, 42, 32, 0.25);
+  border-radius: 8px;
+  padding: 1px 6px;
+  box-shadow: 0 1px 0 rgba(30, 42, 32, 0.25);
   color: var(--color-text);
+  text-align: center;
+  line-height: 1.2;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  line-height: 1.15;
+  max-width: 140px;
+  white-space: normal;
   pointer-events: none;
 }
 .hof-feld-label::before { display: none; }
-.hof-feld-name { font-weight: 800; font-size: 13px; }
-.hof-feld-info { font-weight: 600; font-size: 11px; color: var(--color-leise); }
+.hof-feld-name { font-weight: 800; font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hof-feld-info { font-weight: 600; font-size: 10px; color: var(--color-leise); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Zoom: mittel nur Namen, fern keine Beschriftung */
+.hof-zoom-mittel .hof-feld-info { display: none; }
+.hof-zoom-fern .hof-feld-label { display: none; }
 .hof-gebaeude { display: flex; flex-direction: column; align-items: center; gap: 2px; cursor: pointer; }
 .hof-gebaeude-bild {
   width: 56px; height: 56px; border-radius: 18px;

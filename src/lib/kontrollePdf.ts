@@ -137,7 +137,7 @@ function parzellenblatt(doc: jsPDF, b: Parzellenblatt, betrieb: Betrieb | null) 
   y += 11;
   feld('Parzellenname / Nummer', `${b.feld.feldnummer} ${b.feld.name}`, links, 62);
   feld('Fläche ha', zahl(Number(b.feld.flaeche_m2) / 10000), links + 62, 22);
-  feld('Hauptkultur und Sorte', [b.hauptkultur, b.sorte].filter(Boolean).join(' – ') + (b.weitere.length ? ` (${b.weitere.join('; ')})` : ''), links + 84, 70);
+  feld('Hauptkultur und Sorte', [b.hauptkultur ?? (b.feld.bff_typ ? `${b.feld.bff_typ} (BFF${b.feld.bff_qualitaet === 2 ? ', Q II' : ''})` : inFruchtfolge(b.feld) ? null : b.feld.nutzungsart), b.sorte].filter(Boolean).join(' – ') + (b.weitere.length ? ` (${b.weitere.join('; ')})` : ''), links + 84, 70);
   feld('Vorkultur', b.vorkultur ?? '', links + 154, rechts - links - 154);
   y += 13;
 

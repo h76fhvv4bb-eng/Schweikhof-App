@@ -47,6 +47,11 @@ export interface Feld {
   geloescht_am?: string | null;
   geometrie: Polygon | MultiPolygon | null;
   flaeche_gezeichnet_m2: number | null;
+  /** Biodiversitätsförderfläche (Migration 25) */
+  bff_typ?: import('./bff').BffTyp | null;
+  bff_qualitaet?: 1 | 2 | null;
+  bff_vernetzung?: boolean;
+  schnitt_ab?: string | null;
   version: number;
 }
 
@@ -507,6 +512,7 @@ export interface Betrieb {
   gemeinde?: string | null;
   bank?: string | null;
   website?: string | null;
+  zone?: (typeof import('./bff').ZONEN)[number] | null;
   version: number;
 }
 

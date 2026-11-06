@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase, fehlertext } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
-import { ABHAENGIGE_DATEN, useFeldarbeit, useFeldarbeitGeraete, useFelder, useGeplanteArbeiten, useHinweise, useLager, useMaschinen, useMitarbeiter, usePartner } from '../lib/daten';
+import { ABHAENGIGE_DATEN, useFeldarbeit, useFeldarbeitGeraete, useFelder, useGeplanteArbeiten, useHinweise, useLager, useMaschinen, useMitarbeiter, usePartner, useBetrieb } from '../lib/daten';
 import { PersonAuswahl } from './Mitarbeiter';
 import { HinweisListe } from '../components/FeldWerkzeuge';
 import { MIT_MOTOR } from '../lib/typen';
@@ -13,6 +13,7 @@ import { Icon } from '../components/Icon';
 import { ZaehlerFelder, pruefeZaehler } from '../components/Zaehler';
 import { ErnteWeiter } from '../components/ErnteWeiter';
 import { ernteLink } from '../lib/ernteWeiter';
+import { bffHinweise } from '../lib/bff';
 import { NEU, NeuerArtikelDialog } from '../components/Schnellanlage';
 
 const HAUPTARTEN: Arbeitsart[] = ['Pflügen', 'Grubbern', 'Eggen', 'Säen', 'Düngen', 'Pflanzenschutz', 'Mähen', 'Wenden', 'Schwaden', 'Pressen', 'Ernten', 'Mulchen'];
@@ -45,6 +46,7 @@ export function Erfassen() {
   const qc = useQueryClient();
   const { profil, darfVerwalten } = useAuth();
   const felder = useFelder();
+  const betrieb = useBetrieb();
   const lager = useLager();
   const mitarbeiter = useMitarbeiter();
   const geplanteArbeiten = useGeplanteArbeiten();
@@ -727,6 +729,20 @@ export function Erfassen() {
         />
       )}
 
+      {(() => {
+        // Hinweise für Biodiversitätsförderflächen (Schnitttermin, Düngung, Pflanzenschutz)
+        const hinweise = Object.keys(gewaehlt).flatMap((fid) => {
+          const f = felder.data?.find((x) => x.id === fid);
+          return f ? bffHinweise(f, betrieb.data?.zone, arbeitsart, datum) : [];
+        });
+        return hinweise.length > 0 ? (
+          <div className="flex flex-col gap-1 rounded-xl bg-warn-hell p-3 text-sm font-semibold text-[#5C3D00]">
+            {hinweise.map((h) => (
+              <span key={h}>⚠ {h}</span>
+            ))}
+          </div>
+        ) : null;
+      })()}
       {fehler && <p className="m-0 rounded-xl bg-fehler-hell p-3 text-sm font-semibold text-fehler">{fehler}</p>}
 
       {darfAendern && (
