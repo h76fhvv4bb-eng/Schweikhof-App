@@ -26,20 +26,31 @@ export const aktiv = (b: Pick<Beweidung, 'von' | 'bis'>) => b.von <= heuteIso() 
 /** Beweidete Fläche: jedes Feld einmal (grösste erfasste Fläche), auch wenn die Tiere mehrmals darauf waren */
 export const weideHa = (b: Pick<Beweidung, 'beweidung_felder'>) => {
   const je = new Map<string, number>();
-  for (const f of b.beweidung_felder) je.set(f.feld_id, Math.max(je.get(f.feld_id) ?? 0, Number(f.flaeche_m2)));
+  for (const f of beweidet(b)) je.set(f.feld_id, Math.max(je.get(f.feld_id) ?? 0, Number(f.flaeche_m2)));
   return [...je.values()].reduce((s, m) => s + m, 0) / 10000;
 };
 
-/** Abschnitte in zeitlicher Reihenfolge */
+/** Abschnitte in der Reihenfolge des Umtriebs (gespeicherte Reihenfolge, sonst nach Datum; geplante ohne Datum am Schluss) */
 export const abschnitte = (b: Pick<Beweidung, 'beweidung_felder'>): WeideAbschnitt[] =>
-  [...b.beweidung_felder].sort((x, y) => (x.von ?? '').localeCompare(y.von ?? ''));
+  [...b.beweidung_felder].sort((x, y) =>
+    x.position != null && y.position != null
+      ? x.position - y.position
+      : Number(x.von == null) - Number(y.von == null) || (x.von ?? '').localeCompare(y.von ?? ''),
+  );
+
+/** Abschnitte mit Datum (tatsächlich beweidet bzw. fest terminiert) */
+export const beweidet = (b: Pick<Beweidung, 'beweidung_felder'>): (WeideAbschnitt & { von: string })[] =>
+  b.beweidung_felder.filter((f): f is WeideAbschnitt & { von: string } => f.von != null);
+
+/** Geplante Felder ohne Datum, in ihrer Reihenfolge */
+export const geplant = (b: Pick<Beweidung, 'beweidung_felder'>) => abschnitte(b).filter((f) => f.von == null);
 
 /** Felder, auf denen die Tiere heute stehen (bei beendeter Weide: die letzten) */
-export function aktuelleFelder(b: Beweidung): WeideAbschnitt[] {
+export function aktuelleFelder(b: Beweidung): (WeideAbschnitt & { von: string })[] {
   const h = heuteIso();
-  const jetzt = b.beweidung_felder.filter((f) => f.von <= h && (f.bis == null || f.bis >= h));
+  const jetzt = beweidet(b).filter((f) => f.von <= h && (f.bis == null || f.bis >= h));
   if (jetzt.length) return jetzt;
-  const liste = abschnitte(b).filter((f) => f.von <= h);
+  const liste = abschnitte(b).filter((f): f is WeideAbschnitt & { von: string } => f.von != null && f.von <= h);
   const letzte = liste[liste.length - 1];
   return letzte ? liste.filter((f) => f.von === letzte.von) : [];
 }
@@ -48,7 +59,7 @@ export function aktuelleFelder(b: Beweidung): WeideAbschnitt[] {
 export function umtriebText(b: Beweidung, feldName: (id: string) => string): string {
   const tm = (iso: string) => `${iso.slice(8, 10)}.${iso.slice(5, 7)}.`;
   return abschnitte(b)
-    .map((f) => `${feldName(f.feld_id)} ${tm(f.von)}–${f.bis ? tm(f.bis) : 'offen'}`)
+    .map((f) => (f.von ? `${feldName(f.feld_id)} ${tm(f.von)}–${f.bis ? tm(f.bis) : 'offen'}` : `${feldName(f.feld_id)} (geplant)`))
     .join(' → ');
 }
 

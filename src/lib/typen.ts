@@ -596,8 +596,11 @@ export interface WeideAbschnitt {
   id?: string;
   feld_id: string;
   flaeche_m2: number;
-  von: string;
+  /** null = geplant, Datum noch offen (Migration 30) */
+  von: string | null;
   bis: string | null;
+  /** Reihenfolge im Umtrieb (Migration 30) */
+  position?: number | null;
 }
 
 export interface VerkaufPosition {

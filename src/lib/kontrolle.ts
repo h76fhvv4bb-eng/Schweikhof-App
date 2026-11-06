@@ -197,10 +197,11 @@ export async function parzellenblaetterLaden(jahr: number, feldId?: string): Pro
       weiden: weidenListe.flatMap((w) =>
         w.beweidung_felder
           // Aufenthalt auf diesem Feld, der ins Jahr fällt
-          .filter((f) => f.feld_id === feld.id && (f.von ?? w.von) <= bis && ((f.bis ?? w.bis) == null || (f.bis ?? w.bis)! >= von))
+          // nur Abschnitte mit Datum (geplante Felder ohne Datum sind noch nicht beweidet)
+          .filter((f) => f.feld_id === feld.id && f.von != null && f.von <= bis && ((f.bis ?? w.bis) == null || (f.bis ?? w.bis)! >= von))
           .map((f) => ({
             partner: name(partner.data, w.partner_id) ?? '', tierart: w.tierart, anzahl: w.anzahl, gve: w.gve != null ? Number(w.gve) : null,
-            von: f.von ?? w.von, bis: f.bis ?? w.bis, ha: Number(f.flaeche_m2) / 10000,
+            von: f.von!, bis: f.bis ?? w.bis, ha: Number(f.flaeche_m2) / 10000,
           })),
       ),
     };

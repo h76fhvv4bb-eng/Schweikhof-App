@@ -166,7 +166,7 @@ export function useBeweidungen(filter: { partner_id?: string; feld_id?: string }
   return useQuery({
     queryKey: ['beweidungen', filter.partner_id ?? null, filter.feld_id ?? null],
     queryFn: async () => {
-      const { data, error } = await supabase.from('beweidungen').select('*, beweidung_felder(id, feld_id, flaeche_m2, von, bis)').order('von', { ascending: false });
+      const { data, error } = await supabase.from('beweidungen').select('*, beweidung_felder(*)').order('von', { ascending: false });
       if (error) return [] as Beweidung[];
       return (data as Beweidung[]).filter(
         (b) => (!filter.partner_id || b.partner_id === filter.partner_id) && (!filter.feld_id || b.beweidung_felder.some((f) => f.feld_id === filter.feld_id)),

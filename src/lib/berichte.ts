@@ -57,7 +57,7 @@ export async function verkaeufeLaden(jahr: number): Promise<VerkaufsDaten> {
 export async function weideLaden(von: string, bis: string, partnerId?: string): Promise<WeideDaten> {
   const [betrieb, eintraege, felder, partner] = await Promise.all([
     betriebLaden(),
-    supabase.from('beweidungen').select('*, beweidung_felder(id, feld_id, flaeche_m2, von, bis)').order('von'),
+    supabase.from('beweidungen').select('*, beweidung_felder(*)').order('von'),
     supabase.from('felder').select('*'),
     supabase.from('partner').select('id, name, adresse'),
   ]);

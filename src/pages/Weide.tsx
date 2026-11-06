@@ -6,7 +6,7 @@ import { useAuth } from '../lib/auth';
 import { useBetrieb, useBeweidungen, useFelder, useHinweise, usePartner, useVerkaeufe } from '../lib/daten';
 import { chf, datum, ha, haZuM2, heuteIso, menge, zahlAus } from '../lib/format';
 import { ENTGELTARTEN, TIERARTEN, hatRolle, type Beweidung, type Feld } from '../lib/typen';
-import { abschnitte, aktiv, aktuelleFelder, tagVerschieben, weideHa, weidetage, weidezins } from '../lib/weide';
+import { abschnitte, aktiv, aktuelleFelder, geplant, tagVerschieben, weideHa, weidetage, weidezins } from '../lib/weide';
 import { csvHerunterladen, csvZahl } from '../lib/export';
 import { pdfHerunterladen } from '../lib/auftragPdf';
 import { Icon } from '../components/Icon';
@@ -44,10 +44,10 @@ export function WeideListe() {
       liste.flatMap((b) => {
         const zins = weidezins(b, von, bis);
         return abschnitte(b).map((f, i) => {
-          const t = weidetage({ von: f.von, bis: f.bis ?? b.bis }, von, bis);
+          const t = f.von ? weidetage({ von: f.von, bis: f.bis ?? b.bis }, von, bis) : 0;
           return [
             pName(b.partner_id), b.tierart, b.anzahl, b.gve != null ? csvZahl(b.gve) : '', fName(f.feld_id), csvZahl(Number(f.flaeche_m2) / 10000),
-            datum(f.von), f.bis ? datum(f.bis) : 'offen', t, b.anzahl * t, b.gve != null ? csvZahl(Number(b.gve) * t) : '',
+            f.von ? datum(f.von) : 'geplant', f.bis ? datum(f.bis) : 'offen', t, b.anzahl * t, b.gve != null ? csvZahl(Number(b.gve) * t) : '',
             i === 0 && zins ? csvZahl(zins.betrag) : '', i === 0 ? (b.bemerkungen ?? '') : '',
           ];
         });
@@ -183,8 +183,10 @@ function Umtrieb({ b, fName }: { b: Beweidung; fName: (id: string) => string }) 
       {liste.map((f, i) => (
         <span key={f.id ?? i} className="flex items-center gap-1">
           {i > 0 && <span className="text-leise">→</span>}
-          <span className={`rounded-lg px-2 py-0.5 font-bold ${aktiv(f) ? 'bg-hof text-white' : 'bg-grund'}`}>
-            {fName(f.feld_id)} {tm(f.von)}–{f.bis ? tm(f.bis) : ''}
+          <span
+            className={`rounded-lg px-2 py-0.5 font-bold ${f.von && aktiv({ von: f.von, bis: f.bis }) ? 'bg-hof text-white' : f.von ? 'bg-grund' : 'border border-dashed border-linie text-leise'}`}
+          >
+            {i + 1}. {fName(f.feld_id)} {f.von ? `${tm(f.von)}–${f.bis ? tm(f.bis) : ''}` : '(geplant)'}
           </span>
         </span>
       ))}
@@ -196,11 +198,19 @@ function Umtrieb({ b, fName }: { b: Beweidung; fName: (id: string) => string }) 
 export function UmtriebDialog({ b, art, felder, onFertig }: { b: Beweidung; art: 'weiter' | 'ende'; felder: Feld[]; onFertig: () => void }) {
   const qc = useQueryClient();
   const [tag, setTag] = useState(heuteIso());
-  const [wahl, setWahl] = useState<Record<string, string>>({});
+  // nächstes geplantes Feld ist vorgewählt
+  const plan = geplant(b);
+  const [wahl, setWahl] = useState<Record<string, string>>(() => (plan[0] ? { [plan[0].feld_id]: '' } : {}));
   const [fehler, setFehler] = useState<string | null>(null);
   const [laeuft, setLaeuft] = useState(false);
   const jetzt = new Set(aktuelleFelder(b).map((f) => f.feld_id));
-  const auswahl = felder.filter((f) => f.status !== 'aufgegeben').sort((x, y) => Number(jetzt.has(x.id)) - Number(jetzt.has(y.id)));
+  const planNr = (id: string) => {
+    const i = plan.findIndex((p) => p.feld_id === id);
+    return i < 0 ? 999 : i;
+  };
+  const auswahl = felder
+    .filter((f) => f.status !== 'aufgegeben')
+    .sort((x, y) => planNr(x.id) - planNr(y.id) || Number(jetzt.has(x.id)) - Number(jetzt.has(y.id)));
 
   async function ok() {
     setFehler(null);
@@ -259,6 +269,7 @@ export function UmtriebDialog({ b, art, felder, onFertig }: { b: Beweidung; art:
                       <span className="text-xs font-semibold text-leise">
                         {ha(Number(f.flaeche_m2))}
                         {jetzt.has(f.id) && ' · jetzt hier'}
+                        {planNr(f.id) < 999 && ` · geplant als ${planNr(f.id) === 0 ? 'nächstes' : `${planNr(f.id) + 1}.`} Feld`}
                       </span>
                     </label>
                     {an && (
@@ -277,7 +288,9 @@ export function UmtriebDialog({ b, art, felder, onFertig }: { b: Beweidung; art:
             </div>
           </>
         ) : (
-          <span className="text-sm text-leise">Die Weide und das aktuelle Feld enden an diesem Tag.</span>
+          <span className="text-sm text-leise">
+            Die Weide und das aktuelle Feld enden an diesem Tag.{plan.length > 0 && ` Geplante Felder ohne Datum (${plan.length}) werden entfernt.`}
+          </span>
         )}
         {fehler && <p className="m-0 rounded-xl bg-fehler-hell p-3 text-sm font-semibold text-fehler">{fehler}</p>}
         <div className="flex gap-2">
@@ -371,7 +384,7 @@ export function WeideFormular() {
       abschnitte(vorhanden).map((x) => {
         const ganz = f.find((y) => y.id === x.feld_id);
         return {
-          feld_id: x.feld_id, von: x.von, bis: x.bis ?? '',
+          feld_id: x.feld_id, von: x.von ?? '', bis: x.bis ?? '',
           ha: ganz && Math.abs(Number(ganz.flaeche_m2) - Number(x.flaeche_m2)) < 1 ? '' : String(Number(x.flaeche_m2) / 10000),
         };
       }),
@@ -382,17 +395,22 @@ export function WeideFormular() {
   const andere = (partner.data ?? []).filter((p) => p.aktiv && !hatRolle(p, 'Tierhalter') && p.id !== w.partner_id);
   const auswaehlbar = (felder.data ?? []).filter((f) => f.status !== 'aufgegeben');
   const set = (k: keyof typeof w) => (e: { target: { value: string } }) => setW({ ...w, [k]: e.target.value });
-  const aendere = (i: number, teil: Partial<Zeile>) => setZeilen(zeilen.map((z, j) => (j === i ? { ...z, ...teil } : z)));
+  /** Zeile ändern; bekommt ein Feld einen Beginn, endet das vorherige offene Feld am Vortag */
+  const aendere = (i: number, teil: Partial<Zeile>) =>
+    setZeilen(
+      zeilen.map((z, j) => {
+        if (j === i) return { ...z, ...teil };
+        const vorher = zeilen[i - 1];
+        if (teil.von && j === i - 1 && vorher && !vorher.bis && (vorher.von || (i - 1 === 0 ? w.von : '')) && (vorher.von || w.von) < teil.von && zeilen[i].von !== vorher.von)
+          return { ...z, bis: tagVerschieben(teil.von, -1) };
+        return z;
+      }),
+    );
   const feldM2 = (fid: string) => Number(auswaehlbar.find((f) => f.id === fid)?.flaeche_m2 ?? 0);
 
-  /** Weiteres Feld danach: das letzte offene Feld endet am Vortag */
+  /** Nächstes Feld im Umtrieb – Datum bleibt offen, bis es bekannt ist (Reihenfolge zählt) */
   function weiterzug() {
-    const letzte = zeilen[zeilen.length - 1];
-    const start = letzte?.bis ? tagVerschieben(letzte.bis, 1) : (w.bis && w.bis < heuteIso() ? w.bis : heuteIso());
-    setZeilen([
-      ...zeilen.map((z) => (!z.bis && (z.von || w.von) < start ? { ...z, bis: tagVerschieben(start, -1) } : z)),
-      { feld_id: '', ha: '', von: start, bis: '' },
-    ]);
+    setZeilen([...zeilen, { feld_id: '', ha: '', von: '', bis: '' }]);
   }
   /** Weiteres Feld gleichzeitig (Herde auf zwei Feldern) */
   function gleichzeitig() {
@@ -406,7 +424,10 @@ export function WeideFormular() {
     entgelt_art: w.entgelt_art, entgelt_satz: zahlAus(w.entgelt_satz), verkauf_id: null, bemerkungen: null, version: 0,
     beweidung_felder: zeilen
       .filter((z) => z.feld_id)
-      .map((z) => ({ feld_id: z.feld_id, flaeche_m2: haZuM2(z.ha) ?? feldM2(z.feld_id), von: z.von || w.von, bis: z.bis || w.bis || null })),
+      .map((z, i) => {
+        const von = z.von || (i === 0 ? w.von : null);
+        return { feld_id: z.feld_id, flaeche_m2: haZuM2(z.ha) ?? feldM2(z.feld_id), von, bis: von ? z.bis || w.bis || null : null };
+      }),
   };
   const zins = w.von ? weidezins(vorschau) : null;
 
@@ -425,6 +446,7 @@ export function WeideFormular() {
       if (z.ha.trim() && haZuM2(z.ha) == null) return setFehler(`Fläche bei «${name}» ungültig.`);
       if (z.von && z.von < w.von) return setFehler(`«${name}»: Beginn liegt vor dem Beginn der Weide.`);
       if (z.von && z.bis && z.bis < z.von) return setFehler(`«${name}»: Ende liegt vor dem Beginn.`);
+      if (!z.von && z.bis && z !== gewaehlt[0]) return setFehler(`«${name}»: Ende ohne Beginn – bitte auch den Beginn eintragen oder beides leer lassen.`);
     }
     const satz = zahlAus(w.entgelt_satz);
     if (w.entgelt_art !== 'keins' && (satz == null || satz < 0)) return setFehler('Bitte den Weidezins angeben.');
@@ -570,14 +592,15 @@ export function WeideFormular() {
             <div>
               <h2 className="m-0 text-lg font-extrabold">Felder und Umtrieb</h2>
               <span className="text-sm text-leise">
-                Ein Feld pro Zeile, in der Reihenfolge des Umtriebs. Datum leer = ganzer Zeitraum der Weide, Fläche leer = ganzes Feld.
+                Ein Feld pro Zeile, in der Reihenfolge des Umtriebs. Datum unbekannt? Einfach leer lassen – das Feld gilt dann als geplant und
+                wird im Weideplan nach der Reihenfolge nummeriert. Erstes Feld ohne Datum = ab Beginn der Weide. Fläche leer = ganzes Feld.
               </span>
             </div>
             {zeilen.map((z, i) => (
               <div key={i} className="flex flex-col gap-2 rounded-2xl bg-grund p-3">
                 <div className="flex items-end gap-2">
                   <label className="feld-label flex-1">
-                    {i === 0 ? 'Feld' : `${i + 1}. Feld`}
+                    {`${i + 1}. Feld`}
                     <select className="eingabe" value={z.feld_id} onChange={(e) => aendere(i, { feld_id: e.target.value })}>
                       <option value="">– Feld wählen –</option>
                       {auswaehlbar.map((f) => (
@@ -591,6 +614,17 @@ export function WeideFormular() {
                     ha
                     <input className="eingabe" inputMode="decimal" placeholder="ganz" value={z.ha} onChange={(e) => aendere(i, { ha: e.target.value })} />
                   </label>
+                  {i > 0 && (
+                    <button
+                      type="button"
+                      className="knopf-leise h-11 w-11 px-0"
+                      aria-label="Weiter nach vorne in der Reihenfolge"
+                      title="In der Reihenfolge nach vorne"
+                      onClick={() => setZeilen(zeilen.map((z2, j) => (j === i - 1 ? zeilen[i] : j === i ? zeilen[i - 1] : z2)))}
+                    >
+                      ↑
+                    </button>
+                  )}
                   {zeilen.length > 1 && (
                     <button type="button" className="knopf-leise h-11 w-11 px-0 text-fehler" aria-label="Zeile entfernen" onClick={() => setZeilen(zeilen.filter((_, j) => j !== i))}>
                       ×
@@ -608,7 +642,11 @@ export function WeideFormular() {
                   </label>
                 </div>
                 {z.feld_id && (
-                  <span className="text-xs text-leise">{weidetage({ von: z.von || w.von, bis: z.bis || w.bis || null })} Tage auf diesem Feld</span>
+                  <span className="text-xs text-leise">
+                    {z.von || i === 0
+                      ? `${weidetage({ von: z.von || w.von, bis: z.bis || w.bis || null })} Tage auf diesem Feld`
+                      : 'Geplant – Datum noch offen. Beim «Weiterziehen» wird das Datum eingetragen.'}
+                  </span>
                 )}
               </div>
             ))}

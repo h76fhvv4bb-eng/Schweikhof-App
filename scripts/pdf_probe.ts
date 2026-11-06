@@ -85,7 +85,15 @@ async function main() {
   const plan = await weideplanPdf({
     betrieb, partner: { name: 'Hof Nachbar', adresse: null, telefon: null }, felder,
     hinweise: [{ id: 'h1', betrieb_id: 'b', feld_id: 'f3', art: 'Gefahr', text: 'Stromleitung am Waldrand', breite: null, laenge: null, aktiv: true } as never],
-    beweidung: { ...weideEintrag, bemerkungen: 'Wasser beim Brunnen in der Hausweide.' },
+    beweidung: {
+      ...weideEintrag, bis: null, bemerkungen: 'Wasser beim Brunnen in der Hausweide.',
+      beweidung_felder: [
+        { feld_id: 'f3', flaeche_m2: 5000, von: '2026-11-01', bis: '2026-11-09', position: 1 },
+        { feld_id: 'f2', flaeche_m2: 4000, von: '2026-11-10', bis: null, position: 2 },
+        { feld_id: 'f1', flaeche_m2: 8000, von: null, bis: null, position: 3 },
+        { feld_id: 'f3', flaeche_m2: 5000, von: null, bis: null, position: 4 },
+      ],
+    },
   });
   writeFileSync('probe_weideplan.pdf', Buffer.from(await plan.arrayBuffer()));
 

@@ -447,7 +447,7 @@ function FeldWeide({ feldId }: { feldId: string }) {
       {!liste.length && <span className="text-sm text-leise">Keine Tiere anderer Betriebe auf diesem Feld erfasst.</span>}
       {liste.slice(0, 8).flatMap((b) =>
         b.beweidung_felder
-          .filter((a) => a.feld_id === feldId)
+          .filter((a): a is typeof a & { von: string } => a.feld_id === feldId && a.von != null)
           .map((a) => (
             <Link key={`${b.id}-${a.id ?? a.von}`} to={`/weide/${b.id}`} className="rounded-xl bg-grund p-2 text-sm font-bold text-text no-underline">
               {b.anzahl} {b.tierart} · {partner.data?.find((p) => p.id === b.partner_id)?.name ?? ''} · {datum(a.von)} – {a.bis ? datum(a.bis) : 'offen'}

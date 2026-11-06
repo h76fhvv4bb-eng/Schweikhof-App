@@ -12,7 +12,7 @@ declare
   r record;
 begin
   if to_regprocedure('public.saat_uebernehmen(uuid)') is null then
-    raise exception 'Bitte zuerst Migration 22 bzw. die Datei «nachholen_18_bis_28.sql» einspielen.';
+    raise exception 'Bitte zuerst Migration 22 bzw. die Datei «nachholen_18_bis_30.sql» einspielen.';
   end if;
   for r in
     select fa.id from public.feldarbeiten fa

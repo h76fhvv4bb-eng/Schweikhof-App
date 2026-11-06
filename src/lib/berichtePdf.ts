@@ -2,7 +2,7 @@ import type { jsPDF } from 'jspdf';
 import type { Beweidung, Betrieb, Feld, Verkauf } from './typen';
 import type { KontrollDaten, Pruefpunkt } from './kontrolle';
 import { betriebZeile, fruchtfolgeSeiten, fusszeilen, GRUEN, heute, LINIE, parzellenblaetterSeiten, pdfText, tabelle, zahl, type FruchtfolgeDaten, type Spalte } from './kontrollePdf';
-import { umtriebText, weidetage, weidezins, weideHa } from './weide';
+import { beweidet, umtriebText, weidetage, weidezins, weideHa } from './weide';
 
 const datum = (iso: string | null | undefined) => (iso ? `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.slice(0, 4)}` : '');
 const chf = (n: number | null | undefined) => (n == null ? '' : new Intl.NumberFormat('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n).replace(/’/g, "'"));
@@ -262,7 +262,7 @@ export function weideSeiten(doc: jsPDF, d: WeideDaten, neueSeite: boolean) {
   // Nach Feld
   const jeFeld = new Map<string, { tage: number; tiertage: number; gveTage: number; halter: Set<string> }>();
   for (const b of d.eintraege)
-    for (const f of b.beweidung_felder) {
+    for (const f of beweidet(b)) {
       const x = jeFeld.get(f.feld_id) ?? { tage: 0, tiertage: 0, gveTage: 0, halter: new Set<string>() };
       // Tage auf diesem Feld (eigener Zeitraum des Abschnitts), im gewählten Zeitraum
       const t = weidetage({ von: f.von ?? b.von, bis: f.bis ?? b.bis }, d.von, d.bis);

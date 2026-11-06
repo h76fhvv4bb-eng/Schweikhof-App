@@ -18,15 +18,18 @@ export interface WeideplanDaten {
   hinweise: FeldHinweis[];
 }
 
-/** Reihenfolge: Abschnitte mit gleichem Beginn (Herde gleichzeitig auf mehreren Feldern) bekommen dieselbe Nummer */
+/**
+ * Reihenfolge des Umtriebs: 1., 2., 3. Feld … in der erfassten Reihenfolge. Felder mit gleichem Beginn
+ * (Herde gleichzeitig auf mehreren Feldern) teilen sich die Nummer; geplante Felder ohne Datum zählen einzeln weiter.
+ */
 export function planSchritte(b: Beweidung) {
-  const liste = abschnitte(b);
-  const nummern = new Map<string, number>();
-  for (const a of liste) {
-    const k = a.von ?? b.von;
-    if (!nummern.has(k)) nummern.set(k, nummern.size + 1);
-  }
-  return liste.map((a) => ({ ...a, von: a.von ?? b.von, bis: a.bis ?? null, nr: nummern.get(a.von ?? b.von)! }));
+  let nr = 0;
+  let letzterBeginn: string | null = null;
+  return abschnitte(b).map((a) => {
+    if (a.von == null || a.von !== letzterBeginn) nr++;
+    letzterBeginn = a.von;
+    return { ...a, bis: a.bis ?? null, nr };
+  });
 }
 
 // ------------------------------------------------------------------ Karte als Bild
@@ -275,6 +278,8 @@ export async function weideplanPdf(d: WeideplanDaten): Promise<Blob> {
     const ganz = f && Math.abs(Number(f.flaeche_m2) - Number(s.flaeche_m2)) < 1;
     const hw = d.hinweise.filter((h) => h.feld_id === s.feld_id).map((h) => `${h.art === 'Gefahr' ? 'Achtung: ' : ''}${h.text}`);
     if (f?.bff_typ) hw.unshift(`Biodiversitätsförderfläche (${f.bff_typ})`);
+    if (!s.von)
+      return [String(s.nr), f ? `${f.feldnummer} ${f.name}` : '?', `${zahl(Number(s.flaeche_m2) / 10000)}${ganz ? '' : ' (Teil)'}`, 'Datum offen', '', '', hw.join('; ')];
     const status = s.bis && s.bis < heute ? ' (erledigt)' : s.von <= heute ? ' (jetzt)' : '';
     return [
       String(s.nr), f ? `${f.feldnummer} ${f.name}` : '?', `${zahl(Number(s.flaeche_m2) / 10000)}${ganz ? '' : ' (Teil)'}`,
@@ -299,7 +304,7 @@ export async function weideplanPdf(d: WeideplanDaten): Promise<Blob> {
   doc.setFontSize(7.5);
   doc.setTextColor(91, 107, 94);
   const fuss = doc.splitTextToSize(
-    pdfText('Daten ohne Datum gelten für die ganze Weidezeit. Bitte Änderungen am Umtrieb kurz melden, damit der Plan nachgeführt werden kann.'),
+    pdfText('Die Flächen bitte in der Reihenfolge der Nummern nutzen. Wo das Datum offen ist, nach Absprache bzw. sobald die vorherige Fläche abgeweidet ist. Bitte jeden Wechsel kurz melden, damit der Plan nachgeführt werden kann.'),
     rechts - links,
   ) as string[];
   if (y + 6 < unten) doc.text(fuss, links, y + 5);

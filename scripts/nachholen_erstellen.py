@@ -1,4 +1,4 @@
-"""Erzeugt supabase/nachholen_18_bis_28.sql: spielt jede fehlende Migration 18–28 nach (ein Block, alles oder nichts)."""
+"""Erzeugt supabase/nachholen_18_bis_30.sql: spielt jede fehlende Migration 18–28 nach (ein Block, alles oder nichts)."""
 import glob, os
 MERKMAL = {
     18: "to_regclass('public.beweidungen') is not null",
@@ -12,9 +12,10 @@ MERKMAL = {
     26: "to_regprocedure('public.lagerartikel_loeschen(uuid[])') is not null",
     27: "to_regclass('public.geraete_einsaetze') is not null",
     28: "exists (select 1 from pg_constraint where conname = 'feldarbeiten_arbeitsart_check' and pg_get_constraintdef(oid) like '%Wiesenegge%')",
+    30: "to_regprocedure('public.beweidung_reihenfolge(uuid)') is not null",
 }
 teile = ["""-- =====================================================================
--- Hofmanager – fehlende Migrationen 18 bis 28 nachholen
+-- Hofmanager – fehlende Migrationen 18 bis 30 nachholen (29 separat)
 -- Einspielen: Supabase › SQL Editor › gesamten Inhalt einfügen › Run
 -- Bereits eingespielte Migrationen werden übersprungen. Bei einem Fehler wird nichts geändert.
 -- Am Schluss zeigt eine Tabelle, welche Migrationen jetzt vorhanden sind.
@@ -36,4 +37,4 @@ for n, merkmal in MERKMAL.items():
 teile.append("end $nachholen$;\n")
 teile.append("select n as migration, case when ok then 'vorhanden' else 'FEHLT' end as status from (values\n" +
              ",\n".join(f"  ({n}, {m})" for n, m in MERKMAL.items()) + "\n) x(n, ok) order by n;\n")
-open('supabase/nachholen_18_bis_28.sql', 'w', encoding='utf-8').write("\n".join(teile))
+open('supabase/nachholen_18_bis_30.sql', 'w', encoding='utf-8').write("\n".join(teile))

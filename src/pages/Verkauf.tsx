@@ -297,7 +297,7 @@ export function VerkaufFormular() {
     if (!z) return;
     geladen.weide = b.id;
     setPartnerId(b.partner_id);
-    const flaechen = [...new Set(b.beweidung_felder.map((f) => felder.data?.find((x) => x.id === f.feld_id)?.name).filter(Boolean))].join(', ');
+    const flaechen = [...new Set(b.beweidung_felder.filter((f) => f.von != null).map((f) => felder.data?.find((x) => x.id === f.feld_id)?.name).filter(Boolean))].join(', ');
     setZeilen([
       {
         bezeichnung: `Weidezins ${b.anzahl} ${b.tierart}, ${datum(b.von)} – ${b.bis ? datum(b.bis) : datum(new Date())}${flaechen ? ` (${flaechen})` : ''}`,
