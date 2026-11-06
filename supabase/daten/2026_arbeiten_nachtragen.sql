@@ -6,9 +6,8 @@
 
 begin;
 
--- Anteil der öko-Flächen, der am 4. Juli gemäht wurde (Rest = Rückzugsstreifen). 0.85 = 85 % gemäht, 15 % stehen gelassen.
--- Falls nur 15 % gemäht wurden: hier 0.15 eintragen.
-create temp table einstellung on commit drop as select 0.85::numeric as anteil_oeko;
+-- Anteil der öko-Flächen, der am 4. Juli gemäht wurde: 15 %
+create temp table einstellung on commit drop as select 0.15::numeric as anteil_oeko;
 
 create or replace function pg_temp.nachtrag(p_datum date, p_art text, p_felder uuid[], p_anteil numeric, p_partner uuid, p_bem text)
 returns int
@@ -64,9 +63,8 @@ insert into gruppe select distinct 'stoppelsturz', a.feld_id from anbau a join k
                 where b.feld_id = a.feld_id and b.art = 'Hauptkultur' and b.jahr = 2027 and (kb.name ilike 'wintergerste%' or kb.name ilike 'kunstwiese%'));
 -- Oberer und unterer Dreizopf (ohne öko und Rand)
 insert into gruppe select 'dreizopf', id from felder where geloescht_am is null and (name ilike 'oberer dreizopf' or name ilike 'unterer dreizopf');
--- öko-Flächen (ohne Brachen)
-insert into gruppe select 'oeko', f.id from felder f where f.geloescht_am is null and f.status = 'bewirtschaftet' and f.name ilike 'öko%'
-   and not exists (select 1 from anbau a join kulturen k on k.id = a.kultur_id where a.feld_id = f.id and a.jahr = 2026 and k.name ilike '%brache%');
+-- alle Flächen mit «öko» im Namen
+insert into gruppe select 'oeko', f.id from felder f where f.geloescht_am is null and f.status = 'bewirtschaftet' and f.name ilike '%öko%';
 -- Buntbrachen 2026
 insert into gruppe select distinct 'buntbrache', a.feld_id from anbau a join kulturen k on k.id = a.kultur_id join felder f on f.id = a.feld_id
  where a.art = 'Hauptkultur' and a.jahr = 2026 and k.name ilike 'buntbrache%' and f.geloescht_am is null;
@@ -89,9 +87,18 @@ select pg_temp.nachtrag('2026-04-18', 'Eggen', array(select feld_id from gruppe 
 select pg_temp.nachtrag('2026-05-23', 'Säen', array(select feld_id from gruppe where name = 'buntbrache'), 1, null, 'Buntbrache');
 
 select pg_temp.nachtrag('2026-07-04', 'Mähen', array(select feld_id from gruppe where name = 'oeko'), (select anteil_oeko from einstellung), null,
-                        'öko-Fläche, Rückzugsstreifen stehen gelassen');
+                        'öko-Fläche, 15 % gemäht');
 select pg_temp.nachtrag('2026-07-06', 'Pressen', array(select feld_id from gruppe where name = 'oeko'), (select anteil_oeko from einstellung),
                         (select id from partner where betrieb_id = mein_betrieb() and name ilike 'häckis%' order by erstellt_am limit 1), null);
+
+-- Falls das Skript schon einmal mit anderem Anteil lief: Fläche auf 15 % korrigieren
+update feldarbeit_felder ff set flaeche_m2 = round(f.flaeche_m2 * (select anteil_oeko from einstellung), 1)
+  from feldarbeiten fa, felder f
+ where fa.id = ff.feldarbeit_id and f.id = ff.feld_id and f.name ilike '%öko%' and fa.geloescht_am is null
+   and ((fa.datum = '2026-07-04' and fa.arbeitsart = 'Mähen') or (fa.datum = '2026-07-06' and fa.arbeitsart = 'Pressen'))
+   and ff.flaeche_m2 is distinct from round(f.flaeche_m2 * (select anteil_oeko from einstellung), 1);
+update feldarbeiten set bemerkungen = 'öko-Fläche, 15 % gemäht'
+ where datum = '2026-07-04' and arbeitsart = 'Mähen' and bemerkungen = 'öko-Fläche, Rückzugsstreifen stehen gelassen';
 
 select pg_temp.nachtrag('2026-07-25', 'Grubbern', array(select feld_id from gruppe where name = 'stoppelsturz'), 1, null, 'Stoppelsturz');
 
