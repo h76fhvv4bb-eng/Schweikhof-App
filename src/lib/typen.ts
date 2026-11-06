@@ -138,10 +138,23 @@ export interface Lagerbewegung {
 }
 
 export const ARBEITSARTEN = [
-  'Pflügen', 'Grubbern', 'Eggen', 'Säen', 'Walzen', 'Düngen', 'Pflanzenschutz',
-  'Mähen', 'Zetten', 'Wenden', 'Schwaden', 'Pressen', 'Ernten', 'Mulchen', 'Hacken', 'Striegeln', 'Andere',
+  'Pflügen', 'Grubbern', 'Eggen', 'Stoppelsturz', 'Walzen', 'Säen', 'Düngen', 'Pflanzenschutz',
+  'Mulchen', 'Wiesenegge', 'Hacken', 'Striegeln', 'Mähen', 'Zetten', 'Wenden', 'Schwaden', 'Pressen', 'Ernten', 'Andere',
 ] as const;
 export type Arbeitsart = (typeof ARBEITSARTEN)[number];
+
+/** Gruppen der Arbeitsarten (Auswahl, Filter, Auswertungen) */
+export const ARBEITSGRUPPEN: { name: string; arten: Arbeitsart[] }[] = [
+  { name: 'Bodenbearbeitung', arten: ['Pflügen', 'Grubbern', 'Eggen', 'Stoppelsturz', 'Walzen'] },
+  { name: 'Saat', arten: ['Säen'] },
+  { name: 'Düngung', arten: ['Düngen'] },
+  { name: 'Pflanzenschutz', arten: ['Pflanzenschutz'] },
+  { name: 'Pflege', arten: ['Mulchen', 'Wiesenegge', 'Hacken', 'Striegeln'] },
+  { name: 'Ernte', arten: ['Mähen', 'Zetten', 'Wenden', 'Schwaden', 'Pressen', 'Ernten'] },
+  { name: 'Andere', arten: ['Andere'] },
+];
+/** Gruppe einer Arbeitsart */
+export const arbeitsgruppe = (art: string) => ARBEITSGRUPPEN.find((g) => (g.arten as string[]).includes(art))?.name ?? 'Andere';
 
 export interface Feldarbeit {
   id: string;

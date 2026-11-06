@@ -6,10 +6,10 @@ import { bffHinweise } from './bff';
 
 /** Abschnitte des Parzellenblatts und welche Arbeitsarten dorthin gehören */
 export const ABSCHNITT_VON: Record<string, 'boden' | 'saat' | 'duengung' | 'pflege' | 'nutzung'> = {
-  Pflügen: 'boden', Grubbern: 'boden', Eggen: 'boden', Walzen: 'boden', Mulchen: 'boden',
+  Pflügen: 'boden', Grubbern: 'boden', Eggen: 'boden', Stoppelsturz: 'boden', Walzen: 'boden',
   Säen: 'saat',
   Düngen: 'duengung',
-  Pflanzenschutz: 'pflege', Hacken: 'pflege', Striegeln: 'pflege', Andere: 'pflege',
+  Pflanzenschutz: 'pflege', Mulchen: 'pflege', Wiesenegge: 'pflege', Hacken: 'pflege', Striegeln: 'pflege', Andere: 'pflege',
   Mähen: 'nutzung', Zetten: 'nutzung', Wenden: 'nutzung', Schwaden: 'nutzung', Pressen: 'nutzung', Ernten: 'nutzung',
 };
 

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useMitarbeiter, useBetrieb, useFeldarbeiten, useFeldarbeitGeraete, useFelder, useMaschinen, usePartner } from '../lib/daten';
 import { datum, ha, menge } from '../lib/format';
 import { csvHerunterladen, csvZahl } from '../lib/export';
-import { ARBEITSARTEN } from '../lib/typen';
+import { ARBEITSGRUPPEN, arbeitsgruppe } from '../lib/typen';
 import { Icon } from '../components/Icon';
 
 export function Kartei() {
@@ -39,7 +39,7 @@ export function Kartei() {
   const liste = (arbeiten.data ?? []).filter(
     (a) =>
       (!feldFilter || a.feldarbeit_felder.some((f) => f.feld_id === feldFilter)) &&
-      (!artFilter || a.arbeitsart === artFilter) &&
+      (!artFilter || a.arbeitsart === artFilter || (artFilter.startsWith('gruppe:') && arbeitsgruppe(a.arbeitsart) === artFilter.slice(7))) &&
       (!personFilter || wer(a) === personFilter) &&
       (!kulturFilter || a.feldarbeit_felder.some((f) => f.anbau?.kulturen?.name === kulturFilter)),
   );
@@ -135,9 +135,20 @@ export function Kartei() {
           Arbeit
           <select className="eingabe" value={artFilter} onChange={(e) => setArtFilter(e.target.value)}>
             <option value="">Alle</option>
-            {ARBEITSARTEN.map((a) => (
-              <option key={a}>{a}</option>
-            ))}
+            {ARBEITSGRUPPEN.map((g) =>
+              g.arten.length === 1 ? (
+                <option key={g.name} value={g.arten[0]}>
+                  {g.arten[0]}
+                </option>
+              ) : (
+                <optgroup key={g.name} label={g.name}>
+                  <option value={`gruppe:${g.name}`}>Alle {g.name}</option>
+                  {g.arten.map((a) => (
+                    <option key={a}>{a}</option>
+                  ))}
+                </optgroup>
+              ),
+            )}
           </select>
         </label>
         <label className="feld-label">

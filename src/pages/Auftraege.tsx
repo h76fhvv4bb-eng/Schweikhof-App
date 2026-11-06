@@ -8,7 +8,7 @@ import {
   useAnbau, useAuftraege, useBetrieb, useFelder, useHinweise, useHofobjekte, useLager, useMaschinen, useMaschinenEintraege, usePartner, useAufgaben, useGeplanteArbeiten,
 } from '../lib/daten';
 import { chf, datum, ha, menge, zahlAus } from '../lib/format';
-import { ABRECHNUNG_EINHEIT, ABRECHNUNGSARTEN, ARBEITSARTEN, LAGERKATEGORIEN, MIT_MOTOR, type Auftrag, rollenText, hatRolle } from '../lib/typen';
+import { ABRECHNUNG_EINHEIT, ABRECHNUNGSARTEN, ARBEITSGRUPPEN, LAGERKATEGORIEN, MIT_MOTOR, type Auftrag, rollenText, hatRolle } from '../lib/typen';
 import { AbrechnungNachtragen, AuftragAbschluss } from '../components/AuftragAbschluss';
 import { RichtpreisWahl } from '../components/RichtpreisWahl';
 import { HinweisListe } from '../components/FeldWerkzeuge';
@@ -507,8 +507,12 @@ export function AuftragFormular() {
               <label className="feld-label">
                 Arbeit
                 <select className="eingabe" value={arbeitsart} onChange={(e) => setArbeitsart(e.target.value)}>
-                  {ARBEITSARTEN.map((a) => (
-                    <option key={a}>{a}</option>
+                  {ARBEITSGRUPPEN.map((g) => (
+                    <optgroup key={g.name} label={g.name}>
+                      {g.arten.map((a) => (
+                        <option key={a}>{a}</option>
+                      ))}
+                    </optgroup>
                   ))}
                 </select>
               </label>

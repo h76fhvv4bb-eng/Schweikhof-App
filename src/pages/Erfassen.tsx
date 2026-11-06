@@ -8,7 +8,7 @@ import { PersonAuswahl } from './Mitarbeiter';
 import { HinweisListe } from '../components/FeldWerkzeuge';
 import { MIT_MOTOR } from '../lib/typen';
 import { ha, heuteIso, menge, zahlAus } from '../lib/format';
-import { ARBEITSARTEN, ERNTEARBEITEN, rollenText, type Arbeitsart, type Lagerbestand, type Maschine } from '../lib/typen';
+import { ARBEITSGRUPPEN, ERNTEARBEITEN, rollenText, type Arbeitsart, type Lagerbestand, type Maschine } from '../lib/typen';
 import { Icon } from '../components/Icon';
 import { ZaehlerFelder, pruefeZaehler } from '../components/Zaehler';
 import { ErnteWeiter } from '../components/ErnteWeiter';
@@ -16,7 +16,14 @@ import { ernteLink } from '../lib/ernteWeiter';
 import { bffHinweise } from '../lib/bff';
 import { NEU, NeuerArtikelDialog } from '../components/Schnellanlage';
 
-const HAUPTARTEN: Arbeitsart[] = ['Pflügen', 'Grubbern', 'Eggen', 'Säen', 'Düngen', 'Pflanzenschutz', 'Mähen', 'Wenden', 'Schwaden', 'Pressen', 'Ernten', 'Mulchen'];
+/** Auswahl nach Gruppen; Saat, Düngung und Pflanzenschutz teilen sich eine Zeile, «Andere» kommt zur Pflege */
+const AUSWAHL: { name: string; arten: Arbeitsart[] }[] = [
+  ARBEITSGRUPPEN[0],
+  { name: 'Saat · Düngung · Pflanzenschutz', arten: ['Säen', 'Düngen', 'Pflanzenschutz'] },
+  ARBEITSGRUPPEN.find((g) => g.name === 'Pflege')!,
+  ARBEITSGRUPPEN.find((g) => g.name === 'Ernte')!,
+  { name: 'Weiteres', arten: ['Andere'] },
+];
 const MITTEL_KATEGORIE: Partial<Record<Arbeitsart, Lagerbestand['kategorie']>> = {
   Düngen: 'Dünger',
   Säen: 'Saatgut',
@@ -315,29 +322,26 @@ export function Erfassen() {
       <fieldset disabled={!darfAendern} className="m-0 flex flex-col gap-5 border-0 p-0">
         <section className="flex flex-col gap-2">
           <h2 className="m-0 text-[15px] font-extrabold text-[#3E4C41]">1 · Was?</h2>
-          <div className="grid grid-cols-4 gap-2">
-            {HAUPTARTEN.map((a) => (
-              <button
-                key={a}
-                type="button"
-                aria-pressed={arbeitsart === a}
-                onClick={() => setArbeitsart(a)}
-                className={`min-h-14 rounded-2xl px-1 text-[13px] font-extrabold ${
-                  arbeitsart === a ? 'border-[3px] border-hof bg-hof-hell text-hof' : 'border-0 bg-white shadow-[0_3px_0_var(--color-rand)]'
-                }`}
-              >
-                {a}
-              </button>
-            ))}
-          </div>
-          <label className="feld-label">
-            Andere Arbeitsart
-            <select className="eingabe" value={arbeitsart} onChange={(e) => setArbeitsart(e.target.value as Arbeitsart)}>
-              {ARBEITSARTEN.map((a) => (
-                <option key={a}>{a}</option>
-              ))}
-            </select>
-          </label>
+          {AUSWAHL.map((g) => (
+            <div key={g.name} className="flex flex-col gap-1">
+              <span className="text-xs font-bold text-leise">{g.name}</span>
+              <div className="grid grid-cols-4 gap-2">
+                {g.arten.map((a) => (
+                  <button
+                    key={a}
+                    type="button"
+                    aria-pressed={arbeitsart === a}
+                    onClick={() => setArbeitsart(a)}
+                    className={`min-h-12 rounded-2xl px-1 text-[13px] font-extrabold ${
+                      arbeitsart === a ? 'border-[3px] border-hof bg-hof-hell text-hof' : 'border-0 bg-white shadow-[0_3px_0_var(--color-rand)]'
+                    }`}
+                  >
+                    {a === 'Pflanzenschutz' ? 'Pflanzen­schutz' : a === 'Stoppelsturz' ? 'Stoppel­sturz' : a}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
         </section>
 
         <section className="flex flex-col gap-2">

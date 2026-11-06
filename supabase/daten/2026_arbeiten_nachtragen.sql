@@ -13,6 +13,11 @@ declare
   v_schritt jsonb;
   v_liste   jsonb;
   v_anteil  numeric;
+  v_art     text;
+  v_bem     text;
+  -- Migration 28 eingespielt? Dann «Wiesenegge» und «Stoppelsturz» als eigene Arbeitsart
+  v_neue_arten boolean := exists (select 1 from pg_constraint where conname = 'feldarbeiten_arbeitsart_check'
+                                     and pg_get_constraintdef(oid) like '%Wiesenegge%');
 begin
   -- als Administrator des Betriebs handeln (Berechtigungen, «erfasst von»)
   select id into v_admin from benutzer_profile where rolle = 'administrator' and aktiv order by erstellt_am limit 1;
@@ -81,21 +86,27 @@ begin
     jsonb_build_object('d', '2026-10-04', 'a', 'Säen',     'g', 'wintergerste', 'b', 'Wintergerste Esprit, TKG 46 g')
   )) loop
     v_anteil := coalesce((v_schritt ->> 'anteil')::numeric, 1);
+    v_art := v_schritt ->> 'a';
+    v_bem := v_schritt ->> 'b';
+    if v_neue_arten and v_bem in ('Wiesenegge', 'Stoppelsturz') then
+      v_art := v_bem;
+      v_bem := null;
+    end if;
     select jsonb_agg(jsonb_build_object('feld_id', f.id,
              'flaeche_m2', case when v_anteil >= 1 then null else round(f.flaeche_m2 * v_anteil, 1) end) order by f.feldnummer)
       into v_liste
       from felder f
      where f.id in (select (x)::uuid from jsonb_array_elements_text(v_gruppen -> (v_schritt ->> 'g')) x)
        and not exists (select 1 from feldarbeiten fa join feldarbeit_felder ff on ff.feldarbeit_id = fa.id
-                        where ff.feld_id = f.id and fa.datum = (v_schritt ->> 'd')::date and fa.arbeitsart = v_schritt ->> 'a'
+                        where ff.feld_id = f.id and fa.datum = (v_schritt ->> 'd')::date and fa.arbeitsart in (v_art, v_schritt ->> 'a')
                           and fa.geloescht_am is null);
     continue when v_liste is null;
     if to_regprocedure('public.feldarbeit_speichern_geraete(jsonb)') is not null then
-      perform feldarbeit_speichern_geraete(jsonb_build_object('datum', v_schritt ->> 'd', 'arbeitsart', v_schritt ->> 'a', 'status', 'erledigt',
-                'partner_id', v_schritt ->> 'p', 'bemerkungen', v_schritt ->> 'b', 'felder', v_liste));
+      perform feldarbeit_speichern_geraete(jsonb_build_object('datum', v_schritt ->> 'd', 'arbeitsart', v_art, 'status', 'erledigt',
+                'partner_id', v_schritt ->> 'p', 'bemerkungen', v_bem, 'felder', v_liste));
     else
-      perform feldarbeit_speichern(jsonb_build_object('datum', v_schritt ->> 'd', 'arbeitsart', v_schritt ->> 'a', 'status', 'erledigt',
-                'partner_id', v_schritt ->> 'p', 'bemerkungen', v_schritt ->> 'b', 'felder', v_liste));
+      perform feldarbeit_speichern(jsonb_build_object('datum', v_schritt ->> 'd', 'arbeitsart', v_art, 'status', 'erledigt',
+                'partner_id', v_schritt ->> 'p', 'bemerkungen', v_bem, 'felder', v_liste));
     end if;
   end loop;
 
