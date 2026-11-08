@@ -9,6 +9,7 @@ import { HinweisListe } from '../components/FeldWerkzeuge';
 import { MIT_MOTOR } from '../lib/typen';
 import { ha, heuteIso, menge, zahlAus } from '../lib/format';
 import { ARBEITSGRUPPEN, ERNTEARBEITEN, rollenText, type Arbeitsart, type Lagerbestand, type Maschine } from '../lib/typen';
+import { MengeEingabe, proHaAusTotal } from '../components/MengeEingabe';
 import { Icon } from '../components/Icon';
 import { ZaehlerFelder, pruefeZaehler } from '../components/Zaehler';
 import { ErnteWeiter } from '../components/ErnteWeiter';
@@ -40,12 +41,6 @@ interface MittelZeile {
   total?: string; // Gesamtmenge, wenn so eingegeben (z. B. 50 kg auf die gewählte Fläche)
 }
 
-/** Menge pro ha als Text, aus Gesamtmenge und Fläche */
-const proHaAusTotal = (total: string, m2: number) => {
-  const t = zahlAus(total);
-  if (t == null || m2 <= 0) return '';
-  return String(Math.round((t / (m2 / 10000)) * 10000) / 10000);
-};
 
 export function Erfassen() {
   const { id } = useParams();
@@ -173,6 +168,12 @@ export function Erfassen() {
       }, 0),
     [gewaehlt, felder.data],
   );
+  // gewählte Felder mit (Teil-)Fläche, für die Aufteilung einer Gesamtmenge
+  const gewaehlteFelder = Object.entries(gewaehlt).map(([fid, teil]) => {
+    const f = felder.data?.find((x) => x.id === fid);
+    const t = zahlAus(teil);
+    return { name: f ? `${f.feldnummer} ${f.name}` : '?', m2: t ? t * 10000 : Number(f?.flaeche_m2 ?? 0) };
+  });
   const kategorie = MITTEL_KATEGORIE[arbeitsart];
   const artikelAuswahl = (lager.data ?? []).filter((a) => !kategorie || a.kategorie === kategorie);
   const mittelMoeglich = MIT_MITTEL_MOEGLICH.includes(arbeitsart) || (mittel.length > 0 && mittel.some((m) => m.artikel_id));
@@ -476,40 +477,14 @@ export function Erfassen() {
                         ))}
                       </select>
                     </label>
-                    <div className="grid grid-cols-2 gap-3">
-                      <label className="feld-label">
-                        Menge pro ha
-                        <span className="flex items-center gap-2">
-                          <input
-                            className={`eingabe w-full ${m.total ? 'bg-white/60 text-leise' : ''}`}
-                            inputMode="decimal"
-                            value={m.total ? (proHa ? String(Math.round(proHa * 100) / 100) : '') : m.menge_je_ha}
-                            onChange={(e) => setMittel(mittel.map((x, j) => (j === i ? { ...x, menge_je_ha: e.target.value, total: undefined } : x)))}
-                          />
-                          <span className="shrink-0">{art?.einheit ?? ''}/ha</span>
-                        </span>
-                      </label>
-                      <label className="feld-label">
-                        oder Gesamt auf {ha(flaecheM2)}
-                        <span className="flex items-center gap-2">
-                          <input
-                            className={`eingabe w-full ${m.total ? '' : 'bg-white/60 text-leise'}`}
-                            inputMode="decimal"
-                            value={m.total ?? (gesamt ? String(Math.round(gesamt * 100) / 100) : '')}
-                            onChange={(e) =>
-                              setMittel(mittel.map((x, j) => (j === i ? { ...x, total: e.target.value, menge_je_ha: proHaAusTotal(e.target.value, flaecheM2) } : x)))
-                            }
-                            disabled={flaecheM2 <= 0}
-                          />
-                          <span className="shrink-0">{art?.einheit ?? ''}</span>
-                        </span>
-                      </label>
-                    </div>
-                    {m.total && proHa > 0 && (
-                      <span className="text-xs font-semibold text-hof">
-                        = {menge(proHa)} {art?.einheit}/ha auf {ha(flaecheM2)}
-                      </span>
-                    )}
+                    <MengeEingabe
+                      proHa={m.menge_je_ha}
+                      total={m.total}
+                      einheit={art?.einheit ?? ''}
+                      flaecheM2={flaecheM2}
+                      felder={gewaehlteFelder}
+                      onChange={(w) => setMittel(mittel.map((x, j) => (j === i ? { ...x, ...w } : x)))}
+                    />
                     {n != null && proHa > 0 && (
                       <span className="text-sm text-[#3E4C41]">
                         N: <strong>{menge(n)} kg/ha</strong> · {menge((n * flaecheM2) / 10000)} kg total

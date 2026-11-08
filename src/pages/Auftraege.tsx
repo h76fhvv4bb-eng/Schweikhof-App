@@ -13,6 +13,7 @@ import { ABRECHNUNG_EINHEIT, ABRECHNUNGSARTEN, ARBEITSGRUPPEN, LAGERKATEGORIEN, 
 import { AbrechnungNachtragen, AuftragAbschluss } from '../components/AuftragAbschluss';
 import { RichtpreisWahl } from '../components/RichtpreisWahl';
 import { HinweisListe } from '../components/FeldWerkzeuge';
+import { MengeEingabe, proHaAusTotal } from '../components/MengeEingabe';
 import { Icon } from '../components/Icon';
 import { NEU, NeuerArtikelDialog } from '../components/Schnellanlage';
 import type { Anbau, Lagerartikel } from '../lib/typen';
@@ -110,6 +111,8 @@ interface MittelZeile {
   kategorie: string;
   einheit: string;
   menge_je_ha: string;
+  /** Eingabe als Total (wird nach Fläche umgerechnet) */
+  total?: string;
   bereitstellung: 'Betrieb' | 'Dienstleister';
   bemerkung: string;
 }
@@ -247,6 +250,12 @@ export function AuftragFormular() {
     [anbau.data, terminVon],
   );
   const flaecheHa = ausgewaehlteFelder.reduce((s, f) => s + Number(f.flaeche_m2), 0) / 10000;
+  // Gesamtmengen bei geänderter Feldwahl neu auf die Fläche umrechnen
+  useEffect(() => {
+    if (mittel.some((m) => m.total))
+      setMittel((ms) => ms.map((m) => (m.total ? { ...m, menge_je_ha: proHaAusTotal(m.total, flaecheHa * 10000) } : m)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [flaecheHa]);
   const maschine = maschinen.data?.find((m) => m.id === maschineId);
   // Fläche für Abschluss und Ernte: Teilflächen der geplanten Arbeit, sonst ganze Felder
   const abschlussFelder = ausgewaehlteFelder.map((f) => ({
@@ -688,18 +697,14 @@ export function AuftragFormular() {
                       </label>
                     </div>
                   )}
-                  <div className="grid grid-cols-2 gap-2">
-                    <label className="feld-label">
-                      Menge pro ha ({m.quelle === 'lager' ? (art_?.einheit ?? '') : m.einheit})
-                      <input className="eingabe" inputMode="decimal" value={m.menge_je_ha} onChange={(e) => setz({ menge_je_ha: e.target.value })} />
-                    </label>
-                    <div className="feld-label">
-                      Total für {ha(flaecheHa * 10000)}
-                      <span className="flex min-h-12 items-center rounded-xl bg-white px-3 text-base font-extrabold text-text">
-                        {n ? menge(n * flaecheHa, m.quelle === 'lager' ? art_?.einheit : m.einheit) : '–'}
-                      </span>
-                    </div>
-                  </div>
+                  <MengeEingabe
+                    proHa={m.menge_je_ha}
+                    total={m.total}
+                    einheit={(m.quelle === 'lager' ? art_?.einheit : m.einheit) ?? ''}
+                    flaecheM2={flaecheHa * 10000}
+                    felder={ausgewaehlteFelder.map((f) => ({ name: `${f.feldnummer} ${f.name}`, m2: Number(f.flaeche_m2) }))}
+                    onChange={(w) => setz(w)}
+                  />
                   {m.bereitstellung === 'Betrieb' && art_ && art_.lagerfuehrung && n != null && n * flaecheHa > Number(art_.bestand) && (
                     <span className="flex gap-2 rounded-xl bg-warn-hell p-2 text-sm font-semibold text-[#5C3D00]">
                       <Icon name="warnung" groesse={18} className="shrink-0" />

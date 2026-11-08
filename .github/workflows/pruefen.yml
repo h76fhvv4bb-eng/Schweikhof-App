@@ -20,18 +20,16 @@ jobs:
         env:
           VITE_SUPABASE_URL: https://beispiel.supabase.co
           VITE_SUPABASE_ANON_KEY: nur-fuer-den-build
-      - name: Gebaute App und Abhängigkeiten zum Testen ablegen
-        run: tar -czf /tmp/node_modules.tgz node_modules package-lock.json
-      - uses: actions/upload-artifact@v4
-        with:
-          name: app-dist
-          path: dist
-          retention-days: 3
-      - uses: actions/upload-artifact@v4
-        with:
-          name: node-modules
-          path: /tmp/node_modules.tgz
-          retention-days: 3
+      - name: Gebaute App und Abhängigkeiten im Zweig «bau» ablegen (für Layout-Prüfung)
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: |
+          mkdir -p /tmp/bau && cp -r dist /tmp/bau/dist
+          tar -czf - node_modules package-lock.json | split -b 45m - /tmp/bau/deps.tgz.
+          cd /tmp/bau
+          git init -q && git checkout -qb bau
+          git config user.name "CI" && git config user.email "ci@users.noreply.github.com"
+          git add -A && git commit -qm "Bau ${GITHUB_SHA::7}"
+          git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" bau
       - name: PDF-Probe (Rechnung, Fruchtfolge, Parzellenblatt mit Testdaten)
         run: |
           npx esbuild scripts/pdf_probe.ts --bundle --platform=node --format=cjs --outfile=probe.cjs \
