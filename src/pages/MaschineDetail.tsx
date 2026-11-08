@@ -634,7 +634,7 @@ function Eintraege({ maschine }: { maschine: Maschine }) {
 
   return (
     <section className="karte flex flex-col gap-2">
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex flex-col gap-2">
         <div>
           <h2 className="m-0 text-lg font-extrabold">Wartungen, Reparaturen, Beobachtungen</h2>
           {kosten > 0 && <span className="text-xs text-leise">Kosten total {chf(kosten)}</span>}
@@ -880,7 +880,7 @@ function EintragFormular({ maschine, eintrag, onFertig }: { maschine: Maschine; 
                 </button>
               </div>
             ))}
-            <button type="button" className="self-start text-sm font-extrabold text-hof" onClick={() => setTeile([...teile, { artikel_id: '', menge: '1' }])}>
+            <button type="button" className="inline-flex min-h-10 items-center self-start text-sm font-extrabold text-hof" onClick={() => setTeile([...teile, { artikel_id: '', menge: '1' }])}>
               + Teil aus Lager
             </button>
             {artikel.length === 0 && <span className="text-xs text-leise">Im Lager gibt es noch keine Ersatzteile oder Betriebsstoffe.</span>}

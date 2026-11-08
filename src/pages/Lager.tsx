@@ -229,7 +229,7 @@ export function Lager() {
       {gruppenSortiert.map(([gruppe, artikel]) => (
         <Gruppe key={gruppe || 'alle'} titel={gruppe} anzahl={artikel.length} wert={artikel.reduce((x, a) => x + Number(a.lagerwert), 0)}>
           {artikel.map((a) => {
-            const anteil = a.mindestbestand > 0 ? Math.min(1, Number(a.bestand) / (Number(a.mindestbestand) * 2)) : 1;
+            const anteil = Number(a.bestand) <= 0 ? 0 : a.mindestbestand > 0 ? Math.min(1, Number(a.bestand) / (Number(a.mindestbestand) * 2)) : 1;
             const masch = maschinenVon(a.id);
             return (
               <Karte

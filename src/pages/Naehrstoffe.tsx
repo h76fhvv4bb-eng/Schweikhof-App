@@ -55,14 +55,14 @@ export function Naehrstoffe() {
           <span className="text-sm font-semibold text-leise">Aus erfassten Düngungen · kein Bodenvorrat</span>
           <h1 className="m-0 text-3xl font-extrabold text-hof">Nährstoffe {jahr}</h1>
         </div>
-        <div className="flex gap-2">
-          <select className="eingabe" value={jahr} onChange={(e) => setJahr(Number(e.target.value))} aria-label="Jahr">
+        <div className="flex flex-wrap gap-2">
+          <select className="eingabe w-28" value={jahr} onChange={(e) => setJahr(Number(e.target.value))} aria-label="Jahr">
             {Array.from({ length: 6 }, (_, i) => new Date().getFullYear() + 1 - i).map((j) => (
               <option key={j}>{j}</option>
             ))}
           </select>
           <button className="knopf-leise" onClick={pdf} disabled={laeuft}>
-            {laeuft ? 'Erstelle …' : 'Düngerbilanz (PDF)'}
+            {laeuft ? 'Erstelle …' : 'Düngerbilanz PDF'}
           </button>
           <button className="knopf-leise" onClick={exportieren}>
             Excel (CSV)

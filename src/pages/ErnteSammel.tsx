@@ -279,11 +279,13 @@ export function ErnteSammel() {
 
   return (
     <div className="flex flex-col gap-4 pb-24">
-      <header>
-        <Link to="/ernte" className="text-sm font-bold">
-          ← Ernte
-        </Link>
-        <h1 className="m-0 text-3xl font-extrabold text-hof">{bearbeiten ? `${zeilen.length} Ernten bearbeiten` : 'Ernte mehrerer Felder'}</h1>
+      <header className="flex flex-col gap-1">
+        <div className="flex items-center gap-3">
+          <Link to="/ernte" aria-label="Zurück" className="knopf-leise h-11 w-11 shrink-0 px-0">
+            <Icon name="zurueck" />
+          </Link>
+          <h1 className="m-0 text-2xl font-extrabold text-hof">{bearbeiten ? `${zeilen.length} Ernten bearbeiten` : 'Ernte mehrerer Felder'}</h1>
+        </div>
         <span className="text-sm text-leise">
           {bearbeiten
             ? 'Mengen, Fläche und Datum je Feld anpassen. Bestehende Abgaben bleiben erhalten.'

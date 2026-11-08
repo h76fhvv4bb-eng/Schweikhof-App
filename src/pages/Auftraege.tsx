@@ -715,7 +715,7 @@ export function AuftragFormular() {
                     Bemerkung
                     <input className="eingabe" value={m.bemerkung} onChange={(e) => setz({ bemerkung: e.target.value })} placeholder="z. B. Säcke stehen in der Scheune" />
                   </label>
-                  <button type="button" className="self-start text-sm font-bold text-fehler" onClick={() => setMittel(mittel.filter((_, j) => j !== i))}>
+                  <button type="button" className="inline-flex min-h-10 items-center self-start text-sm font-bold text-fehler" onClick={() => setMittel(mittel.filter((_, j) => j !== i))}>
                     Entfernen
                   </button>
                 </div>
@@ -723,7 +723,7 @@ export function AuftragFormular() {
             })}
             <button
               type="button"
-              className="self-start text-sm font-extrabold text-hof"
+              className="inline-flex min-h-10 items-center self-start text-sm font-extrabold text-hof"
               onClick={() =>
                 setMittel([
                   ...mittel,
@@ -778,7 +778,7 @@ export function AuftragFormular() {
           <section className="karte flex flex-col gap-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h2 className="m-0 text-lg font-extrabold">Abrechnung</h2>
-              <button type="button" className="text-sm font-bold text-hof" onClick={() => setRichtpreisWahl(true)}>
+              <button type="button" className="inline-flex min-h-10 items-center text-sm font-bold text-hof" onClick={() => setRichtpreisWahl(true)}>
                 aus Richtpreis …
               </button>
             </div>

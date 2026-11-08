@@ -13,6 +13,7 @@ export const NAVIGATION: { pfad: string; text: string; icon: IconName; gruppe: s
   { pfad: '/kartei', text: 'Ackerschlagkartei', icon: 'kartei', gruppe: 'Pflanzenbau' },
   { pfad: '/naehrstoffe', text: 'Nährstoffe', icon: 'tropfen', gruppe: 'Pflanzenbau' },
   { pfad: '/kontrolle', text: 'Kontrolle', icon: 'kontrolle', gruppe: 'Pflanzenbau' },
+  { pfad: '/direktzahlungen', text: 'Direktzahlungen & ÖLN', icon: 'kontrolle', gruppe: 'Pflanzenbau' },
   { pfad: '/lager', text: 'Lager', icon: 'lager', gruppe: 'Betrieb' },
   { pfad: '/digiflux', text: 'digiFLUX (Hofdünger)', icon: 'tropfen', gruppe: 'Betrieb' },
   { pfad: '/verkauf', text: 'Verkauf', icon: 'verkauf', gruppe: 'Betrieb' },

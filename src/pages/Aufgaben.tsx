@@ -288,7 +288,7 @@ export function Aufgaben() {
         </section>
       )}
 
-      <button className="self-start text-sm font-bold text-hof" onClick={() => setErledigteZeigen(!erledigteZeigen)}>
+      <button className="inline-flex min-h-10 items-center self-start text-sm font-bold text-hof" onClick={() => setErledigteZeigen(!erledigteZeigen)}>
         {erledigteZeigen ? 'Erledigte ausblenden' : 'Erledigte Aufgaben anzeigen'}
       </button>
       {erledigteZeigen && <Erledigte maschName={maschName} />}

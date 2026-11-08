@@ -273,7 +273,7 @@ export function Fruchtfolge() {
                             {darfVerwalten && a && (
                               <button
                                 type="button"
-                                className="rounded-md bg-grund px-1.5 text-[11px] font-bold text-hof"
+                                className="min-h-7 rounded-md bg-grund px-2 text-[11px] font-bold text-hof"
                                 title="Saat, Ernte, Teilfläche der Hauptkultur"
                                 onClick={() => setPlanen({ feldId: f.id, feldName: f.name, feldM2: Number(f.flaeche_m2), jahr: j, eintrag: a })}
                               >
@@ -284,7 +284,7 @@ export function Fruchtfolge() {
                               <button
                                 key={x.id}
                                 type="button"
-                                className="max-w-full truncate rounded-md px-1.5 text-[11px] font-bold"
+                                className="min-h-7 max-w-full truncate rounded-md px-2 text-[11px] font-bold"
                                 style={{ background: x.kulturen?.farbe ?? '#ddd', opacity: x.status === 'geplant' ? 0.8 : 1 }}
                                 title={`${x.art}: ${x.kulturen?.name}`}
                                 onClick={() => setPlanen({ feldId: f.id, feldName: f.name, feldM2: Number(f.flaeche_m2), jahr: j, eintrag: x })}
@@ -296,7 +296,7 @@ export function Fruchtfolge() {
                             {darfVerwalten && (
                               <button
                                 type="button"
-                                className="rounded-md border border-dashed border-linie px-1.5 text-[11px] font-bold text-leise"
+                                className="min-h-7 min-w-7 rounded-md border border-dashed border-linie px-2 text-[11px] font-bold text-leise"
                                 aria-label={`Weitere Kultur ${f.name} ${j}`}
                                 title="Weitere Kultur: Zweitkultur, Zwischenkultur oder Untersaat"
                                 onClick={() =>

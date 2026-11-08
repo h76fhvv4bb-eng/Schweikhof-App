@@ -148,8 +148,8 @@ export function DigiFluxSeite() {
     <div className="flex flex-col gap-4">
       <header className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h1 className="m-0 text-2xl font-extrabold text-hof">digiFLUX</h1>
-          <span className="text-sm text-leise">Lieferungen von Hofdünger, Dünger und Pflanzenschutzmitteln an den Betrieb (früher HODUFLU)</span>
+          <span className="text-sm font-semibold text-leise">Lieferungen an den Betrieb (früher HODUFLU)</span>
+          <h1 className="m-0 text-3xl font-extrabold text-hof">digiFLUX</h1>
         </div>
         <button className="knopf-leise min-h-10" onClick={exportieren} disabled={!imJahr.length}>
           CSV {jahr}
@@ -236,7 +236,7 @@ export function DigiFluxSeite() {
             <div className="flex items-start justify-between gap-2">
               <span className="flex flex-col">
                 <b>
-                  {menge(Number(l.menge))} {l.einheit} {l.produkt ?? l.produkt_id ?? 'Produkt?'}
+                  {menge(Number(l.menge))} {einheitApp(l.einheit)} {l.produkt ?? l.produkt_id ?? 'Produkt?'}
                 </b>
                 <span className="text-sm text-leise">
                   {datum(l.lieferdatum)} · {l.abgeber ?? l.abgeber_id ?? 'Abgeber?'}
@@ -429,7 +429,7 @@ function DateiImport({ dflid, onFertig }: { dflid: string | null; onFertig: (tex
               </span>
               {ergebnis.lieferungen.slice(0, 5).map((l: DigifluxZeile) => (
                 <span key={l.dfx_id} className="rounded-xl bg-grund p-2 text-sm">
-                  {datum(l.lieferdatum)} · {menge(l.menge)} {l.einheit} {l.produkt ?? '?'} · {l.abgeber ?? '?'}
+                  {datum(l.lieferdatum)} · {menge(l.menge)} {einheitApp(l.einheit)} {l.produkt ?? '?'} · {l.abgeber ?? '?'}
                   {l.status && ` · ${STATUS_TEXT[l.status] ?? l.status}`}
                 </span>
               ))}
@@ -493,7 +493,7 @@ function UebernehmenDialog({ l, onFertig }: { l: DigifluxLieferung; onFertig: (t
       <div className="flex max-h-[90vh] w-full max-w-md flex-col gap-3 overflow-y-auto rounded-t-[22px] bg-white p-5 sm:rounded-[22px]">
         <h2 className="m-0 text-xl font-extrabold text-hof">Ins Lager übernehmen</h2>
         <span className="text-sm">
-          {datum(l.lieferdatum)} · {menge(Number(l.menge))} {l.einheit} <b>{l.produkt ?? l.produkt_id}</b> von {l.abgeber ?? '?'}
+          {datum(l.lieferdatum)} · {menge(Number(l.menge))} {einheitApp(l.einheit)} <b>{l.produkt ?? l.produkt_id}</b> von {l.abgeber ?? '?'}
         </span>
         <label className="feld-label">
           Lagerartikel
@@ -566,7 +566,7 @@ function AblehnenDialog({ l, onFertig }: { l: DigifluxLieferung; onFertig: (grun
       <div className="flex w-full max-w-md flex-col gap-3 rounded-t-[22px] bg-white p-5 sm:rounded-[22px]">
         <h2 className="m-0 text-xl font-extrabold text-hof">Lieferung ablehnen</h2>
         <span className="text-sm">
-          {datum(l.lieferdatum)} · {menge(Number(l.menge))} {l.einheit} {l.produkt} von {l.abgeber}
+          {datum(l.lieferdatum)} · {menge(Number(l.menge))} {einheitApp(l.einheit)} {l.produkt} von {l.abgeber}
         </span>
         <label className="feld-label">
           Grund (geht an den Abgeber)

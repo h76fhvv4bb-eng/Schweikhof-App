@@ -508,7 +508,7 @@ export function Erfassen() {
                       </label>
                     )}
                     {mittel.length > 1 && (
-                      <button type="button" className="self-start text-sm font-bold text-fehler" onClick={() => setMittel(mittel.filter((_, j) => j !== i))}>
+                      <button type="button" className="inline-flex min-h-10 items-center self-start text-sm font-bold text-fehler" onClick={() => setMittel(mittel.filter((_, j) => j !== i))}>
                         Entfernen
                       </button>
                     )}
@@ -526,14 +526,14 @@ export function Erfassen() {
           {zeigeMittel && (
             <button
               type="button"
-              className="self-start text-sm font-extrabold text-hof"
+              className="inline-flex min-h-10 items-center self-start text-sm font-extrabold text-hof"
               onClick={() => setMittel([...mittel, { artikel_id: '', menge_je_ha: '', vom_lager: true }])}
             >
               + weiteres Mittel
             </button>
           )}
           {!mehr && (
-            <button type="button" className="self-start text-sm font-extrabold text-hof" onClick={() => setMehr(true)}>
+            <button type="button" className="inline-flex min-h-10 items-center self-start text-sm font-extrabold text-hof" onClick={() => setMehr(true)}>
               + {geplant ? 'Dauer, Maschine, Person, Lohnunternehmen, ' : ''}Teilfläche, Bemerkung
             </button>
           )}
@@ -737,7 +737,7 @@ export function Erfassen() {
         </div>
       )}
       {id && darfAendern && (
-        <button type="button" className="self-start text-sm font-bold text-fehler" onClick={loeschen}>
+        <button type="button" className="inline-flex min-h-10 items-center self-start text-sm font-bold text-fehler" onClick={loeschen}>
           Arbeit löschen
         </button>
       )}

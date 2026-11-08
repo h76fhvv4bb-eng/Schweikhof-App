@@ -201,7 +201,7 @@ export function PartnerFormular() {
         {fehler && <p className="m-0 rounded-xl bg-fehler-hell p-3 text-sm font-semibold text-fehler">{fehler}</p>}
         {darfVerwalten && <button className="knopf">Speichern</button>}
         {darfVerwalten && !neu && (
-          <button type="button" className="self-start text-sm font-bold text-fehler" onClick={archivieren}>
+          <button type="button" className="inline-flex min-h-10 items-center self-start text-sm font-bold text-fehler" onClick={archivieren}>
             Archivieren
           </button>
         )}

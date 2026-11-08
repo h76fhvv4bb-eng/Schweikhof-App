@@ -509,11 +509,11 @@ export function ErnteFormular() {
 
   return (
     <form onSubmit={speichern} className="flex flex-col gap-4">
-      <header>
-        <Link to="/ernte" className="text-sm font-bold">
-          ← Ernte
+      <header className="flex items-center gap-3">
+        <Link to="/ernte" aria-label="Zurück" className="knopf-leise h-11 w-11 shrink-0 px-0">
+          <Icon name="zurueck" />
         </Link>
-        <h1 className="m-0 text-3xl font-extrabold text-hof">{neu ? 'Ernte erfassen' : 'Ernte bearbeiten'}</h1>
+        <h1 className="m-0 text-2xl font-extrabold text-hof">{neu ? 'Ernte erfassen' : 'Ernte bearbeiten'}</h1>
       </header>
 
       <section className="karte grid gap-3 sm:grid-cols-2">
@@ -678,7 +678,7 @@ export function ErnteFormular() {
             <label className="feld-label">
               Kosten CHF
               <input className="eingabe" inputMode="decimal" value={d.kosten} onChange={(e) => aendereDienst(i, { kosten: e.target.value })} />
-              <button type="button" className="self-start text-xs font-bold text-hof" onClick={() => setRichtpreisFuer({ ziel: 'dienst', i })}>
+              <button type="button" className="inline-flex min-h-9 items-center self-start text-xs font-bold text-hof" onClick={() => setRichtpreisFuer({ ziel: 'dienst', i })}>
                 aus Richtpreis …
               </button>
             </label>
@@ -782,7 +782,7 @@ export function ErnteFormular() {
                 <label className="feld-label sm:col-span-1">
                   Preis CHF
                   <input className="eingabe" inputMode="decimal" value={a.preis} onChange={(e) => aendereAbgabe(i, { preis: e.target.value })} />
-                  <button type="button" className="self-start text-xs font-bold text-hof" onClick={() => setRichtpreisFuer({ ziel: 'abgabe', i })}>
+                  <button type="button" className="inline-flex min-h-9 items-center self-start text-xs font-bold text-hof" onClick={() => setRichtpreisFuer({ ziel: 'abgabe', i })}>
                     aus Richtpreis …
                   </button>
                 </label>

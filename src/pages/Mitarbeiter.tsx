@@ -77,7 +77,7 @@ export function MitarbeiterSeite() {
           </div>
         );
       })}
-      <button className="self-start text-sm font-bold text-hof" onClick={() => setAlle(!alle)}>
+      <button className="inline-flex min-h-10 items-center self-start text-sm font-bold text-hof" onClick={() => setAlle(!alle)}>
         {alle ? 'Nur aktive anzeigen' : 'Auch inaktive anzeigen'}
       </button>
 
