@@ -48,7 +48,7 @@ export async function sperrplanPdf(d: SperrplanDaten): Promise<Blob> {
   const rechts = doc.internal.pageSize.getWidth() - 12;
   const unten = doc.internal.pageSize.getHeight() - 14;
   const feld = (id: string) => d.felder.find((f) => f.id === id);
-  const titel = d.fuer ? `Gesperrte Flächen – ${d.fuer}` : 'Gesperrte Flächen';
+  const titel = 'Hundeschule - gesperrte Flächen';
 
   const kopf = (t: string) => {
     doc.setFillColor(...GRUEN);

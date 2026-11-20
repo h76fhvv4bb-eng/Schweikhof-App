@@ -10,10 +10,11 @@ import { tagVerschieben } from '../lib/weide';
 import { pdfHerunterladen, pdfPerMail } from '../lib/auftragPdf';
 import { Icon } from '../components/Icon';
 
-const NUTZUNGEN = ['Hundetraining', 'Spaziergänger', 'Reiter', 'Jagd'];
+/** Die Sperrungen gelten nur für die Hundeschule und haben keinen Einfluss auf andere Funktionen der App */
+const FUER = 'Hundeschule';
 const istAktiv = (s: Sperrung, tag = heuteIso()) => s.von <= tag && (s.bis == null || s.bis >= tag);
 
-/** Sperrflächen: Felder vorübergehend sperren und als Plan mit Karte weitergeben (z. B. ans Hundetraining) */
+/** Hundeschule: Felder für das Hundetraining sperren und als Plan mit Karte weitergeben */
 export function SperrungenListe() {
   const darfErfassen = !!useAuth().profil;
   const sperrungen = useSperrungen();
@@ -22,7 +23,6 @@ export function SperrungenListe() {
   const partner = usePartner();
   const betrieb = useBetrieb();
   const [stichtag, setStichtag] = useState(heuteIso());
-  const [fuer, setFuer] = useState('Hundetraining');
   const [laeuft, setLaeuft] = useState<'' | 'pdf' | 'mail'>('');
   const [fehler, setFehler] = useState<string | null>(null);
   const [alteZeigen, setAlteZeigen] = useState(false);
@@ -50,16 +50,16 @@ export function SperrungenListe() {
         weiden: weiden.data ?? [],
         partnerName: (id) => partner.data?.find((p) => p.id === id)?.name ?? null,
         stichtag,
-        fuer: fuer.trim() || null,
+        fuer: null,
       });
-      const name = `Sperrplan_${stichtag}.pdf`;
+      const name = `Hundeschule_Sperrplan_${stichtag}.pdf`;
       if (wie === 'pdf') {
         const url = URL.createObjectURL(pdf);
         if (!window.open(url, '_blank')) pdfHerunterladen(pdf, name);
       } else
         await pdfPerMail(
           pdf, name, null, `Gesperrte Flächen ab ${datum(stichtag)}`,
-          `Grüezi\n\nIm Anhang die aktuell gesperrten Flächen und die Weiden mit Tieren (Stand ${datum(stichtag)}). Bitte diese Flächen nicht betreten.\n\nFreundliche Grüsse\n${betrieb.data?.name ?? ''}`,
+          `Grüezi\n\nIm Anhang die für das Hundetraining gesperrten Flächen und die Weiden mit Tieren (Stand ${datum(stichtag)}). Bitte diese Flächen nicht betreten.\n\nFreundliche Grüsse\n${betrieb.data?.name ?? ''}`,
         );
     } catch (e) {
       setFehler(`Plan konnte nicht erstellt werden: ${e instanceof Error ? e.message : String(e)}`);
@@ -71,7 +71,7 @@ export function SperrungenListe() {
   if (sperrungen.isSuccess && sperrungen.data === null)
     return (
       <div className="flex flex-col gap-4">
-        <h1 className="m-0 text-3xl font-extrabold text-hof">Sperrflächen</h1>
+        <h1 className="m-0 text-3xl font-extrabold text-hof">Hundeschule</h1>
         <p className="karte m-0">Bitte zuerst Migration 32 in Supabase einspielen.</p>
       </div>
     );
@@ -88,7 +88,6 @@ export function SperrungenListe() {
       </div>
       <span className="text-sm text-leise">
         {datum(s.von)} – {s.bis ? datum(s.bis) : 'bis auf Weiteres'}
-        {s.fuer && ` · für ${s.fuer}`}
       </span>
       <span className="text-sm">{feldNamen(s).join(', ')}</span>
     </Link>
@@ -98,8 +97,8 @@ export function SperrungenListe() {
     <div className="flex flex-col gap-4">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <span className="text-sm font-semibold text-leise">Felder vorübergehend nicht betreten</span>
-          <h1 className="m-0 text-3xl font-extrabold text-hof">Sperrflächen</h1>
+          <span className="text-sm font-semibold text-leise">Gesperrte Felder für das Hundetraining</span>
+          <h1 className="m-0 text-3xl font-extrabold text-hof">Hundeschule</h1>
         </div>
         {darfErfassen && (
           <Link to="/sperrungen/neu" className="knopf no-underline">
@@ -111,18 +110,12 @@ export function SperrungenListe() {
       <section className="karte flex flex-col gap-3">
         <h2 className="m-0 text-lg font-extrabold">Plan mit Karte</h2>
         <span className="text-sm text-leise">
-          Gesperrte Felder rot schraffiert, Weiden mit Tieren orange, dazu die Liste. Sperrungen der nächsten 14 Tage sind als «bald gesperrt» eingezeichnet.
+          Für die Hundeschule: gesperrte Felder rot schraffiert, Weiden mit Tieren orange, dazu die Liste. Sperrungen der nächsten 14 Tage sind als «bald gesperrt» eingezeichnet.
         </span>
-        <div className="grid grid-cols-2 gap-3">
-          <label className="feld-label">
-            Stand am
-            <input className="eingabe" type="date" value={stichtag} onChange={(e) => setStichtag(e.target.value || heuteIso())} />
-          </label>
-          <label className="feld-label">
-            Für
-            <input className="eingabe" list="sperr-nutzungen" value={fuer} onChange={(e) => setFuer(e.target.value)} placeholder="alle" />
-          </label>
-        </div>
+        <label className="feld-label">
+          Stand am
+          <input className="eingabe" type="date" value={stichtag} onChange={(e) => setStichtag(e.target.value || heuteIso())} />
+        </label>
         <div className="flex gap-2">
           <button className="knopf flex-1" onClick={() => plan('pdf')} disabled={!!laeuft}>
             {laeuft === 'pdf' ? 'Erstelle …' : 'PDF'}
@@ -144,11 +137,6 @@ export function SperrungenListe() {
         </button>
       )}
       {alteZeigen && vorbei.map(karte)}
-      <datalist id="sperr-nutzungen">
-        {NUTZUNGEN.map((n) => (
-          <option key={n} value={n} />
-        ))}
-      </datalist>
     </div>
   );
 }
@@ -162,14 +150,14 @@ export function SperrungFormular() {
   const sperrungen = useSperrungen();
   const felder = useFelder();
   const vorhanden = neu ? null : (sperrungen.data ?? []).find((s) => s.id === id);
-  const [w, setW] = useState({ grund: '', fuer: 'Hundetraining', von: heuteIso(), bis: '', bemerkungen: '' });
+  const [w, setW] = useState({ grund: '', von: heuteIso(), bis: '', bemerkungen: '' });
   const [wahl, setWahl] = useState<string[]>([]);
   const [fehler, setFehler] = useState<string | null>(null);
   const [laeuft, setLaeuft] = useState(false);
 
   useEffect(() => {
     if (!vorhanden) return;
-    setW({ grund: vorhanden.grund, fuer: vorhanden.fuer ?? '', von: vorhanden.von, bis: vorhanden.bis ?? '', bemerkungen: vorhanden.bemerkungen ?? '' });
+    setW({ grund: vorhanden.grund, von: vorhanden.von, bis: vorhanden.bis ?? '', bemerkungen: vorhanden.bemerkungen ?? '' });
     setWahl(vorhanden.sperrung_felder.map((x) => x.feld_id));
   }, [vorhanden]);
 
@@ -188,7 +176,7 @@ export function SperrungFormular() {
     if (!wahl.length) return setFehler('Bitte mindestens ein Feld wählen.');
     if (w.bis && w.bis < w.von) return setFehler('Das Ende liegt vor dem Beginn.');
     setLaeuft(true);
-    const { error } = await supabase.rpc('sperrung_speichern', { p: { id: neu ? null : id, ...w, felder: wahl } });
+    const { error } = await supabase.rpc('sperrung_speichern', { p: { id: neu ? null : id, ...w, fuer: FUER, felder: wahl } });
     setLaeuft(false);
     if (error) {
       const m = fehlertext(error);
@@ -210,7 +198,7 @@ export function SperrungFormular() {
         <Link to="/sperrungen" aria-label="Zurück" className="knopf-leise h-11 w-11 shrink-0 px-0">
           <Icon name="zurueck" />
         </Link>
-        <h1 className="m-0 text-2xl font-extrabold text-hof">{neu ? 'Felder sperren' : 'Sperrung bearbeiten'}</h1>
+        <h1 className="m-0 text-2xl font-extrabold text-hof">{neu ? 'Felder für die Hundeschule sperren' : 'Sperrung bearbeiten'}</h1>
       </header>
 
       <form onSubmit={speichern} className="flex flex-col gap-4">
@@ -248,15 +236,7 @@ export function SperrungFormular() {
                 </button>
               ))}
             </div>
-            <label className="feld-label">
-              Für (z. B. Hundetraining; leer = für alle)
-              <input className="eingabe" list="sperr-nutzungen-f" value={w.fuer} onChange={(e) => setW({ ...w, fuer: e.target.value })} />
-              <datalist id="sperr-nutzungen-f">
-                {NUTZUNGEN.map((n) => (
-                  <option key={n} value={n} />
-                ))}
-              </datalist>
-            </label>
+
           </section>
 
           <section className="karte flex flex-col gap-3">

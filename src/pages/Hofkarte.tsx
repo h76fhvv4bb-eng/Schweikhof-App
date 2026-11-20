@@ -8,7 +8,7 @@ import '@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css';
 import type { MultiPolygon, Point, Polygon } from 'geojson';
 import { supabase, fehlertext } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
-import { useAnbauAlle, useBetrieb, useBeweidungen, useFelder, useHinweise, useHofobjekte, useKartenobjekte, useMaschinen, usePartner, useSperrungen } from '../lib/daten';
+import { useAnbauAlle, useBetrieb, useBeweidungen, useFelder, useHinweise, useHofobjekte, useKartenobjekte, useMaschinen, usePartner } from '../lib/daten';
 import { aktiv, aktuelleFelder } from '../lib/weide';
 import { aktuelleKulturJeFeld } from '../lib/aktuelleKultur';
 import { BFF_KURZ, schnittAb, tagMonatText } from '../lib/bff';
@@ -67,7 +67,6 @@ type Geometrie = Polygon | MultiPolygon;
 /** Was auf der Hof-Ansicht angezeigt wird (wird im Browser gemerkt) */
 const ANZEIGE_VORGABE = {
   feldNamen: true, feldInfo: true, kulturfarben: true, gebaeude: true, gebaeudeNamen: true, flaechen: true, hinweise: true, tiere: true, maschinen: true,
-  sperren: true,
 };
 type Anzeige = typeof ANZEIGE_VORGABE;
 const ANZEIGE_TEXT: [keyof Anzeige, string][] = [
@@ -78,7 +77,6 @@ const ANZEIGE_TEXT: [keyof Anzeige, string][] = [
   ['gebaeudeNamen', 'Namen der Gebäude'],
   ['maschinen', 'Traktoren und Maschinen'],
   ['tiere', 'Weidetiere'],
-  ['sperren', 'Gesperrte Felder'],
   ['hinweise', 'Feldhinweise (Gefahren)'],
   ['flaechen', 'Flächen und Orte ohne Fruchtfolge'],
 ];
@@ -108,7 +106,7 @@ export default function Hofkarte() {
   const mapRef = useRef<L.Map | null>(null);
   const ebenen = useRef<{
     luftbild: L.TileLayer; karte: L.TileLayer; parzellen: L.TileLayer; felder: L.LayerGroup; gebaeude: L.LayerGroup; hinweise: L.LayerGroup;
-    flaechen: L.LayerGroup; orte: L.LayerGroup; baeume: L.LayerGroup; tiere: L.LayerGroup; maschinen: L.LayerGroup; sperren: L.LayerGroup;
+    flaechen: L.LayerGroup; orte: L.LayerGroup; baeume: L.LayerGroup; tiere: L.LayerGroup; maschinen: L.LayerGroup;
   } | null>(null);
   const objektLayer = useRef(new Map<string, L.Layer>());
   const feldLayer = useRef(new Map<string, L.Polygon>());
@@ -181,7 +179,6 @@ export default function Hofkarte() {
   const [neuerHinweis, setNeuerHinweis] = useState<{ feldId: string; breite: number; laenge: number } | null>(null);
   const maschinen = useMaschinen();
   const weiden = useBeweidungen();
-  const sperrungen = useSperrungen();
   const betriebDaten = useBetrieb();
   const partner = usePartner();
   const [anzeige, setAnzeigeState] = useState<Anzeige>(anzeigeLaden);
@@ -228,12 +225,11 @@ export default function Hofkarte() {
     const flaechenGruppe = L.layerGroup().addTo(map);
     const orteGruppe = L.layerGroup().addTo(map);
     const baumGruppe = L.layerGroup();
-    const sperrGruppe = L.layerGroup().addTo(map);
     const tierGruppe = L.layerGroup().addTo(map);
     const maschinenGruppe = L.layerGroup().addTo(map);
     ebenen.current = {
       luftbild, karte, parzellen: parz, felder: felderGruppe, gebaeude: gebaeudeGruppe, hinweise: hinweisGruppe,
-      flaechen: flaechenGruppe, orte: orteGruppe, baeume: baumGruppe, tiere: tierGruppe, maschinen: maschinenGruppe, sperren: sperrGruppe,
+      flaechen: flaechenGruppe, orte: orteGruppe, baeume: baumGruppe, tiere: tierGruppe, maschinen: maschinenGruppe,
     };
 
     map.pm.setLang('de');
@@ -423,7 +419,6 @@ export default function Hofkarte() {
       [e.orte, hof && anzeige.flaechen],
       [e.flaechen, anzeige.flaechen],
       [e.tiere, hof && anzeige.tiere],
-      [e.sperren, hof && anzeige.sperren],
       [e.maschinen, hof && anzeige.maschinen && anzeige.gebaeude],
       [e.baeume, !hof],
     ];
@@ -433,36 +428,6 @@ export default function Hofkarte() {
     }
   }, [ebene, anzeige]);
   useEffect(() => labelsOrdnen(), [anzeige, labelsOrdnen]);
-
-  // ---------- Gesperrte Felder (rot gestrichelt, Hinweis beim Antippen) ----------
-  useEffect(() => {
-    const e = ebenen.current;
-    if (!e) return;
-    e.sperren.clearLayers();
-    const d = new Date();
-    const heute = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    const je = new Map<string, string[]>();
-    for (const s of sperrungen.data ?? []) {
-      if (s.von > heute || (s.bis != null && s.bis < heute)) continue;
-      for (const x of s.sperrung_felder)
-        je.set(x.feld_id, [...(je.get(x.feld_id) ?? []), `${s.grund}${s.fuer ? ` (${s.fuer})` : ''}${s.bis ? ` bis ${s.bis.split('-').reverse().join('.')}` : ''}`]);
-    }
-    for (const [feldId, gruende] of je) {
-      const poly = feldLayer.current.get(feldId);
-      if (!poly) continue;
-      L.polygon(poly.getLatLngs() as L.LatLngExpression[][], {
-        color: '#B91C1C', weight: 3, dashArray: '8 6', fillColor: '#DC2626', fillOpacity: 0.28, interactive: false,
-      }).addTo(e.sperren);
-      L.marker(poly.getCenter(), {
-        icon: L.divIcon({ html: '<span class="hof-sperre">gesperrt</span>', className: '', iconSize: [70, 18], iconAnchor: [35, 30] }),
-        title: `Gesperrt: ${gruende.join(', ')}`,
-        keyboard: true,
-      })
-        .bindTooltip(`Gesperrt: ${gruende.join('<br>').replace(/</g, '&lt;').replace(/&lt;br>/g, '<br>')}`, { direction: 'top' })
-        .on('click', () => navigate('/sperrungen'))
-        .addTo(e.sperren);
-    }
-  }, [sperrungen.data, felder.data, kulturJeFeld, ebene, navigate]);
 
   // ---------- Weidetiere auf ihrem aktuellen Feld ----------
   useEffect(() => {
