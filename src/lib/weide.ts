@@ -47,7 +47,14 @@ export const geplant = (b: Pick<Beweidung, 'beweidung_felder'>) => abschnitte(b)
 
 /** Felder, auf denen die Tiere heute stehen (bei beendeter Weide: die letzten) */
 export function aktuelleFelder(b: Beweidung): (WeideAbschnitt & { von: string })[] {
-  const h = heuteIso();
+  return felderAm(b, heuteIso());
+}
+
+/** Weide läuft an diesem Tag */
+export const aktivAm = (b: Pick<Beweidung, 'von' | 'bis'>, tag: string) => b.von <= tag && (b.bis == null || b.bis >= tag);
+
+/** Felder, auf denen die Tiere an diesem Tag sind (sonst die zuletzt bezogenen) */
+export function felderAm(b: Beweidung, h: string): (WeideAbschnitt & { von: string })[] {
   const jetzt = beweidet(b).filter((f) => f.von <= h && (f.bis == null || f.bis >= h));
   if (jetzt.length) return jetzt;
   const liste = abschnitte(b).filter((f): f is WeideAbschnitt & { von: string } => f.von != null && f.von <= h);

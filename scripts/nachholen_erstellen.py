@@ -14,6 +14,7 @@ MERKMAL = {
     28: "exists (select 1 from pg_constraint where conname = 'feldarbeiten_arbeitsart_check' and pg_get_constraintdef(oid) like '%Wiesenegge%')",
     30: "to_regprocedure('public.beweidung_reihenfolge(uuid)') is not null",
     31: "to_regclass('public.digiflux_lieferungen') is not null",
+    32: "to_regclass('public.sperrungen') is not null",
 }
 teile = ["""-- =====================================================================
 -- Hofmanager – fehlende fehlende Migrationen ab 18 nachholen (29 separat)

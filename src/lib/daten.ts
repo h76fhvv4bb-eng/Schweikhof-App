@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from './supabase';
 import { exportBetrieb } from './export';
 import type {
-  Beweidung, Richtpreis, GeraeteEinsatz, DigifluxLieferung,
+  Beweidung, Richtpreis, GeraeteEinsatz, DigifluxLieferung, Sperrung,
   Anbau, Feld, Feldarbeit, FeldHinweis, FlaecheJeKultur, Hofobjekt, Kultur, Lagerbestand, Maschine, MaschinenEintrag,
   NaehrstoffeJeFeld, Partner, WartungFaellig, Wartungsplan, Auftrag, Ernte, Kartenobjekt, Aufgabe, Mitarbeiter, Betrieb, Verkauf, Foto, MaschinenTeil,
 } from './typen';
@@ -212,6 +212,18 @@ export function useDigifluxLieferungen() {
       const { data, error } = await supabase.from('digiflux_lieferungen').select('id, dfx_id, quelle, status, lieferdatum, abgeber, abgeber_id, produkt, produkt_id, produkt_quelle, produktfamilie, menge, einheit, lieferschein_nr, kommentar, artikel_id, lagerbewegung_id, ignoriert').order('lieferdatum', { ascending: false });
       if (error) return null;
       return data as DigifluxLieferung[];
+    },
+  });
+}
+
+/** Sperrflächen (leer bzw. null, solange Migration 32 fehlt) */
+export function useSperrungen() {
+  return useQuery({
+    queryKey: ['sperrungen'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('sperrungen').select('*, sperrung_felder(feld_id)').order('von', { ascending: false });
+      if (error) return null;
+      return data as Sperrung[];
     },
   });
 }
