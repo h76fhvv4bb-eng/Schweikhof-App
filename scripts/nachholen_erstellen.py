@@ -15,6 +15,7 @@ MERKMAL = {
     30: "to_regprocedure('public.beweidung_reihenfolge(uuid)') is not null",
     31: "to_regclass('public.digiflux_lieferungen') is not null",
     32: "to_regclass('public.sperrungen') is not null",
+    33: "to_regclass('public.hundeschule_felder') is not null",
 }
 teile = ["""-- =====================================================================
 -- Hofmanager – fehlende fehlende Migrationen ab 18 nachholen (29 separat)

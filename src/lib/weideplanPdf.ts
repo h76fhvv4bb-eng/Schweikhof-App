@@ -287,14 +287,14 @@ export async function weideplanPdf(d: WeideplanDaten): Promise<Blob> {
       s.bis || b.bis ? String(weidetage({ von: s.von, bis: s.bis ?? b.bis })) : '', hw.join('; '),
     ];
   });
-  y = tabelle(doc, y, 'Nr.', spalten, zeilen, { links, unten, leer: 0, neueSeite: () => kopf('Weideplan (Fortsetzung)') });
+  y = tabelle(doc, y, 'Nr.', spalten, zeilen, { links, unten, leer: 0, neueSeite: () => (doc.addPage(), kopf('Weideplan (Fortsetzung)')) });
 
   if (b.bemerkungen) {
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(9);
     doc.setTextColor(30, 42, 32);
     const z = doc.splitTextToSize(pdfText(b.bemerkungen), rechts - links) as string[];
-    if (y + 8 + z.length * 4 > unten) y = kopf('Weideplan (Fortsetzung)');
+    if (y + 8 + z.length * 4 > unten) y = (doc.addPage(), kopf('Weideplan (Fortsetzung)'));
     doc.text('Bemerkungen', links, y + 5);
     doc.setFont('helvetica', 'normal');
     doc.text(z, links, y + 10);

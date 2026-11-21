@@ -29,7 +29,7 @@ import { BetriebSeite } from './pages/Betrieb';
 import { RichtpreiseSeite } from './pages/Richtpreise';
 import { DigiFluxSeite } from './pages/DigiFlux';
 import { DirektzahlungenSeite } from './pages/Direktzahlungen';
-import { SperrungenListe, SperrungFormular } from './pages/Sperrungen';
+import { HundeschuleSeite } from './pages/Hundeschule';
 import { WeideFormular, WeideListe } from './pages/Weide';
 
 export function App() {
@@ -73,8 +73,8 @@ export function App() {
         <Route path="richtpreise" element={<RichtpreiseSeite />} />
         <Route path="digiflux" element={<DigiFluxSeite />} />
         <Route path="direktzahlungen" element={<DirektzahlungenSeite />} />
-        <Route path="sperrungen" element={<SperrungenListe />} />
-        <Route path="sperrungen/:id" element={<SperrungFormular />} />
+        <Route path="hundeschule" element={<HundeschuleSeite />} />
+        <Route path="sperrungen/*" element={<Navigate to="/hundeschule" replace />} />
         <Route path="weide" element={<WeideListe />} />
         <Route path="weide/neu" element={<WeideFormular />} />
         <Route path="weide/:id" element={<WeideFormular />} />

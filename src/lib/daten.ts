@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from './supabase';
 import { exportBetrieb } from './export';
 import type {
-  Beweidung, Richtpreis, GeraeteEinsatz, DigifluxLieferung, Sperrung,
+  Beweidung, Richtpreis, GeraeteEinsatz, DigifluxLieferung, HundeschuleFeld,
   Anbau, Feld, Feldarbeit, FeldHinweis, FlaecheJeKultur, Hofobjekt, Kultur, Lagerbestand, Maschine, MaschinenEintrag,
   NaehrstoffeJeFeld, Partner, WartungFaellig, Wartungsplan, Auftrag, Ernte, Kartenobjekt, Aufgabe, Mitarbeiter, Betrieb, Verkauf, Foto, MaschinenTeil,
 } from './typen';
@@ -216,14 +216,14 @@ export function useDigifluxLieferungen() {
   });
 }
 
-/** Sperrflächen (leer bzw. null, solange Migration 32 fehlt) */
-export function useSperrungen() {
+/** Hundeschule: freie/gesperrte Felder (null, solange Migration 33 fehlt) */
+export function useHundeschule() {
   return useQuery({
-    queryKey: ['sperrungen'],
+    queryKey: ['hundeschule'],
     queryFn: async () => {
-      const { data, error } = await supabase.from('sperrungen').select('*, sperrung_felder(feld_id)').order('von', { ascending: false });
+      const { data, error } = await supabase.from('hundeschule_felder').select('feld_id, frei, bemerkung, geaendert_am');
       if (error) return null;
-      return data as Sperrung[];
+      return data as HundeschuleFeld[];
     },
   });
 }

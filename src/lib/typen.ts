@@ -549,6 +549,8 @@ export interface Betrieb {
   zahlungsfrist_tage?: number;
   /** digiFLUX-Standort (DFLID oder BUR), Migration 31 */
   dflid?: string | null;
+  /** Hinweis an die Hundeschule, Migration 33 */
+  hundeschule_hinweis?: string | null;
   betriebsnummer?: string | null;
   bewirtschafter?: string | null;
   gemeinde?: string | null;
@@ -683,15 +685,10 @@ export interface DigifluxLieferung {
   ignoriert: boolean;
 }
 
-/** Gesperrte Felder (Migration 32), z. B. für Hundetraining */
-export interface Sperrung {
-  id: string;
-  grund: string;
-  fuer: string | null;
-  partner_id: string | null;
-  von: string;
-  bis: string | null;
-  bemerkungen: string | null;
-  sperrung_felder: { feld_id: string }[];
+/** Hundeschule (Migration 33): pro Feld frei oder gesperrt; ohne Eintrag = gesperrt */
+export interface HundeschuleFeld {
+  feld_id: string;
+  frei: boolean;
+  bemerkung: string | null;
+  geaendert_am: string;
 }
-export const SPERRGRUENDE = ['Frisch gesät', 'Wiese vor dem Schnitt', 'Ernte / Mähen', 'Pflanzenschutz', 'Düngung (Gülle/Mist)', 'Nasser Boden', 'Tiere auf der Weide'] as const;

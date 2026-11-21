@@ -236,3 +236,23 @@ export function pdfHerunterladen(pdf: Blob, dateiname: string) {
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 2000);
 }
+
+/**
+ * PDF per WhatsApp: auf dem Handy öffnet sich das Teilen-Menü mit PDF und Text (dort WhatsApp wählen).
+ * Ohne Teilen-Funktion (z. B. am Computer) wird das PDF gespeichert und WhatsApp mit dem Text geöffnet.
+ */
+export async function pdfPerWhatsapp(pdf: Blob, dateiname: string, text: string): Promise<'geteilt' | 'whatsapp' | 'abgebrochen'> {
+  const datei = new File([pdf], dateiname, { type: 'application/pdf' });
+  const nav = navigator as Navigator & { canShare?: (d: ShareData) => boolean };
+  if (nav.canShare?.({ files: [datei], text })) {
+    try {
+      await nav.share({ files: [datei], text });
+      return 'geteilt';
+    } catch (e) {
+      if (e instanceof DOMException && e.name === 'AbortError') return 'abgebrochen';
+    }
+  }
+  pdfHerunterladen(pdf, dateiname);
+  window.open(`https://wa.me/?text=${encodeURIComponent(`${text}\n(PDF «${dateiname}» bitte anhängen)`)}`, '_blank');
+  return 'whatsapp';
+}

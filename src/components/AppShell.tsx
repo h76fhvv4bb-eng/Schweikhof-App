@@ -20,7 +20,7 @@ export const NAVIGATION: { pfad: string; text: string; icon: IconName; gruppe: s
   { pfad: '/maschinen', text: 'Maschinen', icon: 'traktor', gruppe: 'Betrieb' },
   { pfad: '/mitarbeiter', text: 'Mitarbeitende', icon: 'partner', gruppe: 'Betrieb' },
   { pfad: '/partner', text: 'Partner', icon: 'partner', gruppe: 'Betrieb' },
-  { pfad: '/sperrungen', text: 'Hundeschule', icon: 'warnung', gruppe: 'Betrieb' },
+  { pfad: '/hundeschule', text: 'Hundeschule', icon: 'warnung', gruppe: 'Betrieb' },
   { pfad: '/weide', text: 'Weidegäste', icon: 'weide', gruppe: 'Betrieb' },
   { pfad: '/richtpreise', text: 'Richtpreise', icon: 'verkauf', gruppe: 'Betrieb' },
   { pfad: '/betrieb', text: 'Betrieb', icon: 'heute', gruppe: 'Betrieb' },
