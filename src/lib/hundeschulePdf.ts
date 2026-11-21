@@ -6,7 +6,7 @@ const datum = (iso: string) => `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.sli
 const nr = (a: Feld, b: Feld) => a.feldnummer.localeCompare(b.feldnummer, 'de-CH', { numeric: true });
 
 /** Plan für die Hundeschule: Karte mit freien (grün) und gesperrten (rot) Feldern, dazu beide Listen */
-export async function hundeschulePdf(d: { betrieb: Betrieb | null; felder: Feld[]; status: HundeschuleFeld[]; stand: string }): Promise<Blob> {
+export async function hundeschulePdf(d: { betrieb: Betrieb | null; felder: Feld[]; status: HundeschuleFeld[]; stand: string; kultur?: (f: Feld) => string }): Promise<Blob> {
   const { jsPDF } = await import('jspdf');
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
   const links = 12;
@@ -87,10 +87,11 @@ export async function hundeschulePdf(d: { betrieb: Betrieb | null; felder: Feld[
   };
   const spalten: Spalte[] = [
     { titel: 'Nr.', breite: 14 },
-    { titel: 'Feld', breite: 64 },
-    { titel: 'Bemerkung', breite: rechts - links - 78 },
+    { titel: 'Feld', breite: 58 },
+    { titel: 'Kultur', breite: 48 },
+    { titel: 'Bemerkung', breite: rechts - links - 120 },
   ];
-  const zeilen = (l: Feld[]) => (l.length ? l.map((f) => [f.feldnummer, f.name, st(f)?.bemerkung ?? '']) : [['', 'keine', '']]);
+  const zeilen = (l: Feld[]) => (l.length ? l.map((f) => [f.feldnummer, f.name, d.kultur?.(f) ?? '', st(f)?.bemerkung ?? '']) : [['', 'keine', '', '']]);
   abschnitt(`Frei (${frei.length})`, [21, 128, 61]);
   y = tabelle(doc, y, 'Nr.', spalten, zeilen(frei), { links, unten, leer: 0, neueSeite: () => (doc.addPage(), kopf('Hundeschule (Fortsetzung)')) });
   y += 3;

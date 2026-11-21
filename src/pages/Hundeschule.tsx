@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase, fehlertext } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
-import { useBetrieb, useFelder, useHundeschule } from '../lib/daten';
+import { useAnbauAlle, useBetrieb, useFelder, useHundeschule } from '../lib/daten';
+import { aktuelleKulturJeFeld } from '../lib/aktuelleKultur';
 import { ha, heuteIso } from '../lib/format';
-import type { HundeschuleFeld } from '../lib/typen';
+import type { Anbau, Feld, HundeschuleFeld } from '../lib/typen';
 import { pdfHerunterladen, pdfPerMail, pdfPerWhatsapp } from '../lib/auftragPdf';
 
 /**
@@ -17,6 +18,11 @@ export function HundeschuleSeite() {
   const felder = useFelder();
   const status = useHundeschule();
   const betrieb = useBetrieb();
+  const jahr = new Date().getFullYear();
+  const anbau = useAnbauAlle(jahr - 1, jahr + 1);
+  const kulturen = useMemo(() => aktuelleKulturJeFeld((anbau.data ?? []) as Anbau[]), [anbau.data]);
+  /** aktuelle Kultur, bei Wiesen ohne Kultur die Nutzung */
+  const kultur = (f: Feld) => kulturen.get(f.id)?.eintrag.kulturen?.name ?? f.bff_typ ?? f.nutzungsart ?? '';
   const [notizOffen, setNotizOffen] = useState<string | null>(null);
   const [hinweis, setHinweis] = useState('');
   const [fehler, setFehler] = useState<string | null>(null);
@@ -55,7 +61,7 @@ export function HundeschuleSeite() {
     try {
       const { hundeschulePdf } = await import('../lib/hundeschulePdf');
       const stand = heuteIso();
-      const pdf = await hundeschulePdf({ betrieb: betrieb.data ?? null, felder: felder.data ?? [], status: status.data ?? [], stand });
+      const pdf = await hundeschulePdf({ betrieb: betrieb.data ?? null, felder: felder.data ?? [], status: status.data ?? [], stand, kultur });
       const name = `Hundeschule_Felder_${stand}.pdf`;
       if (wie === 'pdf') {
         const url = URL.createObjectURL(pdf);
@@ -154,8 +160,11 @@ export function HundeschuleSeite() {
                   onClick={() => setNotizOffen(notizOffen === f.id ? null : f.id)}
                   aria-label={`${f.name}: Bemerkung`}
                 >
-                  <b className="line-clamp-2 leading-tight">{f.name}</b>
-                  <span className={`text-xs ${s?.bemerkung ? 'font-semibold text-text' : 'text-leise'}`}>{s?.bemerkung || ha(Number(f.flaeche_m2))}</span>
+                  <b className="line-clamp-2 break-words [overflow-wrap:anywhere] leading-tight">{f.name}</b>
+                  <span className="text-xs text-leise">
+                    {[kultur(f), ha(Number(f.flaeche_m2))].filter(Boolean).join(' · ')}
+                  </span>
+                  {s?.bemerkung && <span className="text-xs font-semibold text-text">{s.bemerkung}</span>}
                 </button>
                 <div className="grid shrink-0 grid-cols-2 overflow-hidden rounded-xl border-2 border-linie" role="group" aria-label={`${f.name}: frei oder gesperrt`}>
                   <button
