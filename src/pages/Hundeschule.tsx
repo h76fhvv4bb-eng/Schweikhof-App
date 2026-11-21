@@ -77,10 +77,9 @@ export function HundeschuleSeite() {
         const url = URL.createObjectURL(pdf);
         if (!window.open(url, '_blank')) pdfHerunterladen(pdf, name);
       } else if (wie === 'whatsapp') {
-        const freiListe = liste.filter((f) => st(f.id)?.frei && !tiere.has(f.id)).map((f) => `${f.feldnummer} ${f.name}`);
         await pdfPerWhatsapp(
           pdf, name,
-          `Hallo 🐕 Hier der aktuelle Plan vom ${stand.split('-').reverse().join('.')}: Frei sind ${freiListe.length ? freiListe.join(', ') : 'zurzeit keine Felder'}. Alle anderen Felder sind gesperrt (rot im Plan), gelb = Tiere auf der Weide, bitte nicht betreten. Danke und viel Spass beim Training!${betrieb.data?.name ? ` – ${betrieb.data.name}` : ''}`,
+          `Hallo 🐕 Hier der aktuelle Plan vom ${stand.split('-').reverse().join('.')}: Einige Felder sind gesperrt (rot im Plan), gelb = Tiere auf der Weide, bitte nicht betreten. Danke und viel Spass beim Training!${betrieb.data?.name ? ` – ${betrieb.data.name}` : ''}`,
         );
       } else
         await pdfPerMail(
