@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase, fehlertext } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
-import { useAnbauAlle, useBetrieb, useFelder, useHundeschule } from '../lib/daten';
+import { useAnbauAlle, useBetrieb, useBeweidungen, useFelder, useHundeschule } from '../lib/daten';
+import { aktivAm, felderAm } from '../lib/weide';
 import { aktuelleKulturJeFeld } from '../lib/aktuelleKultur';
 import { ha, heuteIso } from '../lib/format';
 import type { Anbau, Feld, HundeschuleFeld } from '../lib/typen';
@@ -23,6 +24,15 @@ export function HundeschuleSeite() {
   const kulturen = useMemo(() => aktuelleKulturJeFeld((anbau.data ?? []) as Anbau[]), [anbau.data]);
   /** aktuelle Kultur, bei Wiesen ohne Kultur die Nutzung */
   const kultur = (f: Feld) => kulturen.get(f.id)?.eintrag.kulturen?.name ?? f.bff_typ ?? f.nutzungsart ?? '';
+  const weiden = useBeweidungen();
+  /** Felder, auf denen heute Tiere weiden: feld_id → «12 Schafe» */
+  const tiere = useMemo(() => {
+    const h = heuteIso();
+    const m = new Map<string, string>();
+    for (const b of (weiden.data ?? []).filter((w) => aktivAm(w, h)))
+      for (const a of felderAm(b, h)) m.set(a.feld_id, [m.get(a.feld_id), `${b.anzahl} ${b.tierart}`].filter(Boolean).join(', '));
+    return m;
+  }, [weiden.data]);
   const [notizOffen, setNotizOffen] = useState<string | null>(null);
   const [hinweis, setHinweis] = useState('');
   const [fehler, setFehler] = useState<string | null>(null);
@@ -61,21 +71,21 @@ export function HundeschuleSeite() {
     try {
       const { hundeschulePdf } = await import('../lib/hundeschulePdf');
       const stand = heuteIso();
-      const pdf = await hundeschulePdf({ betrieb: betrieb.data ?? null, felder: felder.data ?? [], status: status.data ?? [], stand, kultur });
+      const pdf = await hundeschulePdf({ betrieb: betrieb.data ?? null, felder: felder.data ?? [], status: status.data ?? [], stand, kultur, tiere });
       const name = `Hundeschule_Felder_${stand}.pdf`;
       if (wie === 'pdf') {
         const url = URL.createObjectURL(pdf);
         if (!window.open(url, '_blank')) pdfHerunterladen(pdf, name);
       } else if (wie === 'whatsapp') {
-        const freiListe = liste.filter((f) => st(f.id)?.frei).map((f) => `${f.feldnummer} ${f.name}`);
+        const freiListe = liste.filter((f) => st(f.id)?.frei && !tiere.has(f.id)).map((f) => `${f.feldnummer} ${f.name}`);
         await pdfPerWhatsapp(
           pdf, name,
-          `Hallo 🐕 Hier der aktuelle Plan vom ${stand.split('-').reverse().join('.')}: Frei sind ${freiListe.length ? freiListe.join(', ') : 'zurzeit keine Felder'}. Alle anderen Felder sind gesperrt (rot im Plan). Danke und viel Spass beim Training!${betrieb.data?.name ? ` – ${betrieb.data.name}` : ''}`,
+          `Hallo 🐕 Hier der aktuelle Plan vom ${stand.split('-').reverse().join('.')}: Frei sind ${freiListe.length ? freiListe.join(', ') : 'zurzeit keine Felder'}. Alle anderen Felder sind gesperrt (rot im Plan), gelb = Tiere auf der Weide, bitte nicht betreten. Danke und viel Spass beim Training!${betrieb.data?.name ? ` – ${betrieb.data.name}` : ''}`,
         );
       } else
         await pdfPerMail(
           pdf, name, null, 'Hundeschule: freie und gesperrte Felder',
-          `Grüezi\n\nIm Anhang der aktuelle Plan: grün = frei, rot = gesperrt.\n\nFreundliche Grüsse\n${betrieb.data?.name ?? ''}`,
+          `Grüezi\n\nIm Anhang der aktuelle Plan: grün = frei, rot = gesperrt, gelb = Tiere auf der Weide.\n\nFreundliche Grüsse\n${betrieb.data?.name ?? ''}`,
         );
     } catch (e) {
       setFehler(`Plan konnte nicht erstellt werden: ${e instanceof Error ? e.message : String(e)}`);
@@ -121,7 +131,7 @@ export function HundeschuleSeite() {
             {laeuft === 'mail' ? 'Erstelle …' : 'E-Mail'}
           </button>
         </div>
-        <span className="text-xs text-leise">Plan mit Luftbild: freie Felder grün, gesperrte rot. Felder ohne Angabe gelten als gesperrt.</span>
+        <span className="text-xs text-leise">Plan mit Luftbild: freie Felder grün, gesperrte rot, Weiden mit Tieren gelb. Felder ohne Angabe gelten als gesperrt.</span>
       </section>
 
       {fehler && <p className="m-0 rounded-xl bg-fehler-hell p-3 text-sm font-semibold text-fehler">{fehler}</p>}
@@ -164,6 +174,9 @@ export function HundeschuleSeite() {
                   <span className="text-xs text-leise">
                     {[kultur(f), ha(Number(f.flaeche_m2))].filter(Boolean).join(' · ')}
                   </span>
+                  {tiere.has(f.id) && (
+                    <span className="mt-0.5 w-fit rounded-md bg-[#FACC15] px-1.5 text-xs font-extrabold text-[#5C4400]">🐄 Tiere: {tiere.get(f.id)}</span>
+                  )}
                   {s?.bemerkung && <span className="text-xs font-semibold text-text">{s.bemerkung}</span>}
                 </button>
                 <div className="grid shrink-0 grid-cols-2 overflow-hidden rounded-xl border-2 border-linie" role="group" aria-label={`${f.name}: frei oder gesperrt`}>

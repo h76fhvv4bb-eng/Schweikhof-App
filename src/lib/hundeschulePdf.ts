@@ -6,7 +6,7 @@ const datum = (iso: string) => `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.sli
 const nr = (a: Feld, b: Feld) => a.feldnummer.localeCompare(b.feldnummer, 'de-CH', { numeric: true });
 
 /** Plan für die Hundeschule: Karte mit freien (grün) und gesperrten (rot) Feldern, dazu beide Listen */
-export async function hundeschulePdf(d: { betrieb: Betrieb | null; felder: Feld[]; status: HundeschuleFeld[]; stand: string; kultur?: (f: Feld) => string }): Promise<Blob> {
+export async function hundeschulePdf(d: { betrieb: Betrieb | null; felder: Feld[]; status: HundeschuleFeld[]; stand: string; kultur?: (f: Feld) => string; tiere?: Map<string, string> }): Promise<Blob> {
   const { jsPDF } = await import('jspdf');
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
   const links = 12;
@@ -15,8 +15,7 @@ export async function hundeschulePdf(d: { betrieb: Betrieb | null; felder: Feld[
   const titel = 'Hundeschule - freie und gesperrte Felder';
   const st = (f: Feld) => d.status.find((s) => s.feld_id === f.id);
   const felder = d.felder.filter((f) => f.status !== 'aufgegeben').sort(nr);
-  const frei = felder.filter((f) => st(f)?.frei);
-  const gesperrt = felder.filter((f) => !st(f)?.frei);
+  const gesperrt = felder.filter((f) => !st(f)?.frei || d.tiere?.has(f.id));
 
   const kopf = (t: string) => {
     doc.setFillColor(...GRUEN);
@@ -43,6 +42,17 @@ export async function hundeschulePdf(d: { betrieb: Betrieb | null; felder: Feld[
   const kartenFelder: KartenFeld[] = felder
     .filter((f) => f.geometrie)
     .map((f) => {
+      const tier = d.tiere?.get(f.id);
+      if (tier)
+        return {
+          geometrie: f.geometrie!,
+          fuellung: 'rgba(250,204,21,0.6)',
+          rand: '#CA8A04',
+          randBreite: 4,
+          marke: f.feldnummer,
+          markeFarbe: '#A16207',
+          zeilen: [{ text: `TIERE: ${tier}`, farbe: '#713F12', fett: true }],
+        };
       const ok = !!st(f)?.frei;
       return {
         geometrie: f.geometrie!,
@@ -59,6 +69,7 @@ export async function hundeschulePdf(d: { betrieb: Betrieb | null; felder: Feld[
     legende: [
       { farbe: 'rgba(34,160,70,0.85)', text: 'frei – darf genutzt werden' },
       { farbe: 'rgba(220,38,38,0.8)', text: 'gesperrt – bitte nicht betreten', schraffur: true },
+      ...(d.tiere?.size ? [{ farbe: 'rgba(250,204,21,0.95)', text: 'Tiere auf der Weide – nicht betreten' }] : []),
     ],
   }).catch(() => null);
   if (karte) {
@@ -91,11 +102,9 @@ export async function hundeschulePdf(d: { betrieb: Betrieb | null; felder: Feld[
     { titel: 'Kultur', breite: 48 },
     { titel: 'Bemerkung', breite: rechts - links - 120 },
   ];
-  const zeilen = (l: Feld[]) => (l.length ? l.map((f) => [f.feldnummer, f.name, d.kultur?.(f) ?? '', st(f)?.bemerkung ?? '']) : [['', 'keine', '', '']]);
-  abschnitt(`Frei (${frei.length})`, [21, 128, 61]);
-  y = tabelle(doc, y, 'Nr.', spalten, zeilen(frei), { links, unten, leer: 0, neueSeite: () => (doc.addPage(), kopf('Hundeschule (Fortsetzung)')) });
-  y += 3;
-  abschnitt(`Gesperrt (${gesperrt.length})`, [185, 28, 28]);
+  const bem = (f: Feld) => [d.tiere?.has(f.id) ? `Tiere: ${d.tiere.get(f.id)}` : '', st(f)?.bemerkung ?? ''].filter(Boolean).join(' - ');
+  const zeilen = (l: Feld[]) => (l.length ? l.map((f) => [f.feldnummer, f.name, d.kultur?.(f) ?? '', bem(f)]) : [['', 'keine', '', '']]);
+  abschnitt(`Gesperrte Felder (${gesperrt.length}) - alle übrigen Felder sind frei`, [185, 28, 28]);
   y = tabelle(doc, y, 'Nr.', spalten, zeilen(gesperrt), { links, unten, leer: 0, neueSeite: () => (doc.addPage(), kopf('Hundeschule (Fortsetzung)')) });
 
   const hinweis = [d.betrieb?.hundeschule_hinweis, 'Gesperrte Felder bitte nicht betreten. Im Zweifel kurz nachfragen. Danke!'].filter(Boolean).join('\n');
